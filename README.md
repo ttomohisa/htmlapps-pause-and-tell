@@ -4,9 +4,15 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.2.0 workflow prototype — not a production release.** Drawing tools, native-mobile reliability, and browser compatibility are not yet verified.
+**Current status: v0.3.0 annotation and recording prototype — not a production release.** Drawing tools, native-mobile reliability, and browser compatibility are not yet verified.
 
-## What works in v0.2.0
+## What works in v0.3.0
+
+- **Circle/ellipse, arrow and freehand pen** drawing on the source. Choose yellow, white or red; every mark uses a dark outline for legibility.
+- Drawing on a playing source **pauses only source playback**. The microphone and output recording continue to advance.
+- Stroke positions are recorded in normalized source-video coordinates and composited onto the exact Canvas that is captured for export. UI controls and pointer overlays are not included in the output.
+- **Undo line** removes only the last visible stroke; **Clear lines** removes all currently visible marks. Previously recorded frames/voice cannot be rewritten. Marks also clear when the source is resumed, the recording begins, the input changes or a new take starts.
+- Works with mouse, pen and touch pointer gestures in the browser; native iOS/Android drawing and recording need physical-device validation (G3).
 
 - A clear **Choose video → Record explanation → Save video** stage indicator and visible selected-file information.
 - An explicit microphone explanation before recording, a loading state, and an interruption warning in the output review.
@@ -21,7 +27,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - Choose an editable filename and download the actual MP4 or WebM format chosen by the browser.
 - Switch Japanese / English, inspect locally held diagnostics, and retry without uploading files.
 
-**Not in v0.2.0:** Circles, arrows, drawing, tap highlights, source audio, sharing, timeline editing. They have their own stages in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+**Not in v0.3.0:** One-tap ring highlight, original source-video audio mixing, sharing, timeline editing. These are staged in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## How to try
 
@@ -31,13 +37,13 @@ Pause a source video while recording your spoken explanation. The output recordi
 4. Press **Play source video**, then **Pause source video** to explain the static frame aloud. The recording timer continues.
 5. Press **Finish recording**, review the entire output and download it. The file is not automatically saved across reloads.
 
-Use a quiet, short source video for the initial test. Source-audio capture is intentionally off; only your microphone is recorded.
+Use a quiet, short source video for the initial test. Source-audio capture is intentionally off; only your microphone is recorded. After starting, choose a drawing tool and drag on the video; marks are included in the output until cleared or source playback resumes.
 
 ## Critical POC test
 
 Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while speaking, then play the remaining **12 seconds**. Verify that the result is about **40 seconds** long, the frozen frames persist during the pause, and voice audio continues. Allow for the initial pause before pressing Play and manual button timing. Record browser/OS/device, real duration, codec/container, and any sync problems. See [G1 validation protocol](docs/G1_VALIDATION.md).
 
-This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
+This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
 ## Privacy
 
