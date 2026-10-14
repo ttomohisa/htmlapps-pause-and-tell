@@ -520,8 +520,9 @@
       }
       #ptStudioPanel .pt-transport .button { min-width:0; width:100%; min-height:50px; padding:7px; font-size:14px; }
       body:has(#ptStudioPanel:not([hidden])) .main { padding-bottom:calc(98px + env(safe-area-inset-bottom)); }
-      .pt-stage canvas { max-height:min(54dvh,540px); }
-      .pt-stage { max-height:56dvh; }
+      /* Use a more specific selector than the shared canvas rule. */
+      #ptStudioPanel .pt-stage canvas { max-height:min(51dvh,520px); }
+      #ptStudioPanel .pt-stage { max-height:53dvh; }
     }
     @media (max-width:380px) {
       .pt-draw-tool { font-size:11px; }
@@ -1248,9 +1249,10 @@
       function focusWorkflowSection(selector) {
         if (!isCompactVideoLayout()) return;
         requestAnimationFrame(() => {
-          const target=$(selector);
+          const portraitSource = selector==='.pt-draw-panel' && stageCanvas.height>stageCanvas.width;
+          const target=portraitSource ? stageCanvas : $(selector);
           if (!target || !target.getClientRects().length) return;
-          target.scrollIntoView({block:'start',behavior:'instant'});
+          target.scrollIntoView({block:portraitSource?'center':'start',behavior:'instant'});
         });
       }
       function showDrawableStage() {
