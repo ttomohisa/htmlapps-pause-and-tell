@@ -1088,7 +1088,7 @@
         phase: 'empty', generation: 0, input: null, inputUrl: '', outputUrl: '', outputBlob: null,
         recorder: null, mediaStream: null, micStream: null, canvasStream: null, chunks: [],
         startedAt: 0, recordedMs: 0, outputDuration: NaN, outputMime: '', outputExt: '',
-        renderTimer: null, clockTimer: null, statusKey: '', saveRequested: false, autoStopped: false
+        renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
       };
       const diagnostics = [];
       const formatTime = milliseconds => {
@@ -1123,6 +1123,15 @@
       }
       function setPhase(phase) {
         state.phase = phase;
+        const currentStep = ['empty','loading','error'].includes(phase) ? 1 : phase === 'result' ? 3 : 2;
+        document.querySelectorAll('#ptSteps .pt-step').forEach(step => {
+          const number = Number(step.dataset.step);
+          step.dataset.state = number === currentStep ? 'current' : number < currentStep ? 'done' : 'upcoming';
+          if (number === currentStep) step.setAttribute('aria-current','step');
+          else step.removeAttribute('aria-current');
+        });
+        $('#ptLoading').hidden = phase !== 'loading';
+        $('#ptMicNote').hidden = phase !== 'ready';
         $('#ptInputPanel').hidden = !['empty','loading','error'].includes(phase);
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
         $('#ptResultPanel').hidden = phase !== 'result';
@@ -1132,7 +1141,7 @@
         $('#ptStop').disabled = phase !== 'recording';
         $('#ptSeek').disabled = phase !== 'ready';
         $('#ptFile').disabled = busy;
-        document.querySelectorAll('.pt-change-input').forEach(input => { input.disabled = busy; });
+        document.querySelectorAll('.pt-change-input').forEach(input => { input.disabled = busy || phase === 'recording'; });
         const badge = $('#ptRecordBadge');
         badge.classList.toggle('live',phase === 'recording');
         badge.textContent = translate(phase === 'recording' ? 'recording' : phase === 'preparing' ? 'preparing' : phase === 'finalizing' ? 'finalizing' : 'notRecording');
@@ -1147,7 +1156,7 @@
         document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = translate(element.dataset.i18n); });
         document.querySelectorAll('[data-i18n-title]').forEach(element => { element.title = translate(element.dataset.i18nTitle); });
         document.querySelectorAll('[data-i18n-aria-label]').forEach(element => { element.setAttribute('aria-label', translate(element.dataset.i18nAriaLabel)); });
-        $('#languageButton').textContent = language === 'ja' ? 'EN' : '日本語';
+        $('#languageButton').textContent = language === 'ja' ? 'EN' : 'JA';
         $('#languageButton').setAttribute('aria-label', language === 'ja' ? '英語に切り替え' : 'Switch to Japanese');
         document.title = APP_CONFIG.name;
         $('#brandName').textContent = APP_CONFIG.name;
@@ -1155,7 +1164,10 @@
         if (state.statusKey) $('#ptMessage').textContent = translate(state.statusKey);
         updateTransport();
         setPhase(state.phase);
-        if (state.outputBlob) updateResultMeta();
+        if (state.outputBlob) {
+          updateResultMeta();
+          if (state.resultStatusKey) $('#ptResultWarning').textContent = translate(state.resultStatusKey);
+        }
       }
       function releaseCapture() {
         if (state.micStream) state.micStream.getTracks().forEach(track => track.stop());
@@ -1181,6 +1193,8 @@
         state.outputDuration = NaN;
         state.recordedMs = 0;
         state.saveRequested = false;
+        state.resultStatusKey = '';
+        state.stopReason = '';
       }
       function resetResources() {
         state.generation += 1;
@@ -1200,6 +1214,8 @@
         if (state.inputUrl) URL.revokeObjectURL(state.inputUrl);
         state.inputUrl = '';
         state.input = null;
+        $('#ptCurrentFile').textContent = '';
+        $('#ptCurrentFile').hidden = true;
         state.chunks = [];
         state.startedAt = 0;
       }
@@ -1275,6 +1291,8 @@
           stageCanvas.height = Math.max(2,Math.round(sourceVideo.videoHeight*scale/2)*2);
           $('#ptFileDetails').textContent = file.name + ' · ' + formatTime(duration*1000) + ' · ' + sourceVideo.videoWidth + ' × ' + sourceVideo.videoHeight + ' · ' + formatBytes(file.size);
           $('#ptFileDetails').hidden = false;
+          $('#ptCurrentFile').textContent = $('#ptFileDetails').textContent;
+          $('#ptCurrentFile').hidden = false;
           state.statusKey = 'sourceReady';
           setPhase('ready');
           setStatus('sourceReady');
@@ -1347,6 +1365,7 @@
           state.chunks = [];
           state.recordedMs = 0;
           state.autoStopped = false;
+          state.stopReason = '';
           state.recorder.ondataavailable = event => { if (withinSession(token) && event.data && event.data.size) state.chunks.push(event.data); };
           state.recorder.onerror = event => {
             logDetail('Recorder error: ' + (event.error?.message || event.type));
@@ -1383,6 +1402,7 @@
         if (state.phase !== 'recording' || !state.recorder) return;
         state.recordedMs = Math.max(0, performance.now() - state.startedAt);
         state.autoStopped = reason !== 'manual';
+        state.stopReason = reason;
         setPhase('finalizing');
         setStatus(reason === 'manual' || reason === 'limit' ? 'recordingEnded' : 'interrupted');
         sourceVideo.pause();
@@ -1457,7 +1477,10 @@
           $('#ptExtension').textContent = '.' + state.outputExt;
           state.saveRequested = false;
           stopTimers();
-          $('#ptResultWarning').textContent = translate(Number.isFinite(inspected.duration) ? 'resultOk' : 'resultUnknown');
+          state.resultStatusKey = state.stopReason === 'limit' ? 'resultLimit'
+            : state.autoStopped ? 'resultInterrupted'
+            : Number.isFinite(inspected.duration) ? 'resultOk' : 'resultUnknown';
+          $('#ptResultWarning').textContent = translate(state.resultStatusKey);
           setPhase('result');
           updateResultMeta();
           logDetail('Result: ' + blob.size + ' bytes, type=' + mediaType + ', duration=' + inspected.duration + ', wall=' + (state.recordedMs/1000).toFixed(2) + 's');
