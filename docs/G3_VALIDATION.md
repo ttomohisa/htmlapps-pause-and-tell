@@ -57,3 +57,27 @@ A user selects a playable video, starts voice recording, resumes source playback
 - Mark coordinates are normalized to displayed video, assuming browser interpretation of `videoWidth/videoHeight`; rotation metadata and uncommon display transforms still require real-device assessment.
 - The Canvas is continuously redrawn for recording, so performance varies by device/frame size. There is a cap of 120 visible strokes and 2500 points per pen stroke.
 - Source audio remains off. Exported MIME depends on MediaRecorder support; iOS compatibility is unverified.
+
+## Automated smoke evidence — Linux Chromium 144 (2026-10-15)
+
+These results use **GitHub Actions generated `dist/index.html` from commit `0fdd091aa7bd9d40e0da451fe745bc97a6c03dd1`**, loaded into a headless Playwright test page; microphone input came from a **WebAudio oscillator**, not a physical device. The tests used the synthetic 20s MP4 landscape/portrait fixtures from G1.
+
+| Test | Landscape (640×360) | Portrait (360×640) |
+| --- | --- | --- |
+| Screen size | 360×800 | 320×740 |
+| Input format | H.264 MP4 | H.264 MP4 |
+| Visible ellipse/arrow/pen | Passed, all rendered | Passed, all rendered |
+| Undo/clear current drawing | Passed | Passed |
+| Draw-while-playing pauses source | Passed | Passed |
+| Exports annotated video and simulated mic | WebM VP8 + Opus | WebM VP8 + Opus |
+| Encoded output contains all 3 tools | Yes, visually verified at ~3.3s | Yes, visually verified at ~3.3s |
+| Horizontal page overflow | None | None |
+| Mobile footer | Hidden | Hidden |
+| JavaScript page errors | 0 | 0 |
+| Network requests | Only local `blob:null/...` references | Only local `blob:null/...` references |
+
+Direct inspection of **decoded exported files** found visible yellow ellipse, red arrow and white freehand line in both orientations. This is stronger evidence than only a live Canvas screenshot.
+
+**Clear-on-resume regression:** A separate WebM test drew a yellow ellipse while source playback was paused, then resumed. Decoded output at 1.7s retained the ellipse (~1237 annotation-yellow-like pixels); a later 3.5s frame showed it absent (~26 residual pixels from compression/background). The output timestamp/source timestamp differ because of recording and test interaction delays. Both the live Canvas and encoded result show the correct transition: prior recorded strokes remain in earlier frames, new frames clear them.
+
+**Known remaining test gaps:** physical iPhone/Android pointer/touch and microphone behavior, rotated source metadata, hardware permissions, direct `file://` loading, and native OS video playback. These continue to block G1/G3 acceptance. **PR remains Draft**.
