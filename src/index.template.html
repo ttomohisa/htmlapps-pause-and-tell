@@ -556,6 +556,7 @@
         <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">マイクで録画開始</button>
         <button type="button" class="button" id="ptPlayPause" data-i18n="play">元動画を再生</button>
         <button type="button" class="button pt-record-stop" id="ptStop" data-i18n="stopRecord" disabled>録画を終了</button>
+        <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
       </div>
       <p id="ptMessage" class="pt-message" aria-live="polite"></p>
       <p class="pt-poc-note" data-i18n="pocNote">v0.1.0は録画エンジンの実証版です。描画ツールは次の開発段階で追加します。元動画の音は保存されません。</p>
@@ -575,6 +576,7 @@
       <div class="pt-controls">
         <button type="button" class="button primary" id="ptDownload" data-i18n="saveVideo">動画を保存</button>
         <button type="button" class="button" id="ptAgain" data-i18n="recordAgain">もう一度録る</button>
+        <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
       </div>
       <p id="ptResultWarning" class="pt-message" aria-live="polite"></p>
     </section>
@@ -786,6 +788,7 @@
           "selectTitle": "説明したい動画を選ぶ",
           "selectBody": "短い動画を読み込み、再生を止めながら声を録音します。",
           "chooseVideo": "動画を選ぶ",
+        "changeVideo": "動画を変更",
           "dropHint": "PCではここへドラッグ＆ドロップできます。最大30秒・100MiB（技術試作版）。",
           "studioTitle": "動画を見ながら説明する",
           "notRecording": "録画前",
@@ -865,6 +868,7 @@
           "selectTitle": "Choose a video to explain",
           "selectBody": "Load a short video, pause its playback and record your voice.",
           "chooseVideo": "Choose video",
+        "changeVideo": "Change video",
           "dropHint": "You can also drop a file here on desktop. Up to 30 seconds / 100 MiB (technical prototype).",
           "studioTitle": "Explain while watching",
           "notRecording": "Not recording",
@@ -1082,6 +1086,7 @@
         $('#ptStop').disabled = phase !== 'recording';
         $('#ptSeek').disabled = phase !== 'ready';
         $('#ptFile').disabled = busy;
+        document.querySelectorAll('.pt-change-input').forEach(input => { input.disabled = busy; });
         const badge = $('#ptRecordBadge');
         badge.classList.toggle('live',phase === 'recording');
         badge.textContent = translate(phase === 'recording' ? 'recording' : phase === 'preparing' ? 'preparing' : phase === 'finalizing' ? 'finalizing' : 'notRecording');
@@ -1361,7 +1366,8 @@
           if (probe.readyState < HTMLMediaElement.HAVE_METADATA) await waitForVideoEvent(probe,'loadedmetadata','error',20000);
           if (!withinSession(token)) throw new Error('stale');
           const duration = probe.duration;
-          if (Number.isFinite(duration) && duration > 0 && duration * 1000 < state.recordedMs - 2500) {
+          if (Number.isFinite(duration) && duration <= 0) throw new Error('failedRecord');
+          if (Number.isFinite(duration) && duration * 1000 < state.recordedMs - 2500) {
             throw new Error('resultShort');
           }
           // Metadata may report Infinity for MediaRecorder WebM. The file must still decode its first frame.
@@ -1404,6 +1410,7 @@
           outputFilename.value = normalizeFilename(inputBase + '-explained');
           $('#ptExtension').textContent = '.' + state.outputExt;
           state.saveRequested = false;
+          stopTimers();
           $('#ptResultWarning').textContent = translate(Number.isFinite(inspected.duration) ? 'resultOk' : 'resultUnknown');
           setPhase('result');
           updateResultMeta();
@@ -1483,6 +1490,13 @@
         const file = event.target.files && event.target.files[0];
         event.target.value = '';
         await chooseFile(file);
+      });
+      document.querySelectorAll('.pt-change-input').forEach(input => {
+        input.addEventListener('change', async event => {
+          const file = event.target.files && event.target.files[0];
+          event.target.value = '';
+          await chooseFile(file);
+        });
       });
       const dropZone = $('#ptDropZone');
       dropZone.addEventListener('dragover',event => {event.preventDefault(); dropZone.classList.add('drag-over');});
