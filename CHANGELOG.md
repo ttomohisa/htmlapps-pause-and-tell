@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### v0.4.0 — One-tap point marker & mobile transport (2026-10-15)
+
+- Added a default **Point** tool: one tap places a persistent, outlined ring with center dot on the original video's frame. It pauses only source playback, never the microphone or output recorder.
+- Reused normalized drawing coordinates, visible-stroke Undo/Clear and clear-on-source-play for markers, with no stale markers after a new source or take.
+- Grouped four drawing tools before the video on smartphones with 44px+ targets; added fixed, phase-aware two-action transport with safe-area padding, additional bottom spacing and landscape/coarse touch handling.
+- Displayed recording source status beside the video as DOM-only UI that is not included in exported pixels.
+- Added G4 acceptance matrix and explicit physical iPhone Safari/Android Chrome **unverified** status; retained template build/CSP/local-only behavior.
+
+
 ### v0.3.0 — Annotated recording preview (2026-10-15)
 
 - Added circle/ellipse, arrow and freehand pen tools with pointer/touch input and three outlined paint colors.
