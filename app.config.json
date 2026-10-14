@@ -3,9 +3,9 @@
   "name": "Pause & Tell",
   "nameJa": "Pause & Tell｜動画解説レコーダー",
   "slug": "pause-and-tell",
-  "version": "0.1.0",
-  "description": "Pause a source video while recording your spoken explanation; recording keeps running during pauses.",
-  "descriptionJa": "動画の一時停止中も説明音声と完成映像を録り続ける、端末内処理の動画解説レコーダー。",
+  "version": "0.2.0",
+  "description": "Pause a video and record a spoken explanation in one browser-local output; recording continues while the source is paused.",
+  "descriptionJa": "動画を止めている間も声と映像の録画が続く、ブラウザだけの動画解説レコーダー。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",
