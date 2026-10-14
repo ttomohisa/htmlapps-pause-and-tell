@@ -1,128 +1,341 @@
-# APP_SPEC.md
+# Pause & Tell — APP_SPEC.md
 
-This file is the product contract for the application created from this template. Replace the starter specification below before asking an LLM to build a new product.
+> **Status:** 正式な実装仕様（v0.1.0実装中・実機未検証）  
+> **Date:** 2026-10-14  
+> **Product name:** Pause & Tell  
+> **Japanese name:** 動画解説レコーダー  
+> **Tagline (ja):** 動画を止めて、描いて、話す。そのまま説明動画に。  
+> **Tagline (en):** Pause a video, point things out, and explain in your own voice.  
+> **Proposed repository:** `ttomohisa/htmlapps-pause-and-tell`（作成済み）  
+> **Companion:** `DEVELOPMENT_PLAN.md`  
+> **Scope:** v1.0.0の製品契約。段階的な実装順は開発計画に従う。
 
-## 1. Product identity
+## 1. 製品定義
 
-- **Working name:** Single HTML App Starter
-- **One-sentence purpose:** Demonstrate the template's local-first, responsive, bilingual, single-file application foundation.
-- **Primary users:** Developers and LLM coding agents starting a new browser utility.
-- **Release artifacts:** `dist/index.html`, `dist/index.self-extract.html`, and a repository-root copy of the readable build named from `repository.name` with a leading `htmlapps-` removed
+### 1.1 解決する問題
 
-## 2. Problem and outcome
+既存の短い動画を相手に送るだけでは、注目してほしい場所や操作の意図が伝わりにくい。文章のコメントでは、動画中の瞬間や画面上の位置を説明しづらい。一方、一般的な動画編集ソフトで、静止区間・描画・ナレーションをタイムライン上で組み立てるのは手間がかかる。
 
-The starter must make the repository's constraints visible and testable without pretending to be a finished end-user product. A user can enter text, see basic counts, copy it, save it, and persist it locally.
+**Pause & Tellは「動画を一時停止している間も、説明音声と完成動画の録画は続く」ことを中核とする、一発録り型の動画解説ツールである。** 動画を見ながら止め、指差し・丸・矢印を加えて話し、再生して、完成動画を端末に保存する。
 
-A successful replacement app should state here:
+### 1.2 対象ユーザーと代表用途
 
-- What concrete problem it solves.
-- Who experiences the problem.
-- What result the user gets in one session.
-- Why a local single-HTML implementation is useful.
+| ID | ユーザー・状況 | 完了したい作業 |
+| --- | --- | --- |
+| U-01 | 家族にスマホ操作を教える人 | 画面録画のボタンを囲み、声で順序を説明して送る |
+| U-02 | 部活・ダンスの指導者 | 短い練習動画を停止し、動きの注目点を示して助言する |
+| U-03 | 修理・工作の記録を共有する人 | 作業動画を止め、注意箇所を示しながら音声を追加する |
+| U-04 | 不具合の報告者 | 現象が起きる瞬間を停止・強調して、説明動画を送る |
 
-## 3. Core user flow
+主対象は **U-01 / U-04（短い手順説明・不具合説明）**。スポーツ指導の専門的な比較・フォーム解析機能は扱わない。
 
-1. Open the page locally or through GitHub Pages.
-2. Enter or paste text.
-3. See character, word, and line counts update immediately.
-4. Edit the suggested output filename, then copy or download the text.
-5. Use Clear or Restore sample and undo the reversible change from the toast when needed.
-6. Reload and recover the locally saved text.
+### 1.3 Browser Kittyとしての提供価値
 
-## 4. Functional requirements
+- 登録・インストール・アップロードを必要としない。
+- 選択動画とマイク音声の処理・合成は端末内で行う。
+- タイムライン編集を覚えず、実際に話しながら完成させる。
+- スマートフォンの指操作とPCのマウス・ペン操作に対応する。
+- 可能な限り実行時の外部ネットワーク依存がない単一HTMLとして提供する。
 
-- Provide a responsive text area.
-- Calculate Unicode-aware character count.
-- Calculate approximate word and line counts.
-- Copy text with a compatibility fallback.
-- Download UTF-8 plain text with a user-editable output filename and a predictable `.txt` extension.
-- Save the current text in local storage when available.
-- Use the reusable `AppToast.show()` Undo pattern for reversible Clear / Restore sample operations. Reserve `AppConfirm.ask()` for irreversible or high-risk actions.
-- Switch Japanese and English without reloading.
-- Use a light-only interface; do not add a dark-mode or theme switcher.
-- Expose build version, generation timestamp, and embedded dependency count.
+### 1.4 成功条件
 
-## 5. Data and privacy
+読み込み可能な20秒の動画に対し、利用者が途中で20秒説明して、概ね40秒の、声と強調表示が正しく含まれた完成動画を保存できる。初見の利用者が、動画編集の知識なしに一連の操作を完了できる。
 
-- Input text remains in browser memory and local storage.
-- The app performs no runtime network request.
-- There is no server-side storage, login, analytics, telemetry, or tracking.
-- Download occurs only after a user action.
+## 2. 基本原則・非目標
 
-## 6. Non-goals
+1. **元動画の停止 != 録画の停止。** 元動画を止めても録画時間・マイク音声・Canvas出力は継続する。
+2. 使うのは**既存動画1本**。画面・カメラをその場で収録する機能は提供しない。
+3. 操作は**一発録り**。完成動画の途中を切る、音声を差し替える、後から図形の時刻を変える機能はv1.0.0の対象外。
+4. 録画後にプレビューしてから保存する。**録画したら必ず成功するとは表示しない**。
+5. 保存形式は実際のブラウザ録画能力に依存する。**MP4固定とは約束しない**。
+6. 動画・音声を外部API・クラウドへ送らない。意図した「共有」を利用者が選択した場合の送信は利用者と共有先の責任範囲として説明する。
+7. 編集の見た目より、停止中の録画の継続、音声同期、スマホ保存の成功を優先する。
 
-- Collaborative editing.
-- Cloud synchronization.
-- Rich text formatting.
-- Server-side conversion.
-- Account management.
+**v1.0.0の非目標:** 動画の連結・トリミング・タイムライン・複数カメラ比較・自動字幕・AI文字起こし・動画内容解析・ライブ画面録画・ライブ配信・共同編集・ログイン・クラウド同期・自動動画アップロード・BGM・速度変更。
 
-## 7. UX and accessibility
+## 3. 標準ユーザーフロー
 
-- Mobile-first responsive layout from 320px upward.
-- All controls have visible labels or accessible names.
-- Keyboard focus is visible.
-- Motion respects `prefers-reduced-motion`.
-- Reversible changes provide a visible Undo action in the reusable toast.
-- Irreversible or high-risk destructive actions use the reusable confirmation component, centered on desktop and presented as a safe-area-aware bottom sheet on smartphones.
-- Status messages use an `aria-live` region.
-- If the finished app needs persistent smartphone access to 3-5 sections or workflow actions, reuse `components/mobile-bottom-bar.html` rather than inventing another fixed bottom bar. For long multi-section tools, prefer its mobile page-tab mode (`data-mobile-page-target`) so tapping a bottom tab shows only that group on smartphones while desktop still shows all sections. Keep unavailable actions disabled until their prerequisites exist.
+### 3.1 初期状態 → 読み込み
 
-## 8. Performance expectations
+1. 「動画を選ぶ」を主操作として表示。PCはドラッグ＆ドロップに対応。
+2. 動画が読み込めれば、先頭フレームのプレビュー、ファイル名、元動画の長さ、表示向き（縦/横）、対応可否を表示。
+3. マイクを使う理由を録画開始前に説明。ページ表示直後には権限要求しない。
+4. 入力動画を確認するための再生・シークは録画前のみ可能。録画開始時には**先頭（0秒）へ戻す**。
+5. 出力音声の既定値は「自分の声のみ」。元動画の音声を含める機能は対応端末で検証できた場合に限り追加する（§8）。
 
-- Initial UI should become interactive without network access.
-- Input updates should remain smooth for at least 100,000 characters on a typical desktop browser.
-- Avoid rebuilding large DOM sections on every keystroke.
+### 3.2 説明を録画する
 
-## 9. Browser target
+1. 「説明を録画」を押してマイク権限を確認する。入力動画・描画領域・録画方式・音声トラックが準備できなければ開始しない。
+2. 録画開始時は**元動画0秒で一時停止**した状態。赤い「録画中」と完成動画側の経過時間を表示し、ユーザーが「再生」を押して動画を進める。開始・再生を分け、録音中に準備が整わない問題や自動再生制約を避ける。
+3. 「一時停止」で**元動画だけ**止める。録画時間・音声収録は継続する。UIに「元動画は停止中・録画は続いています」を示す。
+4. 丸・矢印・ペン・指差しツールで映像内を操作する。再生中に描画を始めた場合は**自動的に元動画を一時停止**してから描く。録画は停止しない。
+5. 「再生」で元動画を進める際、初期設定では現在の描き込みを消す。過去の録画映像は変わらない。
+6. 元動画の終端では最終フレームを表示したまま**録画を継続**する。ユーザーが「録画を終了」するまで追加説明できる。
+7. 「録画を終了」でMediaRecorderを停止し、非同期の最終データを受け取る。「確認中」状態を経てプレビュー画面に移動する。
 
-Current stable desktop and mobile versions of Chromium, Firefox, and Safari. Direct `file://` opening is required.
+### 3.3 確認・保存
 
-## 10. Acceptance criteria
+1. 完成したファイルの再生プレビュー、長さ、サイズ、形式を表示。
+2. 出力の実ファイルをデコード・再生できること、長さ・音声が不自然でないことを確認し、問題がある場合は成功扱いしない。メタデータに長さが得られない形式では実再生・シーク可能性等を使って判定し、`duration`が取得できないだけで良品を破損扱いしない。
+3. ファイル名を編集可能にする。既定値は`<入力ファイル名>-explained`、拡張子は選択された実出力形式に合わせて管理する。
+4. 「動画を保存」を主操作、「共有」（対応端末のみ）と「もう一度録る」を補助操作として表示。
+5. 保存・共有操作後も利用者が明示的にクリアするまで完成動画を保持し、再保存可能にする。
 
-- `build-standalone.ps1` produces the readable HTML, a gzip self-extracting variant, and an exact repository-root copy named from `repository.name` with a leading `htmlapps-` removed (for example `htmlapps-tap-counter` → `tap-counter.html`).
-- Embedded asset bytes are Base64-encoded exactly once; the complete asset-bundle JSON is not wrapped in a second Base64 layer.
-- Assets configured with `gzip` / `auto` can be read through the async embedded-asset API, and the build writes `build-size-report.json`.
-- `scripts/verify-standalone.ps1` passes.
-- The self-extract loader is ASCII-only, inherits the embedded favicon from the readable HTML, and restores the source HTML byte-for-byte.
-- The generated HTML contains no unresolved build placeholder.
-- The generated HTML contains no external script, stylesheet, frame, module import, or CSS asset URL.
-- Runtime CSP includes `connect-src 'none'`.
-- The full core user flow works after opening either generated HTML directly.
-- No data leaves the page.
-- Japanese and English copy both fit at 360px width.
-- Clear happens immediately but offers Undo for long enough to recover the previous text.
-- The output filename can be edited before download; invalid filename characters are sanitized and an empty name falls back to the app slug.
+## 4. 機能要件
 
-## 11. Open decisions for a new app
+優先度: **P0** = 主要用途に必須、**P1** = v1.0.0で達成を目指す、**P2** = 将来検討。IDは実装・テストの追跡に使う。
 
-Replace these with explicit decisions before implementation:
+### 4.1 ファイル入力・準備
 
-- Maximum accepted input size.
-- Supported input file types.
-- Export file formats, default filename, editable filename behavior, sanitization, and extension rules.
-- Persistence strategy and reset behavior.
-- Undo/redo scope.
-- Error and recovery behavior, including stale async-result invalidation when inputs can change during processing.
-- Explicit async phases (`empty`, `ready`, `loading-runtime` if needed, `processing`, `result`, `error`) for heavy processing apps.
-- Mobile relationship between previews and their directly related controls.
-- Smartphone navigation model: bottom-tab page switching, section-scrolling bottom bar, workflow-action bar, or no fixed bottom bar.
-- Media coordinate/orientation strategy when drawing overlays.
-- Required third-party libraries.
-- Whether the app intentionally needs peer-to-peer WebRTC. If so, decide whether the fully serverless same-LAN QR pairing component is appropriate, what DataChannels are required, and how paired-device data is described to users.
-- Whether bilingual UI is required.
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-001 | P0 | 動画1本をファイル選択またはDrag & Dropで読み込める（スマホはOSファイル選択）。既存ソース置換は状態境界とする。 |
+| FR-002 | P0 | 拡張子ではなく実際の再生可否で判定。MP4 / WebM / MOV等を候補として受け、未対応コーデックやDRMはエラーにする。 |
+| FR-003 | P0 | 元動画の長さ・縦横寸法・先頭フレームを確認。0秒動画、音声のみ、破損、メタデータ取得失敗を拒否する。 |
+| FR-004 | P0 | 録画前は元動画を再生・シークして確認できる。録画開始時に先頭に戻し、録画中の任意シークを禁止する。 |
+| FR-005 | P0 | マイク権限は録画開始操作後に要求。拒否・デバイス不在・API非対応を区別して案内する。音声なしのまま黙って録画しない。 |
+| FR-006 | P1 | 初回テスト条件は元動画30秒以内・100MiB以内、完成録画90秒以内。正式版目標は元動画60秒以内・250MiB以内、完成録画180秒以内。超過時の拒否/終了は明示し、上限は実機検証で確定する。 |
 
-## In-app help
+### 4.2 収録とプレイヤー
 
-The upper-right header includes a compact help button. It opens a bilingual “使い方と注意事項” dialog containing:
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-010 | P0 | 録画中の元動画`pause()`はMediaRecorderの`pause()`を呼ばず、静止フレームとマイク音声を連続収録する。 |
+| FR-011 | P0 | 録画経過時間と元動画経過時間を別々に表示し、停止中も録画経過時間が進む。 |
+| FR-012 | P0 | 動画再生・一時停止はワンタップ。処理中の多重操作や二重Recorder生成を防ぐ。 |
+| FR-013 | P0 | 元動画の終了では自動的に録画を終えない。最終フレームを保ち、「録画を終了」を促す。 |
+| FR-014 | P0 | 手動終了と録画上限による自動終了の双方で、可能な限りファイルを確定し、途中の成果物を黙って捨てない。 |
+| FR-015 | P0 | 描画開始時、再生中なら元動画だけ自動停止する。操作している手による動画移動・ページスクロールを防ぐ。 |
+| FR-016 | P0 | 録画に入る前の元動画0秒への移動・フレーム準備が完了しない場合、録画を開始しない。 |
 
-- the real user workflow,
-- privacy and local-processing behavior,
-- limitations and data-loss risks,
-- any browser or device constraints relevant to the app.
+### 4.3 描画・指差し
 
-Acceptance criteria: help content is updated together with each user-facing behavior change, contains no leftover starter instructions, and remains fully scrollable at narrow smartphone widths / short viewport heights so the final item and close control are always reachable.
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-020 | P0 | 丸（ドラッグで楕円）・矢印（始点→終点）・フリーペンを提供。ポインタ/タッチ対応。 |
+| FR-021 | P1 | 指差しツール: 一点タップで目立つリングを表示。停止中の注目位置を保ち、再生または消去で解除する。 |
+| FR-022 | P0 | 描画位置は動画座標に正規化。縦動画、CSS `object-fit: contain`、レターボックス、DPR、端末回転を考慮する。 |
+| FR-023 | P0 | ツールUI、録画バッジ、経過時間、操作ボタンは**出力動画に映さない**。映像と描画だけを出力Canvasへ合成する。 |
+| FR-024 | P0 | 線・図形に輪郭を付け、明暗いずれの動画上でも視認しやすくする。色は3色程度のプリセットに限定。 |
+| FR-025 | P0 | 「線を消す」「直前の線を消す」は**現在の表示に限る**。既に録画された部分の声や線を遡って消す機能ではないことを案内する。 |
+| FR-026 | P0 | 既定では再生した瞬間に現在の描き込みを消す。録画済み部分の書き換えはしない。 |
 
-## WebRTC readiness requirement
+### 4.4 音声
 
-When an app uses peer-to-peer WebRTC DataChannels, define which reliable channel represents application readiness. Custom channel layouts must set `readyChannelLabel`; do not define application-ready from ICE/PeerConnection `connected` alone.
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-030 | P0 | マイク1系統を録画し、元動画停止中も途切れない。録音状態を明確に表示する。 |
+| FR-031 | P0 | 出力の既定値は「説明音声のみ」。元動画音声の録画とスピーカー再生は既定でOFFとし、元動画の音がマイクへ回り込む二重録音を避ける。 |
+| FR-032 | P1（検証条件付き） | 「元動画音声＋説明音声」を対応ブラウザ・端末に限り提供。元動画停止中は元動画音声も停止する。失敗する環境では項目を非表示または無効化する。 |
+| FR-033 | P1（条件付き） | 元動画音声の合成には音量調整を適用（初期案: 元動画30%、マイク100%）。ヘッドホン推奨を表示し、音声モニターで二重出力しない。 |
+| FR-034 | P0 | 音声トラック初期化失敗、収録中のマイク断、無音化の疑いを検出できる範囲で通知する。マイクON表示だけを成功の根拠にしない。 |
+
+### 4.5 生成結果・保存
+
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-040 | P0 | Canvas映像と音声を同一MediaStreamで録画する。MediaRecorder対応形式を実行時に判定し、実際の収録・再生まで検証する。 |
+| FR-041 | P0 | 出力の画角・縦横比を維持して最大720p相当の解像度に縮小する（小さな動画は拡大しない）。目標24〜30fps、実測値は環境依存。 |
+| FR-042 | P0 | 出力はMP4またはWebMのうち、端末で正常に生成できる形式とする。非対応形式を拡張子だけ変更して偽装しない。 |
+| FR-043 | P0 | `dataavailable`の最終データ受信を待ってからBlobを確定。0 byte、破損、明らかな長さ不足を成功扱いしない。メタデータ長が不明な場合は代替の再生確認を使用する。 |
+| FR-044 | P0 | 完成動画のプレビューとメタデータを表示。録画結果の再生を確認できる状態で保存操作を有効にする。 |
+| FR-045 | P0 | ファイル名の編集、禁則文字除去、空名フォールバック、拡張子の整合性を保証する。 |
+| FR-046 | P1 | 対応端末ではシステム共有を提供。非対応端末では保存のみ表示し、共有不可を失敗として扱わない。 |
+| FR-047 | P0 | 「もう一度録る」は完成結果を消す前に確認し、元動画は保持して先頭から再録画できる。 |
+
+### 4.6 状態・復旧
+
+| ID | 優先度 | 要件 |
+| --- | --- | --- |
+| FR-050 | P0 | 状態を `empty` / `loading` / `ready` / `preparing` / `recording` / `finalizing` / `result` / `error` で管理する。 |
+| FR-051 | P0 | 録画中の録画対象は `sourcePlaying` / `sourcePaused` / `sourceEnded` を別状態として保持する。Recorderの一時停止状態と混同しない。 |
+| FR-052 | P0 | 入力差し替え・再録画・リセットごとに世代IDを更新し、古い非同期結果が新しい入力へ反映されない。 |
+| FR-053 | P0 | マイク、録画トラック、AudioContext、描画ループ、タイマー、Blob URLを不要になった時点で解放する。 |
+| FR-054 | P0 | 録画中にタブ非表示・画面ロック・通話等で中断された場合、可能な限り収録を安全に停止し、回収済みデータの有無と復旧可否を表示。復旧は保証しない。 |
+| FR-055 | P0 | 未保存の結果を消す、元動画を置換する、ページを離れる場合はデータ損失を分かる形で警告する。ただしブラウザ終了時の確実な警告は保証しない。 |
+| FR-056 | P0 | 処理中は重複開始/重複終了/重複保存を抑止し、エラー後に再試行可能な状態へ戻す。 |
+
+## 5. 画面・UI/UX仕様
+
+### 5.1 3画面構成
+
+- **読み込み:** 動画選択、プレビュー、ファイル情報、マイク説明、録音設定（必要最小限）。
+- **録画:** 動画ステージ、赤い録画表示・完成録画時間、元動画時間、再生/停止、描画4ツール、線の消去、明確な「録画を終了」。
+- **結果:** 完成プレビュー、動画の形式・長さ・サイズ、編集できるファイル名、「動画を保存」「共有」「もう一度録る」。
+
+### 5.2 スマートフォン
+
+- 320px幅から横スクロールなし。縦動画では動画ステージを優先し、操作は近接した2段程度に整理する。
+- 説明録画中は下部に**録画操作のコンテキストバー**を使用し、別の固定ナビゲーションを重複させない。安全領域（safe area）を考慮。
+- 図形描画領域ではPointer Eventsを使い、描画中のみタッチジェスチャーを抑止。音量・通知バー等のOS操作は侵害しない。
+- ボタンのタップ領域は原則44×44 CSS px以上。大きな指、端末回転、長いファイル名、キーボード開閉を検証。
+- OSのネイティブ動画全画面へ勝手に遷移しないよう `playsinline` を使用し、端末での挙動を実機確認。
+- 描画色・リング表示は動画の明るさに依存しない視認性を確保。主要操作に絵文字は使わずSVGを使用。
+
+### 5.3 PC・キーボード
+
+- ドラッグ＆ドロップ、マウス/ペン、キーボードフォーカス表示に対応。
+- 録画中のSpaceは元動画再生/一時停止（入力欄・ダイアログ操作中を除く）。Escはダイアログを閉じる。破壊的な録画終了のショートカットは既定で持たない。
+- ボタン名、状態説明、エラーは日本語・英語で自然な文言にする。
+
+### 5.4 重要な文言（日本語）
+
+- マイク権限前: 「動画を再生・停止しながら、あなたの声を録音します。動画と音声はこの端末内で処理します。」
+- 録画中・元動画停止: 「元動画は停止中です。録画と音声の収録は続いています。」
+- 録画済み部分の不可逆性: 「線を消しても、すでに録画した映像は変わりません。」
+- 元動画終了: 「元動画の再生は終わりました。必要なら説明を続け、録画を終了してください。」
+- 正常結果: 「説明動画を作成しました。」＋長さ・サイズ・形式。
+- 出力失敗: 「録画結果を正常に確認できませんでした。別のブラウザまたは短い動画でお試しください。」＋必要時のみ詳細情報。
+
+## 6. データ・時間・座標の仕様
+
+### 6.1 二つの時間軸
+
+- `sourceTimeMs`: 元動画の実再生位置。停止中は不変。
+- `recordTimeMs`: 完成動画の録画開始後の経過時間。元動画停止中も増加。
+- 利用者操作ログ（採用する場合）は`recordTimeMs`に結び付ける。動画位置だけで図形の表示時刻を決めない。
+- 壁時計とレコーダーのエンコード時間はずれる場合がある。完成動画のメタデータによる時間長の実測をテスト基準とする。
+- `MediaRecorder.start(timeslice)`のチャンク数×timesliceから長さを計算しない。
+
+### 6.2 描画座標
+
+- 動画のブラウザ解釈後の表示寸法（`videoWidth`/`videoHeight`）を基準に、正規化座標`u`,`v`（0〜1）で描画点を保持する。
+- `object-fit: contain` の空白領域は描画対象外。CSS矩形→実描画矩形→動画座標→録画Canvasの変換を一つの関数に統一。
+- 回転メタデータ、縦動画、非標準アスペクト比、小数画素丸め、端末回転を検証する。
+- 出力用Canvasの合成順は **元動画フレーム → アノテーション**。操作UIは別DOMで構成する。
+
+### 6.3 描画の寿命
+
+- 停止中に描かれた線・リングは、その時点から再生操作/消去までの間、継続表示される。
+- 手動消去または再生で表示から消える。それ以前にMediaRecorderが記録済みの映像は書き換えない。
+- 取消・線の消去は録画履歴の編集ではない。動画の冒頭から撮り直したい場合は「もう一度録る」。
+
+## 7. 実装アーキテクチャ
+
+### 7.1 第一候補: ブラウザ標準APIのみでリアルタイム収録
+
+1. ユーザーが選んだFileを`URL.createObjectURL`でvideo要素に渡してデコード。
+2. 動画の表示フレームをCanvasへ描画し、録画対象の図形を重畳。
+3. `canvas.captureStream()`から映像トラックを取得。
+4. `getUserMedia({audio: ...})`のマイクトラックをWeb Audioで扱い、`createMediaStreamDestination()`で録音向け音声トラックを生成。
+5. 映像トラック＋音声トラックからMediaStreamを作り`MediaRecorder`で録画。
+6. 停止中も描画を更新し続け、静止映像が出力側で継続することを検証。
+7. `MediaRecorder.stop()`と最終`dataavailable`の到着後にBlobを完成させ、メタデータ・実再生を検証して保存する。
+
+**注意:** `captureStream()`のフレーム生成、静止区間、`requestFrame()`対応、動画再生のユーザー操作制約、音声タイムスタンプ、MP4/WebM録画能力には端末差がある。`requestVideoFrameCallback()`は再生中フレーム取得に使えるが、録画の完全な同期を保証するものではない。`CanvasCaptureMediaStreamTrack.requestFrame()`は必須機能にしない。
+
+### 7.2 POCでの中止・切替条件
+
+- v0.1.0でiOS SafariとAndroid Chromeの短い動画における **静止20秒＋音声20秒が1本のファイルへ残る**ことを実測する。
+- どちらかでコア収録が成立しない場合、描画UI拡張を停止し、(a)録画方式の修正、(b)セッション操作イベントとマイク音声の別収録→オフライン合成、(c)対応環境の明示、の順に調査する。
+- WebCodecs・WASM/FFmpeg等の大きい依存は**代替案**であり、初版の前提として採用しない。代替案でも短尺・単一HTML・端末内処理・メモリ制約を再検証する。
+- リリース時点で必須スマホのどちらかが基本操作不能なら、仕様を黙って縮小して「スマホ対応」とは記載しない。正式版公開を延期して解決を優先する。
+
+### 7.3 元動画音声（条件付き）
+
+- `MediaElementAudioSourceNode`等から元動画音声を取り、マイク音声と合成する方式を実機検証する。
+- 元動画一時停止中は元音声も停止。音声モニタリングは二重再生やハウリングを起こさない構成とする。
+- 対応ブラウザであっても端末個別に失敗する場合があるため、検証のない環境にはメニューを提示しない。
+- v1.0.0に入らない場合は**説明音声のみを確実に提供**し、READMEと画面に非対応を明記する。主機能のリリースを元音声オプションのために止めない。
+
+### 7.4 単一HTML・権限・CSP
+
+- 本アプリは**実行時外部API・CDN・テレメトリーを使用しない**。ユーザーの動画・音声を送信しない。
+- マイクには安全なコンテキストとユーザー権限が必要。HTTPS公開版と`file://`単一HTML版を**個別に検証**する。`file://`は多くのブラウザで安全なコンテキストとして扱われるが、端末・ブラウザ設定で利用不能なら原因を示す。
+- CSPは原則`connect-src 'none'`を維持。`media-src blob:`等の、ファイルプレビュー・保存に必要な許可だけを追加し、広いネットワーク許可はしない。WorkerやWASMを使うときは正当な理由と実際の動作試験を必要とする。
+- このアプリ自身はブラウザ外への自動送信をしない。サイト共通の配信・計測等とアプリ処理の説明を混同しない。
+
+### 7.5 データ保持
+
+- 元動画Fileと作業セッション・マイク音声・完成動画はメモリ上で管理。明示的に保存/共有した成果物以外は永続保存しない。
+- 言語などの非機密UI設定のみローカル保存を許容。
+- ページの再読み込み・端末のメモリ解放時に未保存の作業は失われ得る。クラッシュ復元や自動保存は保証しない。
+- 入力差し替えと終了でマイクと全トラックを確実に停止し、不要なBlob URLをrevokeする。
+
+## 8. 入出力の境界条件
+
+### 8.1 入力
+
+- **動画1本**のみ。ブラウザで実際に再生できる必要がある。
+- 拡張子による無条件の対応表記は禁止。HEVC/MOVや特殊MP4などはデバイス依存と説明する。
+- v0.1.0は≤30秒、完成≤90秒の試験対象。正式版目標は≤60秒、完成≤180秒（v0.9.0で確定）。
+- 暫定入力サイズ上限はv0.1.0で100MiB、正式版目標は250MiB。長さ上限・メモリ使用量との組合せでv0.9.0に最終確定し、実機で扱えない値を保証しない。大きい入力はデコード前に明確に拒否または警告する。
+- 入力が無音でもマイク録音は可能。マイク許可のない状態での音声なし録画モードはv1.0.0の対象外。
+
+### 8.2 出力
+
+- 最大720p相当、縦横比維持、アップスケールなし。24〜30fpsは目標値であり固定保証ではない。
+- ファイル形式は実機の録画API能力を反映したMP4またはWebM。外部共有先での互換性は端末/アプリに依存する。
+- ファイル名既定値: `<元ファイルbasename>-explained.<実出力拡張子>`。禁則文字は置換し、重複や空文字を処理する。
+- v1.0.0の成果物は**完成動画1本**。作業プロジェクト形式や録画イベントJSONの書き出しは対象外。
+
+## 9. エラー・中断・安全
+
+| 条件 | 期待する動作 |
+| --- | --- |
+| 入力形式を再生できない | 「この動画を再生できません」＋ブラウザで対応する形式の案内。元動画は変更しない。 |
+| マイク権限拒否/デバイス不在 | 個別説明と再試行。録画を始めない。 |
+| 録画エンコーダ非対応 | 形式候補の再評価。成功できなければ録画を開始しない。 |
+| 元動画のデコード中断 | 録画を安全に終了し、部分ファイルの有無を表示。黙って成功しない。 |
+| 端末画面ロック・別タブ・着信 | 必要に応じ録画終了へ遷移。回収できたBlobだけを検証し、復旧不能は明示する。 |
+| 出力Blobが空/破損/再生不能 | 「作成失敗」とし保存を無効化。原因・再試行方法・必要時の技術詳細を提示。 |
+| 作成途中に入力を置換 | 明示確認後、古いセッションを終了・解放し、新しい世代のみ表示。 |
+| 録画上限到達 | 自動的に録画終了を開始し、回収できた結果を表示。上限到達を明示する。 |
+| メモリ不足疑い | 無限再試行せず、高解像度や長時間を避ける案内。 |
+| 保存が取り消された | 結果を保持して保存し直せるようにする。 |
+
+## 10. 非機能要件
+
+| ID | 要件 |
+| --- | --- |
+| NFR-001 | **プライバシー:** 実行時にユーザーファイル・音声を外部へ送らず、ネットワーク遮断下で主要処理が動く。 |
+| NFR-002 | **スマホ優先:** iOS SafariとAndroid Chromeの現行環境で、読み込み→録画→プレビュー→保存が実機で通ることをv1.0.0のリリース条件とする。 |
+| NFR-003 | **連続性:** 20秒の元動画に20秒の停止説明を加えたテストで、完成動画が約40秒になること（静止区間は黒画面にならず、音声が途切れない）。 |
+| NFR-004 | **同期:** 標準試験（最長90秒）で説明音声と画面上のマーカーのズレ目標を±250ms以内とし、初期フレームや末尾欠損も別途確認する。これは受け入れ目標であり実測まで保証しない。 |
+| NFR-005 | **画質:** 無関係なUIが録画されず、縦横比・回転・注目位置に明らかな破綻がない。 |
+| NFR-006 | **表示:** 320px幅、375/390px、短い画面高、PC、縦/横持ちで重なり・横スクロール・隠れた主操作がない。 |
+| NFR-007 | **可用性:** 未対応環境では「使える」と誤認させず、機能検査と説明で安全に停止する。 |
+| NFR-008 | **アクセシビリティ:** キーボード操作・ラベル・フォーカス・コントラスト・スクリーンリーダーの状態案内、日本語/英語。図形自体の精密描画はポインタ操作を要する旨を説明。 |
+| NFR-009 | **配布:** 最新テンプレートに基づく単一HTML、favicon一致、日英README/スクリーンショット、必要なCI確認。 |
+| NFR-010 | **依存:** 実行時CDNなし。標準API中心。WASM等を採用する場合は根拠・サイズ・ライセンス・単一HTML検証を記録。 |
+
+## 11. 受け入れ基準（製品横断）
+
+| ID | 実行するテスト | 合格の定義 |
+| --- | --- | --- |
+| AC-01 | 20秒素材を8秒再生→20秒一時停止して話す→残り12秒再生 | 出力は概ね40秒。20秒の停止区間に静止映像と声が存在。 |
+| AC-02 | 再生中に丸を描く | 元動画だけ停止。Recorderの収録と音声は続き、丸が出力に映る。 |
+| AC-03 | 丸の表示中に再生を押す | 丸は以後消え、再生前に録画された区間には残る。 |
+| AC-04 | 元動画が終端に達する | 最終フレームのまま解説を続けられ、明示的終了で出力される。 |
+| AC-05 | 縦動画・横動画・異なる表示サイズ | 指した位置が録画後も一致し、映像が回転・切断・歪まない。 |
+| AC-06 | マイク拒否・未対応動画 | 録画開始前に適切に停止。原因と次の操作が分かる。 |
+| AC-07 | 保存形式候補ごとに録画→再生 | 0バイト・再生不能・重大な尺不足を成功扱いせず、実形式と拡張子が一致。 |
+| AC-08 | 録画中に別タブ/画面ロック・入力置換・連打 | 不整合・重複Recorder・偽の成功表示なし。資源解放。 |
+| AC-09 | 完成動画のファイル名変更・保存・再録画 | 名称反映、成果物保持/確認、旧Blobの後出し反映なし。 |
+| AC-10 | iPhone Safari/Android Chrome/PC Chrome/Edge | 読み込み→録画→プレビュー→保存の一連動作を実機で確認。 |
+| AC-11 | 単一HTMLを開きネットワークを遮断 | マイク権限が使える環境で処理が外部通信なしで動く。非対応なら正しく説明。 |
+| AC-12 | 日英切替、320px画面、ヘルプ、空/失敗/成功状態 | UIが欠けず、利用者向け文言で説明できる。 |
+
+詳細な検証環境・バージョン別ゲートは`DEVELOPMENT_PLAN.md`に定める。
+
+## 12. リリースパッケージ・ドキュメント
+
+- 作業開始時点の最新`ttomohisa/htmlapps-template`の`AGENTS.md`・`APP_SPEC.md`・ビルド定義・コンポーネントを読んで適用する。2026-10-14時点のmainは確認済みだが、実装時に再確認する。
+- `APP_SPEC.md`を製品仕様の正とし、`DEVELOPMENT_PLAN.md`でバージョン・ゲートを追跡する。
+- 実装リポジトリの`app.config.json`（日本語/英語名称・slug・version）を更新する。
+- README日英、CHANGELOG、favicon、実UIスクリーンショット日英、ライセンス、プライバシー、対応環境を整える。
+- リリース成果物の具体的なパスと必須CIは、作業時点のテンプレート/対象リポジトリの現在状態で確定する。生成物を直接手編集しない。
+- GitHub PRは作成・更新してよいが、**マージはユーザー本人が実施する**。
+- アプリ名「Pause & Tell」は企画上の仮決定。公開前に名称衝突・商標確認を行う。
+
+## 13. 検証時に参照する一次情報
+
+- Browser Kitty共通ガイド（このProjectで提供された指針）
+- `https://github.com/ttomohisa/htmlapps-template`（2026-10-14に現行mainのREADME、APP_SPEC、AGENTS、app.configを確認）
+- MDN `HTMLCanvasElement.captureStream()`: https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream
+- MDN `MediaRecorder.dataavailable`: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/dataavailable_event
+- MDN `MediaDevices.getUserMedia()`: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+- MDN `HTMLVideoElement.requestVideoFrameCallback()`: https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback
+- MDN `CanvasCaptureMediaStreamTrack.requestFrame()`（ブラウザ差のため必須にしない）: https://developer.mozilla.org/en-US/docs/Web/API/CanvasCaptureMediaStreamTrack/requestFrame
+
+> **実装状況に関する注意:** この文書は企画・要件定義であり、これらのテストを実施済みと主張するものではない。ブラウザ対応・上限・録画品質は、実機試験を通過した場合のみ公開文言に反映する。
