@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### v0.3.0 — Annotated recording preview (2026-10-15)
+
+- Added circle/ellipse, arrow and freehand pen tools with pointer/touch input and three outlined paint colors.
+- Drawing automatically pauses source playback without pausing MediaRecorder or microphone capture.
+- Normalized video coordinates map CSS pointer positions to captured Canvas pixels, including portrait source videos and scaled stages.
+- Drawing and voice are recorded together in the same Canvas+microphone MediaStream; toolbar/buttons are never in the captured canvas.
+- Added visible-stroke Undo/Clear, default clear-on-source-play, per-source/reset cleanup, and explicit notice that past recorded content is irreversible.
+- Bilingual UI and Help updated, plus a dedicated G3 validation matrix. Source audio and tap rings remain deferred.
+- G1/G2 physical-device gates and G3 physical-device validation remain unverified; do not present as an approved release.
+
+
+
 ### v0.2.0 — Workflow preview (2026-10-14)
 
 - Added three clear workflow stages, an explicit video-loading state and current file summary in the studio.
