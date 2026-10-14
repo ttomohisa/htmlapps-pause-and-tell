@@ -11,7 +11,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - **Point / one-tap ring** is now the default drawing tool. Tap once to place a persistent outlined ring at the selected video position; the source video pauses automatically, while microphone/recording continue.
 - Marker rings and all other drawings persist while the source is paused. **Undo**, **Clear**, or **Play** remove only currently visible marks; earlier recorded frames stay unchanged.
 - On mobile, the four drawing tools are grouped immediately above the video (44px+ touch targets). A contextual bottom transport provides **Record + Play** before recording, or **Play/Pause + Finish** while recording, with safe-area padding and output/status UI kept outside the recorded Canvas.
-- The mobile viewport is given extra bottom padding so fixed controls do not cover the work area; tall portrait-video tool selection scrolls the video back into view when needed.
+- The mobile viewport is given extra bottom padding so fixed controls do not cover the work area. Importing a source scrolls to the drawing/video area; finishing a recording scrolls to its result. Tall portrait-video tool selection brings the video into view.
 - A status badge beside the video indicates whether the source is playing/paused during recording; it is not captured into the output.
 - Validation plan: [G4 point and mobile acceptance matrix](docs/G4_VALIDATION.md); actual iOS/Android devices remain **UNTESTED**.
 
