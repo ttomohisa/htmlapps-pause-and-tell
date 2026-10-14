@@ -471,6 +471,13 @@
     .pt-drop.drag-over { border-color: var(--accent); background: var(--accent-soft); }
     .pt-file-label { display: inline-flex; justify-content: center; align-items: center; min-height: 46px; padding: 10px 22px; border-radius: 10px; background: var(--accent); color: white; font-weight: 650; cursor: pointer; }
     .pt-file-label:hover { background: var(--accent-hover); }
+    .pt-controls .pt-file-label {
+      min-height: 46px; padding: 9px 16px; border: 1px solid var(--line);
+      border-radius: 10px; background: var(--surface); color: var(--text); font-size: 14px;
+    }
+    .pt-controls .pt-file-label:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+    .pt-controls .pt-file-label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
     .pt-file-label:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
     .pt-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .pt-file-hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
