@@ -11,13 +11,29 @@ $readmeJa = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "README.ja.md")
 
 if ([string]$config.name -ne "Pause & Tell") { throw "Pause & Tell name mismatch." }
 if ([string]$config.slug -ne "pause-and-tell") { throw "Pause & Tell slug mismatch." }
-if ([string]$config.version -ne "0.1.0") { throw "Unexpected Pause & Tell POC version." }
+if ([string]$config.version -ne "0.2.0") { throw "Unexpected Pause & Tell POC version." }
 if ([string]$config.repository.owner -ne "ttomohisa" -or [string]$config.repository.name -ne "htmlapps-pause-and-tell") {
   throw "Pause & Tell repository metadata mismatch."
 }
 if ($config.build.blockRuntimeNetwork -ne $true) { throw "Pause & Tell must block runtime network." }
 
 $requiredTokens = @(
+  'id="ptSteps"',
+  'aria-current="step"',
+  'id="ptLoading"',
+  'id="ptCurrentFile"',
+  'id="ptMicNote"',
+  'data-i18n="localBadge"',
+  'data-i18n="stepExport"',
+  'function lockHelpBackground()',
+  'function unlockHelpBackground()',
+  "helpDialog.addEventListener('close',unlockHelpBackground)",
+  "language === 'ja' ? 'EN' : 'JA'",
+  'Fully local processing',
+  '完全ローカル処理',
+  'footer { display: none; }',
+  'state.resultStatusKey',
+  'state.stopReason',
   'id="ptInputPanel"',
   'id="ptStudioPanel"',
   'id="ptResultPanel"',
@@ -56,8 +72,14 @@ if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback 
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
   throw "Specification and development gates are missing."
 }
-if (-not $readme.Contains("v0.1.0") -or -not $readmeJa.Contains("v0.1.0")) {
-  throw "README must describe the experimental v0.1.0 stage."
+if (-not $readme.Contains("v0.2.0") -or -not $readmeJa.Contains("v0.2.0")) {
+  throw "README must describe the experimental v0.2.0 stage."
 }
 if (-not (Test-Path (Join-Path $Root "docs\G1_VALIDATION.md"))) { throw "Missing G1 validation protocol." }
-Write-Host "[OK] Pause & Tell v0.1.0 contract markers passed." -ForegroundColor Green
+if (-not (Test-Path (Join-Path $Root "docs\G2_VALIDATION.md"))) { throw "Missing G2 validation protocol." }
+$icon = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "assets\favicon.svg")
+if (-not $icon.Contains('<rect width="64" height="64" rx="16" fill="#16624f"/>') -or -not $icon.Contains('<!-- Speech / narration bubble -->')) {
+  throw "The canonical favicon must be the supplied Pause & Tell SVG."
+}
+
+Write-Host "[OK] Pause & Tell v0.2.0 contract markers passed." -ForegroundColor Green
