@@ -59,3 +59,16 @@ A G4 smoke record must include the exact Git SHA, built HTML identifier, browser
 | iPhone Safari (physical) | Not yet tested | Not tested | Not tested | Not tested | **PENDING** |
 
 **G4 must not be marked complete** until physical devices are tested and the previous G1/G2/G3 blockers are resolved. The next-stage v0.5.0 audio mixing feature remains conditional on separate real-device evidence.
+
+## Automated smoke evidence (2026-10-15; G4 remains unapproved)
+
+Source: commit `9fff11e70b759fab60f2224dfc25324cf4238e60`, GitHub Actions-generated `dist/index.html`; Linux headless Chromium 144 / Playwright with WebAudio oscillator replacing the physical microphone. **This does not establish iPhone/Android device support.**
+
+- Source pause after a tap: landscape time stayed **1.0494s**, portrait stayed **0.994s** while output recording continued for about 1.7s.
+- Saved output: **640×360 VP8+Opus WebM** (landscape) and **360×640 VP8+Opus WebM** (portrait); 0 JS errors; no HTTP(S) requests. `blob:` references only.
+- Decoded video frames (0.4 / 2.2 / 3.6 seconds) around a test ring on a dark fixture: yellow-like pixel counts **0 / 108 / 0** (landscape) and **0 / 216 / 0** (portrait). Ring is present in the middle recorded frame and absent from earlier/later ones.
+- Initial mobile rendering: 320×740 portrait had full visible video rect **181.5–558.8px**, bottom transport starts **661px**; 844×390 coarse-touch landscape video rect **95.6–294.5px**, bottom transport starts **319px**. Both fully visible above transport.
+- 320, 360, 390px portrait-touch widths; 844×390 touch landscape; 1280×900 desktop: no horizontal overflow; 44px+ tool height; footer hidden only on mobile; fixed transport visible. JA/EN and help background-scroll lock preserved.
+- Build/Preview CI success on the tested commit. Real devices and direct `file://` opening remain UNTESTED (sandbox blocks file navigation).
+
+**Gate decision:** G4 automated subset PASS; overall **G4 PENDING** until physical Android Chrome / iPhone Safari, real microphone, saved-file playback and rotation tests are completed. G1/G2/G3 physical gates are also pending.
