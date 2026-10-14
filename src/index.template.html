@@ -1233,17 +1233,17 @@
       const PAINT_COLORS = Object.freeze({ yellow: '#ffe36b', white: '#ffffff', red: '#ff6262' });
       const MAX_VISIBLE_STROKES = 120;
       const MAX_PEN_POINTS = 2500;
-      const drawing = { tool: 'ellipse', color: 'yellow', strokes: [], active: null };
+      const drawing = { tool: 'point', color: 'yellow', strokes: [], active: null };
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
-      // On a narrow viewport the drawing toolbar can be below a tall portrait video.
-      // After tool selection, bring the entire drawable surface back into view.
+      // When a tool is selected on mobile, keep the drawing target in view.
       function showDrawableStage() {
         if (window.innerWidth > 767) return;
         const rect=stageCanvas.getBoundingClientRect();
         const topLimit=72, bottomLimit=window.innerHeight-16;
         if (rect.height <= bottomLimit-topLimit && (rect.top<topLimit || rect.bottom>bottomLimit)) {
-          stageCanvas.scrollIntoView({block:'center',behavior:'smooth'});
+          const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          stageCanvas.scrollIntoView({block:'center',behavior:reducedMotion?'instant':'smooth'});
         }
       }
       function pointerToVideo(event, allowOutside = false) {
@@ -1259,7 +1259,11 @@
         const b = stroke.to;
         const x0 = a.u * w, y0 = a.v * h, x1 = b.u * w, y1 = b.v * h;
         ctx.beginPath();
-        if (stroke.tool === 'ellipse') {
+        if (stroke.tool === 'point') {
+          // An intentional, persistent ring: not a transient pointer ripple.
+          const radius = Math.max(15, Math.min(31, Math.min(w,h)*.051));
+          ctx.arc(x0,y0,radius,0,2*Math.PI);
+        } else if (stroke.tool === 'ellipse') {
           const distance = Math.hypot(x1 - x0, y1 - y0);
           if (distance < 12) {
             const radius = Math.max(12, Math.min(w,h) * .025);
@@ -1303,6 +1307,17 @@
         stageContext.lineWidth = width;
         stageContext.strokeStyle = PAINT_COLORS[stroke.color] || PAINT_COLORS.yellow;
         stageContext.stroke();
+        if (stroke.tool === 'point') {
+          const cx=stroke.from.u*w, cy=stroke.from.v*h;
+          const centerRadius=Math.max(2.8,Math.min(w,h)*.007);
+          stageContext.beginPath();
+          stageContext.arc(cx,cy,centerRadius,0,Math.PI*2);
+          stageContext.fillStyle=PAINT_COLORS[stroke.color] || PAINT_COLORS.yellow;
+          stageContext.fill();
+          stageContext.lineWidth=2.5;
+          stageContext.strokeStyle='rgba(0,0,0,.92)';
+          stageContext.stroke();
+        }
         stageContext.restore();
       }
       function updateDrawingControls() {
@@ -1352,7 +1367,7 @@
         renderFrame();
       }
       drawSurface.addEventListener('pointerdown',event=>{
-        if (!isDrawPhase() || drawing.active || (event.pointerType==='mouse' && event.button!==0)) return;
+        if (!isDrawPhase() || drawing.active || event.isPrimary===false || (event.pointerType==='mouse' && event.button!==0)) return;
         const point=pointerToVideo(event);
         if (!point) return;
         if (drawing.strokes.length>=MAX_VISIBLE_STROKES) {
@@ -1361,6 +1376,13 @@
         event.preventDefault();
         if (!sourceVideo.paused && !sourceVideo.ended) sourceVideo.pause();
         const stroke={tool:drawing.tool,color:drawing.color,from:point,to:point};
+        if (drawing.tool==='point') {
+          // Point mode is a single tap; ignore subsequent drags and duplicate pointerup.
+          drawing.strokes.push(stroke);
+          updateDrawingControls();
+          renderFrame();
+          return;
+        }
         if (drawing.tool==='pen') stroke.points=[point];
         drawing.active={id:event.pointerId,stroke};
         try { drawSurface.setPointerCapture(event.pointerId); }
@@ -1440,9 +1462,19 @@
           stopRecording('limit');
         }
       }
+      function refreshStageStatus() {
+        const notice=$('#ptStageStatus');
+        notice.hidden=state.phase!=='recording';
+        if (!notice.hidden) {
+          const detail=state.statusKey && ['sourcePaused','sourcePlaying','sourceEnded'].includes(state.statusKey)
+            ? translate(state.statusKey) : translate('recording');
+          notice.textContent=detail;
+        }
+      }
       function setStatus(key) {
         state.statusKey = key;
         $('#ptMessage').textContent = key ? translate(key) : '';
+        refreshStageStatus();
       }
       function setPhase(phase) {
         state.phase = phase;
@@ -1460,8 +1492,13 @@
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
         $('#ptResultPanel').hidden = phase !== 'result';
         const busy = phase === 'preparing' || phase === 'finalizing';
+        const canTransport = phase==='ready' || phase==='recording';
+        $('#ptTransport').hidden = !canTransport;
+        $('#ptStart').hidden = phase!=='ready';
+        $('#ptStop').hidden = phase!=='recording';
+        $('#ptPlayPause').hidden = !canTransport;
         $('#ptStart').disabled = phase !== 'ready';
-        $('#ptPlayPause').disabled = !['ready','recording'].includes(phase);
+        $('#ptPlayPause').disabled = !canTransport;
         $('#ptStop').disabled = phase !== 'recording';
         $('#ptSeek').disabled = phase !== 'ready';
         $('#ptFile').disabled = busy;
@@ -1471,6 +1508,7 @@
         badge.textContent = translate(phase === 'recording' ? 'recording' : phase === 'preparing' ? 'preparing' : phase === 'finalizing' ? 'finalizing' : 'notRecording');
         updateTransport();
         updateClock();
+        refreshStageStatus();
       }
       function updateTransport() {
         $('#ptPlayPause').textContent = translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
@@ -1486,6 +1524,7 @@
         $('#brandName').textContent = APP_CONFIG.name;
         $('#footerName').textContent = APP_CONFIG.name;
         if (state.statusKey) $('#ptMessage').textContent = translate(state.statusKey);
+        refreshStageStatus();
         updateTransport();
         setPhase(state.phase);
         if (state.outputBlob) {
