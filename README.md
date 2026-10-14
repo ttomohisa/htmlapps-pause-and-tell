@@ -10,7 +10,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 
 - Load one browser-decodable local video file (maximum **30 seconds**, **100 MiB**).
 - Preview, play and seek before recording; recording always starts with the source paused at its first frame.
-- Grant microphone access only after pressing **Start voice recording**. Record the canvas frames plus microphone audio in one MediaRecorder session.
+- Grant microphone access only after pressing **Record explanation**. Record the canvas frames plus microphone audio in one MediaRecorder session.
 - Play / pause the source video independently. During a pause, output recording and mic continue; after the source finishes, the recording continues on the last frame.
 - Finish manually or at a **90-second** output limit; inspect the generated video in the browser.
 - Choose an editable filename and download the actual MP4 or WebM format chosen by the browser.
@@ -22,7 +22,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 
 1. Open the built HTML in a supported secure context (HTTPS or `file://`, subject to browser permissions).
 2. Choose a playable video file no longer than 30 seconds.
-3. Preview it. Press **Start voice recording** and grant the microphone permission.
+3. Preview it. Press **Record explanation** and grant the microphone permission.
 4. Press **Play source video**, then **Pause source video** to explain the static frame aloud. The recording timer continues.
 5. Press **Finish recording**, review the entire output and download it. The file is not automatically saved across reloads.
 

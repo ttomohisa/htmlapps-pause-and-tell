@@ -553,7 +553,7 @@
       </div>
       <label class="pt-seek" id="ptSeekWrap"><span data-i18n="seek">位置</span><input id="ptSeek" type="range" min="0" max="1000" value="0" aria-label="再生位置" data-i18n-aria-label="seekPosition"></label>
       <div class="pt-controls">
-        <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">マイクで録画開始</button>
+        <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">説明を録画</button>
         <button type="button" class="button" id="ptPlayPause" data-i18n="play">元動画を再生</button>
         <button type="button" class="button pt-record-stop" id="ptStop" data-i18n="stopRecord" disabled>録画を終了</button>
         <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
@@ -800,7 +800,7 @@
           "recordClock": "完成動画の時間",
           "seek": "位置",
           "seekPosition": "再生位置",
-          "startRecord": "マイクで録画開始",
+          "startRecord": "説明を録画",
           "play": "元動画を再生",
           "pause": "元動画を止める",
           "stopRecord": "録画を終了",
@@ -880,7 +880,7 @@
           "recordClock": "Output recording",
           "seek": "Position",
           "seekPosition": "Playback position",
-          "startRecord": "Start voice recording",
+          "startRecord": "Record explanation",
           "play": "Play source video",
           "pause": "Pause source video",
           "stopRecord": "Finish recording",
@@ -1257,10 +1257,10 @@
       function recordingMime(stream) {
         const types = [
           'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
-          'video/mp4',
           'video/webm;codecs=vp8,opus',
           'video/webm;codecs=vp9,opus',
-          'video/webm'
+          'video/webm',
+          'video/mp4'
         ];
         for (const type of types) {
           if (!MediaRecorder.isTypeSupported(type)) continue;

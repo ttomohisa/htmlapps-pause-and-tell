@@ -29,7 +29,7 @@ Record the exact input codec with `ffprobe` if available. Browser support depend
 
 1. Open a generated `dist/index.html` over HTTPS or direct `file://` where microphone access works. Start with no previously granted permission.
 2. Confirm the initial page does not request microphone access. Load a playable, 20s clip.
-3. Preview and seek before recording. Press **Start voice recording**, grant mic permission, and verify the source is paused at 00:00 while **output recording time** increases.
+3. Preview and seek before recording. Press **Record explanation**, grant mic permission, and verify the source is paused at 00:00 while **output recording time** increases.
 4. Press **Play source video**, measure 8 seconds of source play, then press **Pause source video**.
 5. Say a distinctive phrase every ~5 seconds for 20 seconds of pause. Confirm the source time stays still while output time continues. Visually observe the static frame.
 6. Resume source playback for the remaining ~12 seconds, let it end, and optionally add a brief final phrase on the final frame.
@@ -66,3 +66,13 @@ iPhone Safari (physical) | *not measured* | both | — | — | — | — | **UNT
 If real smartphone playback drops the static interval, has black frames, or truncates the audio, **do not advance to v0.2 or add annotation UI**. Investigate captureStream stationary frame production, encoding timestamps, autoplay, and audio/video muxing; consider an offline event-recording + render alternative if necessary.
 
 If all mandatory cases pass, document verified device/browser versions and attach an output recording fixture where sharing it is appropriate. Retain the explicit limitations for unsupported environments.
+
+## Automated Chromium smoke result — not a G1 pass
+
+- Date: 2026-10-14. Platform: headless Linux Chromium 144 in an isolated test browser.
+- Input: 20-second landscape H.264 fixture, 640×360.
+- Procedure: start recorder with simulated audio from an in-page WebAudio oscillator (not a physical microphone); play source for ~3.1s, pause for ~4.2s, resume, stop after a ~12.1s total session.
+- Observed before MIME priority adjustment: output source clock remained at 00:03 throughout pause while output clock moved from 00:04 to 00:08; exported 12.1075s video/audio file, 640×360, with non-silent simulated audio. Static interval retained matching frames.
+- Initial Chromium generic-MP4 selection resulted in VP9 + Opus **inside MP4**; format priority changed to prefer explicit WebM VP8/Opus before generic MP4. New emitted file format must be reverified after that change.
+- 360px viewport: no horizontal overflow (scrollWidth 360px). Start button label shortened for narrow touch screens.
+- This test loads the generated standalone HTML into a test page; real `file://` or HTTPS permission flows, hardware mic, physical iOS Safari/Android Chrome and real device playback have **not been tested**. These remain blocking items for G1.
