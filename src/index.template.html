@@ -536,20 +536,26 @@
   <main class="main">
     <section class="page-intro" aria-labelledby="heroTitle">
       <div>
-        <h2 id="heroTitle" data-i18n="introTitle">単一HTMLアプリのスターター</h2>
-        <p data-i18n="lead">PDF Organizerと同じ、固定依存・完全内包・実行時通信なしの構成から、新しいブラウザーアプリを作れます。</p>
+        <h2 id="heroTitle" data-i18n="introTitle">動画を止めて、声で説明する</h2>
+        <p data-i18n="lead">元動画を止めている間も声と完成動画の録画は続きます。</p>
       </div>
       <div class="local-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-5"/></svg>
-        <span data-i18n="localBadge">実行時通信なし</span>
+        <span data-i18n="localBadge">完全ローカル処理</span>
       </div>
     </section>
 
 
+    <ol class="pt-steps" id="ptSteps" aria-label="作業の進み具合" data-i18n-aria-label="stepsAria">
+      <li class="pt-step" data-step="1" data-state="current" aria-current="step"><span class="pt-step-number" aria-hidden="true">1</span><span class="pt-step-label" data-i18n="stepSelect">動画を選ぶ</span></li>
+      <li class="pt-step" data-step="2" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">2</span><span class="pt-step-label" data-i18n="stepRecord">説明を録る</span></li>
+      <li class="pt-step" data-step="3" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">3</span><span class="pt-step-label" data-i18n="stepExport">動画を保存</span></li>
+    </ol>
     <!-- APP:BEGIN Pause & Tell recording proof of concept. -->
     <section class="shell pt-panel" id="ptInputPanel" aria-labelledby="ptInputTitle">
       <h2 id="ptInputTitle" data-i18n="selectTitle">説明したい動画を選ぶ</h2>
       <p class="pt-muted" data-i18n="selectBody">短い動画を読み込み、再生を止めながら声を録音します。</p>
+      <p class="pt-loading" id="ptLoading" role="status" aria-live="polite" data-i18n="loadingVideo" hidden>動画を読み込んでいます…</p>
       <div class="pt-drop" id="ptDropZone">
         <label class="pt-file-label"><span data-i18n="chooseVideo">動画を選ぶ</span><input id="ptFile" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" aria-label="動画を選ぶ" data-i18n-aria-label="chooseVideo"></label>
         <p class="pt-file-hint" data-i18n="dropHint">PCではここへドラッグ＆ドロップできます。最大30秒・100MiB（技術試作版）。</p>
@@ -563,6 +569,7 @@
         <h2 id="ptStudioTitle" data-i18n="studioTitle">動画を見ながら説明する</h2>
         <span class="pt-status-pill" id="ptRecordBadge" data-i18n="notRecording">録画前</span>
       </div>
+      <p id="ptCurrentFile" class="pt-current-file" hidden></p>
       <div class="pt-stage-wrap">
         <div class="pt-stage" id="ptStage">
           <video id="ptVideo" class="pt-source-video" preload="auto" playsinline muted disablepictureinpicture aria-hidden="true"></video>
@@ -574,6 +581,7 @@
         <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 01:30</strong></div>
       </div>
       <label class="pt-seek" id="ptSeekWrap"><span data-i18n="seek">位置</span><input id="ptSeek" type="range" min="0" max="1000" value="0" aria-label="再生位置" data-i18n-aria-label="seekPosition"></label>
+      <p class="pt-mic-note" id="ptMicNote" data-i18n="micNote">マイクは「説明を録画」を押したときだけ使用します。動画と音声は端末内で処理します。</p>
       <div class="pt-controls">
         <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">説明を録画</button>
         <button type="button" class="button" id="ptPlayPause" data-i18n="play">元動画を再生</button>
@@ -581,7 +589,7 @@
         <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
       </div>
       <p id="ptMessage" class="pt-message" aria-live="polite"></p>
-      <p class="pt-poc-note" data-i18n="pocNote">v0.1.0は録画エンジンの実証版です。描画ツールは次の開発段階で追加します。元動画の音は保存されません。</p>
+      <p class="pt-poc-note" data-i18n="pocNote">v0.2.0は基本操作の試用版です。線や丸を描く機能は次の開発段階で追加します。元動画の音は含まれません。</p>
     </section>
 
     <section class="shell pt-panel" id="ptResultPanel" aria-labelledby="ptResultTitle" hidden>
@@ -668,7 +676,7 @@
       <p data-i18n="helpPrivacyBody">選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。</p>
       <h3 data-i18n="helpNotesTitle">技術試作版の注意</h3>
       <ul>
-        <li data-i18n="helpNote1">v0.1.0は録画エンジンの検証段階です。丸・矢印・ペンの描画は未実装です。</li>
+        <li data-i18n="helpNote1">v0.2.0は基本操作の検証段階です。丸・矢印・ペンの描画は未実装です。</li>
         <li data-i18n="helpNote2">音声はマイクのみを録ります。元動画の音声は含まれません。</li>
         <li data-i18n="helpNote3">ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。</li>
         <li data-i18n="helpNote4">ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。</li>
