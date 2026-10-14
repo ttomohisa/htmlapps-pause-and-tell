@@ -1608,7 +1608,33 @@
         applyLanguage();
       });
       const helpDialog = $('#helpDialog');
-      $('#helpButton').addEventListener('click',() => helpDialog.showModal());
+      let helpScrollRestore = null;
+      function lockHelpBackground() {
+        if (helpScrollRestore !== null) return;
+        helpScrollRestore = { y: window.scrollY, originalTop: document.body.style.top };
+        document.documentElement.classList.add('pt-help-locked');
+        document.body.classList.add('pt-help-locked');
+        document.body.style.top = '-' + helpScrollRestore.y + 'px';
+      }
+      function unlockHelpBackground() {
+        if (!helpScrollRestore) return;
+        const previous = helpScrollRestore;
+        helpScrollRestore = null;
+        document.body.classList.remove('pt-help-locked');
+        document.documentElement.classList.remove('pt-help-locked');
+        document.body.style.top = previous.originalTop;
+        const priorBehavior = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = 'auto';
+        window.scrollTo(0, previous.y);
+        document.documentElement.style.scrollBehavior = priorBehavior;
+      }
+      $('#helpButton').addEventListener('click',() => {
+        if (helpDialog.open) return;
+        lockHelpBackground();
+        try { helpDialog.showModal(); }
+        catch(error) { unlockHelpBackground(); throw error; }
+      });
+      helpDialog.addEventListener('close',unlockHelpBackground);
       $('#closeHelpButton').addEventListener('click',() => helpDialog.close());
       helpDialog.addEventListener('click',event => {
         const rect = helpDialog.getBoundingClientRect();
