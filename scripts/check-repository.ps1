@@ -224,6 +224,9 @@ try {
   Remove-Item -Force -ErrorAction SilentlyContinue $tempVerifyPath
 }
 
+# Product-level contract check, in addition to the inherited template validation.
+& (Join-Path $Root "scripts\check-pause-and-tell.ps1")
+
 $app = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "app.config.json") | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace([string]$app.name)) { throw "app.config.json: name is required" }
 if ([string]::IsNullOrWhiteSpace([string]$app.slug)) { throw "app.config.json: slug is required" }
