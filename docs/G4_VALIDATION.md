@@ -22,6 +22,7 @@
 - The bar must respect `env(safe-area-inset-bottom)`, not hide the last content or help content, and not duplicate another fixed bottom navigation.
 - Recording status is visible near the source video, but **not present in exported pixels**.
 - At 320/360/390px width, portrait video, 844x390 coarse-pointer landscape and short screens: no horizontal overflow, overlapping buttons, clipped tools, or offscreen dialog.
+- Loading a source should scroll compact layouts to the drawing/video area; finishing should scroll to output preview, reducing extra scrolling. Desktop navigation must remain stable.
 - Drawing touch gestures apply `touch-action:none` only on the video drawing surface; page scrolling outside it must remain possible.
 - Help modal keeps body-scroll lock and inner help scroll; mobile footer remains hidden.
 
