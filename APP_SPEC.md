@@ -1,6 +1,6 @@
 # Pause & Tell — APP_SPEC.md
 
-> **Status:** 正式な実装仕様（v0.1.0実装中・実機未検証）  
+> **Status:** 正式な実装仕様（v0.2.0基本フロー実装中・G1実機未検証）  
 > **Date:** 2026-10-14  
 > **Product name:** Pause & Tell  
 > **Japanese name:** 動画解説レコーダー  
