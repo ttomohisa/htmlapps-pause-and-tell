@@ -491,6 +491,11 @@
 
     /* v0.4.0 mobile: contextual transport, ample safe area and tap marker. */
     .pt-source-change-row { display:flex; justify-content:flex-end; margin:7px 0 2px; }
+    @media (max-width:767px), (pointer:coarse) and (max-height:600px) {
+      body:has(#ptStudioPanel:not([hidden])) .page-intro,
+      body:has(#ptResultPanel:not([hidden])) .page-intro { display:none; }
+      .pt-steps { margin-bottom:12px; }
+    }
     .pt-source-change-row .pt-file-label { min-height:44px; padding:7px 14px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-size:13px; }
     .pt-source-change-row .pt-file-label:hover { background:var(--surface-hover); border-color:var(--line-strong); }
     .pt-source-change-row .pt-file-label:has(input:disabled) { opacity:.45; cursor:not-allowed; }
@@ -993,7 +998,7 @@
           "drawUndo": "1つ戻す",
           "drawClear": "線を消す",
           "drawSurface": "動画上に図形を描く領域",
-          "drawNote": "指差しは1回タップでリング表示。丸・矢印・ペンはなぞって描画します。再生・消去で今の線は消えます。録画済みの映像は元に戻せません。",
+          "drawNote": "指差しはタップ、他はドラッグ。再生で線を消去。録画済みの部分は戻せません。",
           "drawLimit": "線が多くなりました。不要な線を消してから続けてください。",
           "helpStep5": "「録画を終了」で結果を作り、再生してから保存します。",
           "toolPoint": "指差し",
@@ -1099,7 +1104,7 @@
           "drawUndo": "Undo line",
           "drawClear": "Clear lines",
           "drawSurface": "Draw on the video",
-          "drawNote": "Point places a ring with one tap. Drag to draw circles, arrows and pen lines. Playback or Clear removes current marks; recorded frames are permanent.",
+          "drawNote": "Tap to point; drag to draw. Play clears marks; recorded video cannot be undone.",
           "drawLimit": "Too many lines are visible. Clear some before adding more.",
           "helpStep5": "Finish recording, review the output, and save the video.",
           "toolPoint": "Point",
@@ -1237,8 +1242,19 @@
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
       // When a tool is selected on mobile, keep the drawing target in view.
+      function isCompactVideoLayout() {
+        return window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 600px)').matches;
+      }
+      function focusWorkflowSection(selector) {
+        if (!isCompactVideoLayout()) return;
+        requestAnimationFrame(() => {
+          const target=$(selector);
+          if (!target || !target.getClientRects().length) return;
+          target.scrollIntoView({block:'start',behavior:'instant'});
+        });
+      }
       function showDrawableStage() {
-        const compact = window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 600px)').matches;
+        const compact = isCompactVideoLayout();
         if (!compact) return;
         const rect=stageCanvas.getBoundingClientRect();
         const topLimit=72, bottomLimit=window.innerHeight-94;
@@ -1669,6 +1685,7 @@
           setPhase('ready');
           setStatus('sourceReady');
           startRendering();
+          focusWorkflowSection('.pt-draw-panel');
           logDetail('Loaded: ' + file.name + ', ' + duration.toFixed(3) + 's, ' + sourceVideo.videoWidth + 'x' + sourceVideo.videoHeight + ', canvas ' + stageCanvas.width + 'x' + stageCanvas.height);
         } catch (error) {
           if (!withinSession(token)) return;
@@ -1857,6 +1874,7 @@
           $('#ptResultWarning').textContent = translate(state.resultStatusKey);
           setPhase('result');
           updateResultMeta();
+          focusWorkflowSection('#ptResultPanel');
           logDetail('Result: ' + blob.size + ' bytes, type=' + mediaType + ', duration=' + inspected.duration + ', wall=' + (state.recordedMs/1000).toFixed(2) + 's');
         } catch (error) {
           if (!withinSession(token)) return;
@@ -1914,6 +1932,7 @@
         setPhase('ready');
         setStatus('sourceReady');
         startRendering();
+        focusWorkflowSection('.pt-draw-panel');
       }
       async function togglePlayback() {
         if (state.phase !== 'ready' && state.phase !== 'recording') return;
