@@ -3,9 +3,9 @@
   "name": "Pause & Tell",
   "nameJa": "Pause & Tell｜動画解説レコーダー",
   "slug": "pause-and-tell",
-  "version": "0.3.0",
-  "description": "Pause a video, draw circles, arrows and lines, and record your explanation locally as one video.",
-  "descriptionJa": "動画を止め、丸や矢印を描きながら声で説明。その操作を端末内で1本の動画に録画します。",
+  "version": "0.4.0",
+  "description": "Record narrated videos while pausing the source and pointing, circling, or drawing. Entirely local processing.",
+  "descriptionJa": "動画の再生を止め、指差しリングや丸・矢印を描きながら説明音声を録画します。端末内で処理します。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",
