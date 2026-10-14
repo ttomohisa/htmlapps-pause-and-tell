@@ -81,3 +81,11 @@ Direct inspection of **decoded exported files** found visible yellow ellipse, re
 **Clear-on-resume regression:** A separate WebM test drew a yellow ellipse while source playback was paused, then resumed. Decoded output at 1.7s retained the ellipse (~1237 annotation-yellow-like pixels); a later 3.5s frame showed it absent (~26 residual pixels from compression/background). The output timestamp/source timestamp differ because of recording and test interaction delays. Both the live Canvas and encoded result show the correct transition: prior recorded strokes remain in earlier frames, new frames clear them.
 
 **Known remaining test gaps:** physical iPhone/Android pointer/touch and microphone behavior, rotated source metadata, hardware permissions, direct `file://` loading, and native OS video playback. These continue to block G1/G3 acceptance. **PR remains Draft**.
+
+### Final v0.3.0 build recheck (commit `611fe0b5c4b126219c215e60e5255e4b017dbbb5`)
+
+The last UI adjustment brings a partially obscured portrait source video into view after selecting a tool/color on narrow screens, and updates the fallback static version label. GitHub Actions' standalone HTML check **passed** on this commit.
+
+The full headless G3 browser smoke was rerun against its newly generated HTML with simulated microphone audio. Both 640×360 landscape and 360×640 portrait exports retained the full ellipse/arrow/pen drawings, automatic source pause, working Undo/Clear, VP8+Opus output, no JS errors, and no horizontal overflow at 360/320px respectively. The separate clear-on-resume output was also rerun: yellow annotation-like pixels dropped from ~1723 at 1.7s to ~27 at 3.5s in decoded frames after playback resumed (color-threshold heuristic with a highly saturated synthetic input fixture).
+
+These checks do **not** satisfy the real hardware microphone/touch and native playback requirements. G1/G3 remain open for physical iPhone and Android.
