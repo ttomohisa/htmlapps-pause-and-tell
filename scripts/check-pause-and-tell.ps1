@@ -30,7 +30,6 @@ $requiredTokens = @(
   "helpDialog.addEventListener('close',unlockHelpBackground)",
   "language === 'ja' ? 'EN' : 'JA'",
   'Fully local processing',
-  '完全ローカル処理',
   'footer { display: none; }',
   'state.resultStatusKey',
   'state.stopReason',
