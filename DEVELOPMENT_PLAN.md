@@ -1,6 +1,6 @@
 # Pause & Tell — DEVELOPMENT_PLAN.md
 
-> **Status:** 開発計画（v0.1.0実装中・実機未検証）  
+> **Status:** 開発計画（v0.2.0基本フロー実装中・G1実機未検証）  
 > **Date:** 2026-10-14  
 > **Product:** Pause & Tell / 動画解説レコーダー  
 > **Specification:** [`APP_SPEC.md`](APP_SPEC.md)  
