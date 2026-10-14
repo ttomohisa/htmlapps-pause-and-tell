@@ -1249,10 +1249,11 @@
       function focusWorkflowSection(selector) {
         if (!isCompactVideoLayout()) return;
         requestAnimationFrame(() => {
-          const portraitSource = selector==='.pt-draw-panel' && stageCanvas.height>stageCanvas.width;
-          const target=portraitSource ? stageCanvas : $(selector);
+          const focusVideo = selector==='.pt-draw-panel'
+            && (stageCanvas.height>stageCanvas.width || window.innerHeight<=600);
+          const target=focusVideo ? stageCanvas : $(selector);
           if (!target || !target.getClientRects().length) return;
-          target.scrollIntoView({block:portraitSource?'center':'start',behavior:'instant'});
+          target.scrollIntoView({block:focusVideo?'center':'start',behavior:'instant'});
         });
       }
       function showDrawableStage() {
