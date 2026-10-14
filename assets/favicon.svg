@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="App icon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pause and Tell">
   <rect width="64" height="64" rx="16" fill="#16624F"/>
-  <path d="M18 16h20l8 8v24H18z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M38 16v10h10M25 34h14M25 42h10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M14 16h26a5 5 0 0 1 5 5v22a5 5 0 0 1-5 5H14a5 5 0 0 1-5-5V21a5 5 0 0 1 5-5Z" fill="none" stroke="#fff" stroke-width="3.5"/>
+  <path d="M19 26v12m8-12v12" stroke="#fff" stroke-width="4.3" stroke-linecap="round"/>
+  <path d="m35 26 8 6-8 6Z" fill="#fff"/>
+  <path d="M49 27h5m-5 5h7m-7 5h5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
 </svg>
