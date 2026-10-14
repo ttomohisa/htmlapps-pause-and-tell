@@ -462,6 +462,32 @@
     @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
       footer { display: none; }
     }
+
+    /* v0.3.0 annotation tools: active controls never enter the output canvas. */
+    .pt-draw-surface { position: absolute; inset: 0; z-index: 3; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+    .pt-draw-surface[aria-disabled="true"] { pointer-events: none; touch-action: auto; cursor: default; }
+    .pt-draw-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+    .pt-draw-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 9px; }
+    .pt-draw-heading { margin: 0; color: var(--text); font-size: 13px; font-weight: 750; }
+    .pt-draw-tools { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .pt-draw-tool { display: flex; justify-content: center; align-items: center; gap: 8px; min-width: 0; min-height: 44px; padding: 7px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--text); background: var(--surface); font-weight: 650; cursor: pointer; }
+    .pt-draw-tool svg, .pt-annotation-action svg { width: 18px; height: 18px; flex: 0 0 auto; stroke-width: 1.9; }
+    .pt-draw-tool[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
+    .pt-draw-tool:disabled, .pt-annotation-action:disabled, .pt-draw-color:disabled { opacity: .45; cursor: not-allowed; }
+    .pt-draw-bottom { margin-top: 10px; display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .pt-draw-colors { display: flex; align-items: center; gap: 9px; }
+    .pt-draw-color { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface); cursor: pointer; }
+    .pt-draw-color[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pt-color-swatch { display: block; width: 23px; height: 23px; border: 1px solid rgba(0,0,0,.3); border-radius: 50%; }
+    .pt-annotation-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .pt-annotation-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); font-size: 13px; font-weight: 650; cursor: pointer; }
+    .pt-draw-help { margin: 11px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    @media (max-width: 390px) {
+      .pt-draw-tool { gap: 5px; font-size: 12px; }
+      .pt-draw-bottom { gap: 12px; }
+      .pt-annotation-action { padding-inline: 9px; }
+    }
+
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
@@ -581,8 +607,32 @@
         <div class="pt-stage" id="ptStage">
           <video id="ptVideo" class="pt-source-video" preload="auto" playsinline muted disablepictureinpicture aria-hidden="true"></video>
           <canvas id="ptCanvas" width="640" height="360" role="img" data-i18n-aria-label="stageDescription" aria-label="元動画のプレビュー"></canvas>
+          <div id="ptDrawSurface" class="pt-draw-surface" aria-disabled="true" data-i18n-aria-label="drawSurface" aria-label="動画上に図形を描く領域"></div>
         </div>
       </div>
+      <section class="pt-draw-panel" aria-labelledby="ptDrawTitle">
+        <div class="pt-draw-header">
+          <h3 id="ptDrawTitle" class="pt-draw-heading" data-i18n="drawTitle">動画に描く</h3>
+          <span class="pt-muted" data-i18n="drawAutoPause">描き始めると元動画が止まります</span>
+        </div>
+        <div class="pt-draw-tools" role="group" data-i18n-aria-label="drawToolsAria" aria-label="描画ツール">
+          <button type="button" class="pt-draw-tool" data-draw-tool="ellipse" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><ellipse cx="12" cy="12" rx="8.2" ry="6.7"/></svg><span data-i18n="toolCircle">丸</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="arrow" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 19 5M10 5h9v9"/></svg><span data-i18n="toolArrow">矢印</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="pen" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 5-.9L20.1 7a2.1 2.1 0 0 0-3-3L5 16zM14 6l4 4"/></svg><span data-i18n="toolPen">ペン</span></button>
+        </div>
+        <div class="pt-draw-bottom">
+          <div class="pt-draw-colors" role="group" data-i18n-aria-label="drawColorsAria" aria-label="描画色">
+            <button type="button" class="pt-draw-color" data-draw-color="yellow" aria-pressed="true" data-i18n-aria-label="drawYellow" aria-label="黄色"><span class="pt-color-swatch" style="background:#ffe36b"></span></button>
+            <button type="button" class="pt-draw-color" data-draw-color="white" aria-pressed="false" data-i18n-aria-label="drawWhite" aria-label="白"><span class="pt-color-swatch" style="background:#ffffff"></span></button>
+            <button type="button" class="pt-draw-color" data-draw-color="red" aria-pressed="false" data-i18n-aria-label="drawRed" aria-label="赤"><span class="pt-color-swatch" style="background:#ff6262"></span></button>
+          </div>
+          <div class="pt-annotation-actions">
+            <button type="button" id="ptDrawUndo" class="pt-annotation-action" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 0 14"/></svg><span data-i18n="drawUndo">1つ戻す</span></button>
+            <button type="button" id="ptDrawClear" class="pt-annotation-action" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg><span data-i18n="drawClear">線を消す</span></button>
+          </div>
+        </div>
+        <p class="pt-draw-help" data-i18n="drawNote">表示中の線だけを消せます。すでに録画された映像は元に戻りません。録画開始時と動画の再生時にも線は消えます。</p>
+      </section>
       <div class="pt-clocks">
         <div><span data-i18n="sourceClock">元動画の時間</span><strong id="ptSourceClock">00:00 / 00:00</strong></div>
         <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 01:30</strong></div>
@@ -596,7 +646,7 @@
         <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
       </div>
       <p id="ptMessage" class="pt-message" aria-live="polite"></p>
-      <p class="pt-poc-note" data-i18n="pocNote">v0.2.0は基本操作の試用版です。線や丸を描く機能は次の開発段階で追加します。元動画の音は含まれません。</p>
+      <p class="pt-poc-note" data-i18n="pocNote">声と描画を一緒に録画できます。元動画の音声は含まれません。</p>
     </section>
 
     <section class="shell pt-panel" id="ptResultPanel" aria-labelledby="ptResultTitle" hidden>
@@ -677,13 +727,14 @@
         <li data-i18n="helpStep1">30秒以内・100MiB以内の再生できる動画を選びます。</li>
         <li data-i18n="helpStep2">マイクを許可して録画を開始します。録画開始時、元動画は停止しています。</li>
         <li data-i18n="helpStep3">元動画を再生・一時停止しながら説明します。元動画の停止中もマイクと完成動画の録画は続きます。</li>
-        <li data-i18n="helpStep4">「録画を終了」で結果を作り、再生してから保存します。</li>
+        <li data-i18n="helpStep4">丸・矢印・ペンで注目箇所を描きます。描画開始で元動画だけ停止します。線は再生時に消えます。</li>
+        <li data-i18n="helpStep5">「録画を終了」で結果を作り、再生してから保存します。</li>
       </ol>
       <h3 data-i18n="helpPrivacyTitle">プライバシー</h3>
       <p data-i18n="helpPrivacyBody">選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。</p>
       <h3 data-i18n="helpNotesTitle">技術試作版の注意</h3>
       <ul>
-        <li data-i18n="helpNote1">v0.2.0は基本操作の検証段階です。丸・矢印・ペンの描画は未実装です。</li>
+        <li data-i18n="helpNote1">「1つ戻す」「線を消す」は現在の表示だけに効きます。すでに録画された声・線・映像は取り消せません。</li>
         <li data-i18n="helpNote2">音声はマイクのみを録ります。元動画の音声は含まれません。</li>
         <li data-i18n="helpNote3">ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。</li>
         <li data-i18n="helpNote4">ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。</li>
@@ -810,11 +861,11 @@
           "helpStep1": "30秒以内・100MiB以内の再生できる動画を選びます。",
           "helpStep2": "マイクを許可して録画を開始します。録画開始時、元動画は停止しています。",
           "helpStep3": "元動画を再生・一時停止しながら説明します。元動画の停止中もマイクと完成動画の録画は続きます。",
-          "helpStep4": "「録画を終了」で結果を作り、再生してから保存します。",
+          "helpStep4": "丸・矢印・ペンで注目箇所を描きます。描画開始で元動画だけ停止します。線は再生時に消えます。",
           "helpPrivacyTitle": "プライバシー",
           "helpPrivacyBody": "選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。",
           "helpNotesTitle": "技術試作版の注意",
-          "helpNote1": "v0.2.0は基本操作の検証段階です。丸・矢印・ペンの描画は未実装です。",
+          "helpNote1": "「1つ戻す」「線を消す」は現在の表示だけに効きます。すでに録画された声・線・映像は取り消せません。",
           "helpNote2": "音声はマイクのみを録ります。元動画の音声は含まれません。",
           "helpNote3": "ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。",
           "helpNote4": "ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。",
@@ -841,7 +892,7 @@
           "play": "元動画を再生",
           "pause": "元動画を止める",
           "stopRecord": "録画を終了",
-          "pocNote": "v0.2.0は基本操作の試用版です。線や丸を描く機能は次の開発段階で追加します。元動画の音は含まれません。",
+          "pocNote": "声と描画を一緒に録画できます。元動画の音声は含まれません。",
           "resultTitle": "録画結果を確認する",
           "resultHelp": "保存前に音声と停止区間が正しいか再生して確かめてください。",
           "outputFilename": "出力ファイル名",
@@ -888,7 +939,23 @@
           "loadingVideo": "動画を読み込んでいます…",
           "micNote": "マイクは「説明を録画」を押したときだけ使用します。動画と音声は端末内で処理します。",
           "resultInterrupted": "録画が中断されました。音声と映像が最後まであるか、保存前に確認してください。",
-          "resultLimit": "90秒の録画上限に達したため終了しました。保存前に結果を確認してください。"
+          "resultLimit": "90秒の録画上限に達したため終了しました。保存前に結果を確認してください。",
+          "drawTitle": "動画に描く",
+          "drawAutoPause": "描き始めると元動画が止まります",
+          "drawToolsAria": "描画ツール",
+          "toolCircle": "丸",
+          "toolArrow": "矢印",
+          "toolPen": "ペン",
+          "drawColorsAria": "描画色",
+          "drawYellow": "黄色",
+          "drawWhite": "白",
+          "drawRed": "赤",
+          "drawUndo": "1つ戻す",
+          "drawClear": "線を消す",
+          "drawSurface": "動画上に図形を描く領域",
+          "drawNote": "表示中の線だけを消せます。すでに録画された映像は元に戻りません。録画開始時と動画の再生時にも線は消えます。",
+          "drawLimit": "線が多くなりました。不要な線を消してから続けてください。",
+          "helpStep5": "「録画を終了」で結果を作り、再生してから保存します。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -898,11 +965,11 @@
           "helpStep1": "Choose a playable video up to 30 seconds and 100 MiB.",
           "helpStep2": "Allow the microphone and start recording. The source video begins paused.",
           "helpStep3": "Play and pause the source while talking. Recording continues even while the source is paused.",
-          "helpStep4": "Finish recording, review the output and download the video.",
+          "helpStep4": "Draw a circle, arrow, or line to emphasize a detail. Drawing pauses the source; resuming playback clears the lines.",
           "helpPrivacyTitle": "Privacy",
           "helpPrivacyBody": "Your source video and microphone are processed on your device. The app does not upload them to an API or cloud. Only your language preference is stored.",
           "helpNotesTitle": "Technical prototype limitations",
-          "helpNote1": "v0.2.0 tests the workflow. Circles, arrows and pen drawing are not yet available.",
+          "helpNote1": "Undo and Clear affect only the current display. They cannot change previously recorded lines or voice.",
           "helpNote2": "Only microphone audio is recorded. The source video's audio is not included.",
           "helpNote3": "Output is MP4 or WebM depending on the browser. Backgrounding, screen lock or interruptions can break a recording.",
           "helpNote4": "Recordings stay in memory and are lost when the page closes. Please play the result through before using it.",
@@ -929,7 +996,7 @@
           "play": "Play source video",
           "pause": "Pause source video",
           "stopRecord": "Finish recording",
-          "pocNote": "v0.2.0 is a workflow preview. Drawing tools come next; source audio is not included.",
+          "pocNote": "Record your voice and drawing together. Original source audio is not included.",
           "resultTitle": "Review the recording",
           "resultHelp": "Play the output and verify its audio and paused sections before downloading.",
           "outputFilename": "Output filename",
@@ -976,7 +1043,23 @@
           "loadingVideo": "Loading video…",
           "micNote": "The microphone is used only after you press Record explanation. Video and audio stay on your device.",
           "resultInterrupted": "Recording was interrupted. Check that both video and audio run to the end before saving.",
-          "resultLimit": "The 90-second recording limit was reached. Review the result before saving."
+          "resultLimit": "The 90-second recording limit was reached. Review the result before saving.",
+          "drawTitle": "Draw on video",
+          "drawAutoPause": "Drawing automatically pauses the source",
+          "drawToolsAria": "Drawing tools",
+          "toolCircle": "Circle",
+          "toolArrow": "Arrow",
+          "toolPen": "Pen",
+          "drawColorsAria": "Drawing colors",
+          "drawYellow": "Yellow",
+          "drawWhite": "White",
+          "drawRed": "Red",
+          "drawUndo": "Undo line",
+          "drawClear": "Clear lines",
+          "drawSurface": "Draw on the video",
+          "drawNote": "Undo and Clear only change visible lines. Already recorded video and voice cannot be undone. Lines also clear when recording begins or the source resumes.",
+          "drawLimit": "Too many lines are visible. Clear some before adding more.",
+          "helpStep5": "Finish recording, review the output, and save the video."
         }
       };
 
