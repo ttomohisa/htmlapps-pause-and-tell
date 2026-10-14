@@ -4,9 +4,14 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.1.0 recording-engine proof of concept — not a production release.** Drawing tools, native-mobile reliability, and browser compatibility are not yet verified.
+**Current status: v0.2.0 workflow prototype — not a production release.** Drawing tools, native-mobile reliability, and browser compatibility are not yet verified.
 
-## What works in v0.1.0
+## What works in v0.2.0
+
+- A clear **Choose video → Record explanation → Save video** stage indicator and visible selected-file information.
+- An explicit microphone explanation before recording, a loading state, and an interruption warning in the output review.
+- Japanese/English language toggle uses **JA / EN**; the Help dialog locks background scrolling while preserving dialog scrolling and restores scroll position on close; mobile footer is hidden.
+- The supplied SVG icon is the source for both the favicon and header icon; **Fully local processing** replaces the previous upload badge.
 
 - Load one browser-decodable local video file (maximum **30 seconds**, **100 MiB**).
 - Preview, play and seek before recording; recording always starts with the source paused at its first frame.
@@ -16,7 +21,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - Choose an editable filename and download the actual MP4 or WebM format chosen by the browser.
 - Switch Japanese / English, inspect locally held diagnostics, and retry without uploading files.
 
-**Not in v0.1.0:** Circles, arrows, drawing, tap highlights, source audio, sharing, timeline editing. They have their own stages in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+**Not in v0.2.0:** Circles, arrows, drawing, tap highlights, source audio, sharing, timeline editing. They have their own stages in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## How to try
 
@@ -32,7 +37,7 @@ Use a quiet, short source video for the initial test. Source-audio capture is in
 
 Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while speaking, then play the remaining **12 seconds**. Verify that the result is about **40 seconds** long, the frozen frames persist during the pause, and voice audio continues. Allow for the initial pause before pressing Play and manual button timing. Record browser/OS/device, real duration, codec/container, and any sync problems. See [G1 validation protocol](docs/G1_VALIDATION.md).
 
-This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
+This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
 ## Privacy
 
