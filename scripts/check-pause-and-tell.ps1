@@ -11,13 +11,36 @@ $readmeJa = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "README.ja.md")
 
 if ([string]$config.name -ne "Pause & Tell") { throw "Pause & Tell name mismatch." }
 if ([string]$config.slug -ne "pause-and-tell") { throw "Pause & Tell slug mismatch." }
-if ([string]$config.version -ne "0.2.0") { throw "Unexpected Pause & Tell POC version." }
+if ([string]$config.version -ne "0.3.0") { throw "Unexpected Pause & Tell POC version." }
 if ([string]$config.repository.owner -ne "ttomohisa" -or [string]$config.repository.name -ne "htmlapps-pause-and-tell") {
   throw "Pause & Tell repository metadata mismatch."
 }
 if ($config.build.blockRuntimeNetwork -ne $true) { throw "Pause & Tell must block runtime network." }
 
 $requiredTokens = @(
+  'id="ptDrawSurface"',
+  'id="ptDrawUndo"',
+  'id="ptDrawClear"',
+  'data-draw-tool="ellipse"',
+  'data-draw-tool="arrow"',
+  'data-draw-tool="pen"',
+  'data-draw-color="yellow"',
+  'data-draw-color="white"',
+  'data-draw-color="red"',
+  'function pointerToVideo(',
+  'function paintStroke(',
+  'function clearDrawing(',
+  'function finishStroke(',
+  'function updateDrawingControls(',
+  'sourceVideo.addEventListener(''play''',
+  "drawSurface.addEventListener('pointerdown'",
+  "drawSurface.addEventListener('pointermove'",
+  "drawSurface.addEventListener('pointerup'",
+  'MAX_VISIBLE_STROKES',
+  'MAX_PEN_POINTS',
+  'drawNote',
+  'drawToolsAria',
+  'drawColorsAria',
   'id="ptSteps"',
   'aria-current="step"',
   'id="ptLoading"',
@@ -71,14 +94,15 @@ if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback 
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
   throw "Specification and development gates are missing."
 }
-if (-not $readme.Contains("v0.2.0") -or -not $readmeJa.Contains("v0.2.0")) {
-  throw "README must describe the experimental v0.2.0 stage."
+if (-not $readme.Contains("v0.3.0") -or -not $readmeJa.Contains("v0.3.0")) {
+  throw "README must describe the experimental v0.3.0 stage."
 }
 if (-not (Test-Path (Join-Path $Root "docs\G1_VALIDATION.md"))) { throw "Missing G1 validation protocol." }
 if (-not (Test-Path (Join-Path $Root "docs\G2_VALIDATION.md"))) { throw "Missing G2 validation protocol." }
+if (-not (Test-Path (Join-Path $Root "docs\G3_VALIDATION.md"))) { throw "Missing G3 validation protocol." }
 $icon = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "assets\favicon.svg")
 if (-not $icon.Contains('<rect width="64" height="64" rx="16" fill="#16624f"/>') -or -not $icon.Contains('<!-- Speech / narration bubble -->')) {
   throw "The canonical favicon must be the supplied Pause & Tell SVG."
 }
 
-Write-Host "[OK] Pause & Tell v0.2.0 contract markers passed." -ForegroundColor Green
+Write-Host "[OK] Pause & Tell v0.3.0 contract markers passed." -ForegroundColor Green
