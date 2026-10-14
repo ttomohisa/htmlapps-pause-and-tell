@@ -46,3 +46,21 @@
 - Mixing original video audio with microphone is conditional v0.5.0 work.
 - iPhone/Android recording permission, direct `file://` microphone behavior and saved-video player interoperability still require physical-device testing.
 - Automatic G2 testing in CI checks structural and packaging invariants; it is not equivalent to real audio/video G1 validation.
+
+## Headless smoke evidence — 2026-10-14
+
+Automated Chromium UI smoke exercised the **actual GitHub Actions generated `dist/index.html`**, loaded into an isolated Playwright page, with a simulated Web Audio oscillator as the microphone. It did not exercise native microphone permission prompts.
+
+| Scenario | Observation |
+| --- | --- |
+| User icon | 1,933-byte supplied SVG is an **exact byte match** for both generated favicon and header image |
+| Widths 320 / 360 / 390 / 768 / 1280px | No horizontal overflow. Footer hidden at 320/360/390 and visible on desktop widths |
+| 844×390px touch/coarse landscape | Footer hidden; Help remains vertically scrollable |
+| Language switching | Japanese mode button `EN`; English mode button `JA`; badge displays `完全ローカル処理` / `Fully local processing` |
+| Help open/close | Background body becomes fixed, remains stationary on wheel scrolling; inner dialog content scrolls; Close/Escape restore the previous scroll position |
+| Input/record/result | Source file metadata shown in stage 2; source seeking disabled during recording; stage advances to result; downloadable file created |
+| Saved output | WebM with video **VP8** (640×360) and audio **Opus**; decoded codec streams confirmed with `ffprobe` |
+| Invalid input | Empty/invalid video rejected with localized message; stage returns to step 1 |
+| Console / network | No JavaScript page errors and no external requests (only local `blob:` URLs) |
+
+**Not tested here:** real touch gesture at browser OS level, hardware mic grant/revoke, Safari/iOS and Android recording, real device lock/call interruption, direct `file://` media permission, playback in third-party native players. G1 and physical-device G2 acceptance stay **open**.
