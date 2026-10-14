@@ -501,7 +501,7 @@
     .pt-transport { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
     .pt-transport .button { min-height:48px; min-width:130px; }
     .pt-stage-wrap, .pt-draw-panel, .pt-transport { scroll-margin-top:80px; }
-    @media (max-width:767px) {
+    @media (max-width:767px), (pointer:coarse) and (max-height:600px) {
       .pt-draw-panel { padding:10px; }
       .pt-draw-tools { gap:6px; }
       .pt-draw-tool { display:flex; flex-direction:column; gap:2px; padding:5px 2px; min-height:50px; font-size:12px; }
@@ -1238,12 +1238,17 @@
       const clamp01 = n => Math.max(0, Math.min(1, n));
       // When a tool is selected on mobile, keep the drawing target in view.
       function showDrawableStage() {
-        if (window.innerWidth > 767) return;
+        const compact = window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 600px)').matches;
+        if (!compact) return;
         const rect=stageCanvas.getBoundingClientRect();
-        const topLimit=72, bottomLimit=window.innerHeight-16;
-        if (rect.height <= bottomLimit-topLimit && (rect.top<topLimit || rect.bottom>bottomLimit)) {
-          const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          stageCanvas.scrollIntoView({block:'center',behavior:reducedMotion?'instant':'smooth'});
+        const topLimit=72, bottomLimit=window.innerHeight-94;
+        const visibleHeight=bottomLimit-topLimit;
+        if (rect.top<topLimit || rect.bottom>bottomLimit) {
+          const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          stageCanvas.scrollIntoView({
+            block:rect.height>visibleHeight?'start':'center',
+            behavior:reducedMotion?'instant':'smooth'
+          });
         }
       }
       function pointerToVideo(event, allowOutside = false) {
