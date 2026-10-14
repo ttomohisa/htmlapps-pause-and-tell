@@ -440,6 +440,28 @@
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
 
+
+    /* Pause & Tell v0.2.0: workflow and modal/background layout. */
+    .pt-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; list-style: none; padding: 0; margin: 0 0 18px; }
+    .pt-step { display: flex; align-items: center; min-width: 0; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); }
+    .pt-step-number { display: inline-grid; place-items: center; flex: 0 0 25px; width: 25px; height: 25px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 12px; font-weight: 750; }
+    .pt-step-label { font-size: 13px; font-weight: 650; min-width: 0; }
+    .pt-step[data-state="current"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-hover); }
+    .pt-step[data-state="current"] .pt-step-number { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pt-step[data-state="done"] .pt-step-number { background: var(--surface-muted); border-color: var(--accent); color: var(--accent); }
+    .pt-loading { margin: 14px 0 0; color: var(--accent); font-size: 13px; font-weight: 650; }
+    .pt-current-file { margin: 12px 0 0; padding: 10px 12px; background: var(--surface-muted); border-radius: 9px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .pt-mic-note { margin: 13px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    html.pt-help-locked { overflow: hidden; overscroll-behavior: none; }
+    body.pt-help-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+    #helpDialog .dialog-body { overscroll-behavior: contain; touch-action: pan-y; }
+    @media (max-width: 600px) {
+      .pt-step { padding: 8px 7px; gap: 5px; flex-direction: column; text-align: center; justify-content: center; min-height: 70px; }
+      .pt-step-label { font-size: 12px; line-height: 1.4; }
+    }
+    @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
+      footer { display: none; }
+    }
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
