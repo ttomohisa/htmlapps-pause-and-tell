@@ -1181,6 +1181,183 @@
         renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
       };
       const diagnostics = [];
+
+      // Drawing is session-local; only the current visible strokes are editable.
+      // Normalized coordinates (0..1) make the same geometry work on portrait
+      // and landscape source videos, regardless of CSS scale or devicePixelRatio.
+      const drawSurface = $('#ptDrawSurface');
+      const PAINT_COLORS = Object.freeze({ yellow: '#ffe36b', white: '#ffffff', red: '#ff6262' });
+      const MAX_VISIBLE_STROKES = 120;
+      const MAX_PEN_POINTS = 2500;
+      const drawing = { tool: 'ellipse', color: 'yellow', strokes: [], active: null };
+      const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
+      const clamp01 = n => Math.max(0, Math.min(1, n));
+      function pointerToVideo(event, allowOutside = false) {
+        const rect = stageCanvas.getBoundingClientRect();
+        if (!(rect.width > 0 && rect.height > 0)) return null;
+        const u = (event.clientX - rect.left) / rect.width;
+        const v = (event.clientY - rect.top) / rect.height;
+        if (!allowOutside && (u < 0 || u > 1 || v < 0 || v > 1)) return null;
+        return { u: clamp01(u), v: clamp01(v) };
+      }
+      function drawPath(ctx, stroke, w, h) {
+        const a = stroke.from;
+        const b = stroke.to;
+        const x0 = a.u * w, y0 = a.v * h, x1 = b.u * w, y1 = b.v * h;
+        ctx.beginPath();
+        if (stroke.tool === 'ellipse') {
+          const distance = Math.hypot(x1 - x0, y1 - y0);
+          if (distance < 12) {
+            const radius = Math.max(12, Math.min(w,h) * .025);
+            ctx.ellipse(x0,y0,radius,radius,0,0,2*Math.PI);
+          } else {
+            ctx.ellipse((x0 + x1)/2,(y0 + y1)/2,Math.max(5,Math.abs(x1 - x0)/2),Math.max(5,Math.abs(y1 - y0)/2),0,0,2*Math.PI);
+          }
+        } else if (stroke.tool === 'arrow') {
+          let dx = x1-x0, dy = y1-y0;
+          if (Math.hypot(dx,dy) < 12) { dx = 35; dy = -25; }
+          const endX = x0 + dx, endY = y0 + dy;
+          const angle = Math.atan2(dy,dx);
+          const length = Math.max(12,Math.min(24,Math.hypot(dx,dy)*.25));
+          const spread = .58;
+          ctx.moveTo(x0,y0);
+          ctx.lineTo(endX,endY);
+          ctx.moveTo(endX-length*Math.cos(angle-spread),endY-length*Math.sin(angle-spread));
+          ctx.lineTo(endX,endY);
+          ctx.lineTo(endX-length*Math.cos(angle+spread),endY-length*Math.sin(angle+spread));
+        } else if (stroke.tool === 'pen') {
+          const points = stroke.points || [stroke.from];
+          if (points.length <= 1) {
+            ctx.moveTo(x0+.01,y0);
+            ctx.lineTo(x0,y0);
+          } else {
+            ctx.moveTo(points[0].u*w,points[0].v*h);
+            for (let index=1; index<points.length; index+=1) ctx.lineTo(points[index].u*w,points[index].v*h);
+          }
+        }
+      }
+      function paintStroke(stroke) {
+        const w=stageCanvas.width, h=stageCanvas.height;
+        const width=Math.max(3,Math.min(8,Math.min(w,h)*.008));
+        stageContext.save();
+        stageContext.lineJoin = 'round';
+        stageContext.lineCap = 'round';
+        drawPath(stageContext,stroke,w,h);
+        stageContext.lineWidth = width + 5;
+        stageContext.strokeStyle = 'rgba(0,0,0,.92)';
+        stageContext.stroke();
+        stageContext.lineWidth = width;
+        stageContext.strokeStyle = PAINT_COLORS[stroke.color] || PAINT_COLORS.yellow;
+        stageContext.stroke();
+        stageContext.restore();
+      }
+      function updateDrawingControls() {
+        const available=isDrawPhase();
+        drawSurface.setAttribute('aria-disabled',String(!available));
+        document.querySelectorAll('[data-draw-tool]').forEach(button=>{
+          button.disabled=!available;
+          button.setAttribute('aria-pressed',String(button.dataset.drawTool===drawing.tool));
+        });
+        document.querySelectorAll('[data-draw-color]').forEach(button=>{
+          button.disabled=!available;
+          button.setAttribute('aria-pressed',String(button.dataset.drawColor===drawing.color));
+        });
+        $('#ptDrawUndo').disabled=!available || (!drawing.active && drawing.strokes.length===0);
+        $('#ptDrawClear').disabled=!available || (!drawing.active && drawing.strokes.length===0);
+      }
+      function finishStroke(commit=true) {
+        const active=drawing.active;
+        if (!active) return;
+        drawing.active=null;
+        if (drawSurface.hasPointerCapture && drawSurface.hasPointerCapture(active.id)) {
+          try { drawSurface.releasePointerCapture(active.id); } catch { /* pointer was cancelled */ }
+        }
+        if (commit) drawing.strokes.push(active.stroke);
+        updateDrawingControls();
+        renderFrame();
+      }
+      function clearDrawing() {
+        finishStroke(false);
+        if (drawing.strokes.length) drawing.strokes.length=0;
+        updateDrawingControls();
+        renderFrame();
+      }
+      function moveStroke(event) {
+        if (!drawing.active || drawing.active.id!==event.pointerId) return;
+        const point=pointerToVideo(event,true);
+        if (!point) return;
+        const stroke=drawing.active.stroke;
+        stroke.to=point;
+        if (stroke.tool==='pen') {
+          const points=stroke.points;
+          const last=points[points.length-1];
+          if (points.length<MAX_PEN_POINTS && Math.hypot((point.u-last.u)*stageCanvas.width,(point.v-last.v)*stageCanvas.height)>=1.8) {
+            points.push(point);
+          }
+        }
+        renderFrame();
+      }
+      drawSurface.addEventListener('pointerdown',event=>{
+        if (!isDrawPhase() || drawing.active || (event.pointerType==='mouse' && event.button!==0)) return;
+        const point=pointerToVideo(event);
+        if (!point) return;
+        if (drawing.strokes.length>=MAX_VISIBLE_STROKES) {
+          showToast(translate('drawLimit'),{tone:'warning'});return;
+        }
+        event.preventDefault();
+        if (!sourceVideo.paused && !sourceVideo.ended) sourceVideo.pause();
+        const stroke={tool:drawing.tool,color:drawing.color,from:point,to:point};
+        if (drawing.tool==='pen') stroke.points=[point];
+        drawing.active={id:event.pointerId,stroke};
+        try { drawSurface.setPointerCapture(event.pointerId); }
+        catch { /* still accept the drawing if capture fails */ }
+        updateDrawingControls();
+        renderFrame();
+      });
+      drawSurface.addEventListener('pointermove',event=>{
+        if (drawing.active?.id!==event.pointerId) return;
+        event.preventDefault();
+        moveStroke(event);
+      });
+      drawSurface.addEventListener('pointerup',event=>{
+        if (drawing.active?.id!==event.pointerId) return;
+        event.preventDefault();
+        moveStroke(event);
+        finishStroke(true);
+      });
+      drawSurface.addEventListener('pointercancel',event=>{
+        if (drawing.active?.id===event.pointerId) finishStroke(false);
+      });
+      drawSurface.addEventListener('lostpointercapture',event=>{
+        if (drawing.active?.id===event.pointerId) finishStroke(false);
+      });
+      document.querySelectorAll('[data-draw-tool]').forEach(button=>{
+        button.addEventListener('click',()=>{
+          if (!isDrawPhase()) return;
+          finishStroke(true);
+          drawing.tool=button.dataset.drawTool;
+          updateDrawingControls();
+        });
+      });
+      document.querySelectorAll('[data-draw-color]').forEach(button=>{
+        button.addEventListener('click',()=>{
+          if (!isDrawPhase()) return;
+          finishStroke(true);
+          drawing.color=button.dataset.drawColor;
+          updateDrawingControls();
+        });
+      });
+      $('#ptDrawUndo').addEventListener('click',()=>{
+        if (!isDrawPhase()) return;
+        if (drawing.active) finishStroke(false);
+        else drawing.strokes.pop();
+        updateDrawingControls();
+        renderFrame();
+      });
+      $('#ptDrawClear').addEventListener('click',()=>{
+        if (isDrawPhase()) clearDrawing();
+      });
+
       const formatTime = milliseconds => {
         const seconds = Math.max(0, Math.floor(milliseconds / 1000));
         return String(Math.floor(seconds / 60)).padStart(2,'0') + ':' + String(seconds % 60).padStart(2,'0');
@@ -1222,6 +1399,7 @@
         });
         $('#ptLoading').hidden = phase !== 'loading';
         $('#ptMicNote').hidden = phase !== 'ready';
+        updateDrawingControls();
         $('#ptInputPanel').hidden = !['empty','loading','error'].includes(phase);
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
         $('#ptResultPanel').hidden = phase !== 'result';
@@ -1288,6 +1466,7 @@
       }
       function resetResources() {
         state.generation += 1;
+        clearDrawing();
         stopTimers();
         sourceVideo.pause();
         if (state.recorder && state.recorder.state !== 'inactive') {
@@ -1311,8 +1490,11 @@
       }
       function renderFrame() {
         if (!state.input || !stageContext || sourceVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
-        try { stageContext.drawImage(sourceVideo, 0, 0, stageCanvas.width, stageCanvas.height); }
-        catch (error) { logDetail('drawImage: ' + error.message); }
+        try {
+          stageContext.drawImage(sourceVideo, 0, 0, stageCanvas.width, stageCanvas.height);
+          for (const stroke of drawing.strokes) paintStroke(stroke);
+          if (drawing.active) paintStroke(drawing.active.stroke);
+        } catch (error) { logDetail('Canvas render: ' + error.message); }
       }
       function startRendering() {
         if (state.renderTimer !== null) clearInterval(state.renderTimer);
@@ -1436,6 +1618,7 @@
         }
         const token = state.generation;
         setPhase('preparing');
+        clearDrawing();
         setStatus('recordingStarting');
         try {
           await rewindSource();
@@ -1490,6 +1673,7 @@
       }
       function stopRecording(reason = 'manual') {
         if (state.phase !== 'recording' || !state.recorder) return;
+        finishStroke(true);
         state.recordedMs = Math.max(0, performance.now() - state.startedAt);
         state.autoStopped = reason !== 'manual';
         state.stopReason = reason;
@@ -1620,6 +1804,7 @@
           if (!ok) return;
         }
         const token = ++state.generation;
+        clearDrawing();
         releaseOutput();
         state.recordedMs = 0;
         state.startedAt = 0;
@@ -1677,6 +1862,8 @@
       $('#ptAgain').addEventListener('click',() => void recordAgain());
       outputFilename.addEventListener('blur',() => { outputFilename.value = normalizeFilename(outputFilename.value); });
       sourceVideo.addEventListener('play',() => {
+        // Resuming a source clears visible strokes, never previously captured frames.
+        clearDrawing();
         updateTransport();
         if (state.phase === 'recording') setStatus('sourcePlaying');
       });
