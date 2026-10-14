@@ -553,7 +553,7 @@
           <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
         </div>
         <div class="brand-copy">
-          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.1.0</span></p>
+          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.3.0</span></p>
           <p class="brand-meta" data-i18n="brandMeta">Single file · Local-first · GitHub Pages</p>
         </div>
       </div>
@@ -1192,6 +1192,16 @@
       const drawing = { tool: 'ellipse', color: 'yellow', strokes: [], active: null };
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
+      // On a narrow viewport the drawing toolbar can be below a tall portrait video.
+      // After tool selection, bring the entire drawable surface back into view.
+      function showDrawableStage() {
+        if (window.innerWidth > 767) return;
+        const rect=stageCanvas.getBoundingClientRect();
+        const topLimit=72, bottomLimit=window.innerHeight-16;
+        if (rect.height <= bottomLimit-topLimit && (rect.top<topLimit || rect.bottom>bottomLimit)) {
+          stageCanvas.scrollIntoView({block:'center',behavior:'smooth'});
+        }
+      }
       function pointerToVideo(event, allowOutside = false) {
         const rect = stageCanvas.getBoundingClientRect();
         if (!(rect.width > 0 && rect.height > 0)) return null;
@@ -1337,6 +1347,7 @@
           finishStroke(true);
           drawing.tool=button.dataset.drawTool;
           updateDrawingControls();
+          showDrawableStage();
         });
       });
       document.querySelectorAll('[data-draw-color]').forEach(button=>{
@@ -1345,6 +1356,7 @@
           finishStroke(true);
           drawing.color=button.dataset.drawColor;
           updateDrawingControls();
+          showDrawableStage();
         });
       });
       $('#ptDrawUndo').addEventListener('click',()=>{
