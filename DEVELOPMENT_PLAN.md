@@ -1,6 +1,6 @@
 # Pause & Tell — DEVELOPMENT_PLAN.md
 
-> **Status:** 開発計画（v0.7.0保存・共有・ヘルプ実装中・G1〜G7実機未検証）  
+> **Status:** 開発計画（v0.8.0単一HTML・アクセシビリティ検証中・G1〜G8実機未検証）  
 > **Date:** 2026-10-14  
 > **Product:** Pause & Tell / 動画解説レコーダー  
 > **Specification:** [`APP_SPEC.md`](APP_SPEC.md)  
@@ -183,6 +183,10 @@
 **成果物:** 保存・共有UX、ヘルプ日英、出力互換性表。
 
 ### v0.8.0 — 単一HTML・プライバシー・アクセシビリティ
+
+> **進捗（2026-10-15）：** CSPの既定禁止と通信・Worker禁止、指差しのキーボード操作、状態読み上げと見出しフォーカス、G8検証表を実装。実機のiPhone/Android、NVDA/VoiceOver、直接 `file://` での受け入れは未完了。
+
+
 
 **目的:** Browser Kittyの公開品質に適合させる。
 
