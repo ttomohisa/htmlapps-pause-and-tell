@@ -10,6 +10,8 @@
 - Added 96MiB in-memory recording chunk limit while retaining input 30s/100MiB and output 90s prototype constraints. Never silently expand limits before real-device measurements.
 - Hardened startup abort handling, stream/audio graph cleanup, media source replacement guards, and safe filename/format messaging for unverified raw recovered bytes.
 - Added G6 verification plan. Browser build checks are not a substitute for physical iPhone/Android recording, native file playback or actual microphone tests.
+- Fixed controlled duration-limit output classification and unexpected early MediaRecorder `onstop` handling; de-duplicated recovery warnings and showed decimal seconds for very short recordings.
+- Headless Chromium simulated G6 recovery states, 27s long recording, repeated audio-mix takes, Blob URL cleanup and mobile recovery UX. Physical-device acceptance is still pending.
 
 
 
