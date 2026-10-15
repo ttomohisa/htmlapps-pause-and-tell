@@ -3,9 +3,9 @@
   "name": "Pause & Tell",
   "nameJa": "Pause & Tell｜動画解説レコーダー",
   "slug": "pause-and-tell",
-  "version": "0.7.0",
-  "description": "Explain short videos with voice and annotations, review and download the result, or share the file on supported devices.",
-  "descriptionJa": "短い動画に声と描画で説明を加え、端末内で録画。結果を確認して保存し、対応端末ではファイル共有できます。",
+  "version": "0.8.0",
+  "description": "A single-HTML local video explanation recorder with voice, annotations, keyboard point control and optional user-initiated export.",
+  "descriptionJa": "短い動画を止めて、音声と描画で説明する単一HTMLの録画ツール。キーボードでの指差しと端末内処理にも対応。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",
