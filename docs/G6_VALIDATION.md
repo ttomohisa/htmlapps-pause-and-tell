@@ -109,6 +109,17 @@ Capture the exact Git commit, test/browser version and whether source audio is o
 
 **G6 disposition:** The described automated subset **passed**. **Overall G6 is PENDING** while iPhone Safari, Android Chrome, desktop Chrome/Edge with real microphone, actual lock/call interruptions, and direct local HTML / native-player validation remain untested. Source audio mixing remains opt-in experimental.
 
+## Real-time 90-second recording regression — 2026-10-15
+
+**Build tested:** GitHub Actions-generated `dist/index.html` at commit `e9ee53d5f19c9966397b5da5da596161852cd122`. Linux headless Chromium **144.0.7559.96**; input was a generated **20s / 480×270 H.264** local file. Recording used a browser-local **880Hz synthetic WebAudio microphone**, not a physical microphone. The HTML was loaded using Playwright `page.set_content`, *not* `file://`.
+
+- Played the input source to its end at ~20s, then left its last frame frozen while the output recording continued. At output clock 34s, 55s, 75s and 86s, the source clock remained at **00:20 / 00:20**.
+- At **90 seconds** the unmodified production timer automatically stopped the recorder, displayed the **normal `result` state with the explicit 90s limit notice**, and enabled download. Recorded file **WebM, 6,351,128 bytes (6.06MiB)**; JS page errors **0**, attempted HTTP(S) requests **0**.
+- Decoded streams: **VP8 video (480×270)** and **Opus audio**. Last packet end times measured by `ffprobe`: **video 90.040s, audio 90.082s**. WebM format-level duration remained unknown, so packet timestamps—not UI or chunk counts—are the independent evidence.
+- Decoded 880Hz simulated microphone: at output 35s, RMS **0.05958**, tone amplitude **0.084251**; at output 86s, RMS **0.05959**, tone amplitude **0.084276**. The synthetic mic continued nearly to the output's end.
+- Decoded output frames at 30s and 85s were pixel-identical (RGB mean absolute difference **0.0**), supporting unchanged frozen final-frame capture over the long pause.
+- This validates **one full 90s automated Chromium sample**, not the target 180s option, not memory behavior on low-end phones, and not real microphone or native-player compatibility. The physical-device and direct-file requirements remain open.
+
 ## G6 gate
 
 **Automated subset** may be judged separately after running the actual CI-built HTML and testing normal, partial and error cases. **Overall G6 remains PENDING** until real physical devices and direct local HTML opening tests are documented. The v0.5 source-audio path remains an opt-in desktop Chromium experiment; leave disabled on unsupported environments and do not promise MP4 everywhere.

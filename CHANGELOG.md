@@ -11,7 +11,7 @@
 - Hardened startup abort handling, stream/audio graph cleanup, media source replacement guards, and safe filename/format messaging for unverified raw recovered bytes.
 - Added G6 verification plan. Browser build checks are not a substitute for physical iPhone/Android recording, native file playback or actual microphone tests.
 - Fixed controlled duration-limit output classification and unexpected early MediaRecorder `onstop` handling; de-duplicated recovery warnings and showed decimal seconds for very short recordings.
-- Headless Chromium simulated G6 recovery states, 27s long recording, repeated audio-mix takes, Blob URL cleanup and mobile recovery UX. Physical-device acceptance is still pending.
+- Headless Chromium simulated G6 recovery states, a 27s capture and a **full real-time 90s limit recording** (saved WebM packet endings: video 90.040s / audio 90.082s), repeated audio-mix takes, Blob URL cleanup and mobile recovery UX. Physical-device acceptance is still pending.
 
 
 

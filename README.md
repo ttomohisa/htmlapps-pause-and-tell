@@ -13,7 +13,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - **Normal output** is separate from **partially recovered / unverified output**. Recovered media has an explicit caution, and undecodable data is downloadable only as an unverified file with no preview; zero-byte captures are never reported as success.
 - Keeps provisional limits of **30s source, 100MiB input, 90s output** and adds a **96MiB recorded-chunk safety limit**. These are not expanded until physical smartphone testing.
 - Defensive capture cleanup: no dropped stop chunks, cleanup of recorder/MediaStream/Blob URLs, no repeated startup while finalizing, and file replacement disabled during active recording.
-- See [G6 failure/recovery acceptance matrix](docs/G6_VALIDATION.md). Physical iPhone/Android and real microphone cases remain **UNTESTED**.
+- A **real-time 90-second limit** sample in headless Chromium with synthetic microphone was exported and decoded: VP8/Opus through ~90s, stable final source frame and continued simulated audio. This does **not** establish physical mobile performance. See [G6 failure/recovery acceptance matrix](docs/G6_VALIDATION.md). Physical iPhone/Android and real microphone cases remain **UNTESTED**.
 
 
 
