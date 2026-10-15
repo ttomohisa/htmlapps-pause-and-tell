@@ -12,7 +12,7 @@
 - **読み上げ・操作性**：スキップリンク、読み込み・録画状態の案内、動画の準備／結果表示時のフォーカス移動、再生位置の読み上げを整えました。丸・矢印・ペンの線をなぞるにはマウス・タッチ・ペンが必要です。
 - **CSPを厳格化**：`default-src 'none'`、`connect-src 'none'`、`worker-src 'none'` により通常の外部通信とWorkerを禁止し、端末内の動画・favicon・HTML内処理だけを許可します。
 - **単一HTML**：テンプレートの通常版、圧縮自己展開版、同一内容のルートHTMLを維持します。[G8検証表](docs/G8_VALIDATION.md)で未検証項目を明示しています。
-- iPhone Safari・Android Chrome・NVDA・VoiceOverや直接 `file://` での実機検証はまだ完了していません。
+- Chromiumではキーボード指差しのWebM録画・CSP通信遮断・通常／圧縮単一HTMLを確認しましたが、iPhone Safari・Android Chrome・NVDA・VoiceOverや直接 `file://` での実機検証はまだ完了していません。
 
 
 
