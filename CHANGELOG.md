@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### v0.5.0 — Opt-in original-audio mix prototype (2026-10-15)
+
+- Kept direct microphone-only recording as the default, with no source speaker playback or new runtime network dependencies.
+- Added an advanced, explicitly experimental desktop Chromium-only source+microphone mode (unavailable on mobile/Safari/Firefox before actual-device verification).
+- Routed the original video through MediaElementAudioSourceNode and a selectable 15%/30%/50% GainNode, and microphone through a separate 100% GainNode into a recording-only MediaStreamAudioDestinationNode; neither connects to speakers.
+- Preserved source pause / microphone continuity / Canvas drawing through the same MediaRecorder.
+- Reused the Web Audio element binding across repeat captures; disconnected per-take nodes, stopped mic/capture tracks and suspended unused AudioContext.
+- Added localized errors and final mode/gain metadata plus `docs/G5_VALIDATION.md`.
+- G1–G5 real-device acceptance is **still pending**; experimental mixed mode may be excluded from v1.0.0 if unsupported.
+
+
+
 ### v0.4.0 — One-tap point marker & mobile transport (2026-10-15)
 
 - Added a default **Point** tool: one tap places a persistent, outlined ring with center dot on the original video's frame. It pauses only source playback, never the microphone or output recorder.

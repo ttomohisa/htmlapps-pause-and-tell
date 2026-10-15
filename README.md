@@ -4,9 +4,18 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.4.0 point-marker and mobile workflow prototype — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
+**Current status: v0.5.0 annotated recording and audio-mixing experiment — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
 
-## What works in v0.4.0
+## What works in v0.5.0
+
+- **Voice only is still the default.** Source audio is never included unless the user explicitly opts in.
+- The collapsed **Audio options** section adds **Source sound + voice (experimental)** for desktop Chromium when Web Audio APIs are present. Mobile, Safari and Firefox are deliberately gated off pending testing.
+- Three source-volume presets (15% / **30% default** / 50%) feed only the recording mix; microphone stays at 100%. Source audio stops with source-video pause while narration and output keep recording.
+- Audio graph does **not connect to speakers**, avoiding doubled monitoring. A failed mixing attempt produces an explicit error instead of silently switching to voice-only.
+- Repeated takes reuse a single MediaElementAudioSourceNode/AudioContext binding, disconnect their per-take nodes and suspend the context between takes.
+- **Experimental is not supported.** Audio gain, saved-file sound and timing still need exported-file validation; G1–G4 hardware gates and [G5 original-audio tests](docs/G5_VALIDATION.md) remain open.
+
+
 
 - **Point / one-tap ring** is now the default drawing tool. Tap once to place a persistent outlined ring at the selected video position; the source video pauses automatically, while microphone/recording continue.
 - Marker rings and all other drawings persist while the source is paused. **Undo**, **Clear**, or **Play** remove only currently visible marks; earlier recorded frames stay unchanged.
@@ -35,7 +44,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - Choose an editable filename and download the actual MP4 or WebM format chosen by the browser.
 - Switch Japanese / English, inspect locally held diagnostics, and retry without uploading files.
 
-**Not in v0.4.0:** Original source-video audio mixing, sharing, timeline editing. These are staged in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+**Not yet supported for general release:** Original source-audio mixing is experimental and may be excluded from v1.0.0. Sharing and timeline editing are not implemented. These are staged in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## How to try
 
@@ -45,13 +54,13 @@ Pause a source video while recording your spoken explanation. The output recordi
 4. Press **Play source video**, then **Pause source video** to explain the static frame aloud. The recording timer continues.
 5. Press **Finish recording**, review the entire output and download it. The file is not automatically saved across reloads.
 
-Use a quiet, short source video for the initial test. Source-audio capture is intentionally off; only your microphone is recorded. After starting, Point places a ring with one tap; Circle, Arrow and Pen use drag gestures. Marks are included in the output until cleared or source playback resumes.
+Use a quiet, short source video for the initial test. Source-audio capture is **off by default**; only your microphone is recorded. Desktop Chromium users may explicitly opt into an experimental source-audio mix under Audio options and must review the exported sound. After starting, Point places a ring with one tap; Circle, Arrow and Pen use drag gestures. Marks are included in the output until cleared or source playback resumes.
 
 ## Critical POC test
 
 Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while speaking, then play the remaining **12 seconds**. Verify that the result is about **40 seconds** long, the frozen frames persist during the pause, and voice audio continues. Allow for the initial pause before pressing Play and manual button timing. Record browser/OS/device, real duration, codec/container, and any sync problems. See [G1 validation protocol](docs/G1_VALIDATION.md).
 
-This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
+This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
 ## Privacy
 
