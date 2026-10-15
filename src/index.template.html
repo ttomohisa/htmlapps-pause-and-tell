@@ -623,7 +623,7 @@
           <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
         </div>
         <div class="brand-copy">
-          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.5.0</span></p>
+          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.7.0</span></p>
           <p class="brand-meta" data-i18n="brandMeta">Single file · Local-first · GitHub Pages</p>
         </div>
       </div>
@@ -1103,7 +1103,7 @@
           "shareVideo": "動画を共有",
           "shareUnavailable": "この端末では動画ファイルを直接共有できません。「動画を保存」を使ってください。",
           "shareFailed": "動画を共有できませんでした。端末の共有先やファイル形式を確認し、必要なら動画を保存してください。",
-          "shareRequested": "共有先へ動画を渡しました。実際に保存・送信できたか共有先で確認してください。",
+          "shareRequested": "共有操作を終了しました。保存・送信の完了は共有先でご確認ください。",
           "saveHint": "完成動画を再生して、映像と音声を確認してから保存してください。保存が完了したかはブラウザの保存先でご確認ください。",
           "recoverySaveHint": "回収されたデータは破損や音声欠落の可能性があります。必要なら保存して確かめてください。共有機能は使えません。",
           "downloadFailed": "ダウンロードを開始できませんでした。ブラウザの設定を確認して再試行してください。",
@@ -1252,7 +1252,7 @@
           "shareVideo": "Share video",
           "shareUnavailable": "File sharing is unavailable here. Use Download video instead.",
           "shareFailed": "Could not share the file. Check the destination and video format, or download it instead.",
-          "shareRequested": "File handed to the selected share destination. Check whether it was actually saved or delivered.",
+          "shareRequested": "Share operation finished. Confirm the file was actually saved or delivered at the destination.",
           "saveHint": "Play the finished video to check picture and sound. Confirm that the download was saved in your browser or file manager.",
           "recoverySaveHint": "Recovered data may be corrupt or missing sound. Save only if you want to inspect it. Sharing is not available for recovery data.",
           "downloadFailed": "Could not start downloading. Check your browser settings and try again.",
@@ -2383,7 +2383,7 @@
         let base = String(value || '')
           .replace(/\.(mp4|webm|mov|m4v|avi|mkv|bin)$/i,'')
           .replace(/[\\/:*?"<>|\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,'-')
-          .replace(/[. ]+$/g,'').trim().slice(0,120);
+          .replace(/[. ]+$/g,'').trim().slice(0,120).replace(/[. ]+$/g,'');
         if (!base) base = 'pause-and-tell';
         if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base)) base += '-video';
         return base;
@@ -2446,8 +2446,8 @@
           updateOutputPresentation();
           return;
         }
-        const file=buildShareFile();
-        if(!file) return;
+        // Build the final File before calling share(), with no asynchronous work
+        // between this click and the native share invocation.
         const data={files:[new File([state.outputBlob],makeExportName(),{type:state.outputMime})]};
         if (!navigator.canShare(data)) {
           setExportStatus('shareUnavailable','warning');
