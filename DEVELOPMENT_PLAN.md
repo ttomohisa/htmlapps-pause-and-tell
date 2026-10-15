@@ -1,6 +1,6 @@
 # Pause & Tell — DEVELOPMENT_PLAN.md
 
-> **Status:** 開発計画（v0.8.0単一HTML・アクセシビリティ検証中・G1〜G8実機未検証）  
+> **Status:** 開発計画（v0.9.0リリース候補検証中・G1〜G9実機未検証）  
 > **Date:** 2026-10-14  
 > **Product:** Pause & Tell / 動画解説レコーダー  
 > **Specification:** [`APP_SPEC.md`](APP_SPEC.md)  
@@ -206,6 +206,8 @@
 **成果物:** 配布ビルド、CSP/通信検証記録、アクセシビリティチェック、README下書き。
 
 ### v0.9.0 — Release Candidate / 正式版の判定
+
+> **進捗（2026-10-15）：** v0.9.0は自動テスト・配布物・スクリーンショット・実機受け入れを確認する候補段階です。iPhone Safari・Android Chromeでの録音・保存・別アプリ再生が未検証のため、**公開判定はNO-GO**。30秒／100MiB／90秒の暫定上限は維持し、`docs/G9_VALIDATION.md`に測定証拠・未完了項目を記録します。
 
 **目的:** 出力品質とスマホ対応を再現可能な試験で確認する。
 
