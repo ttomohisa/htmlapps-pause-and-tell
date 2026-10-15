@@ -1995,10 +1995,14 @@
         } catch (error) { logDetail('Recorder default failed: ' + error.message); }
         throw new Error('unsupported');
       }
+
       async function startRecording() {
         if (state.phase !== 'ready') return;
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder !== 'function' || !stageCanvas.captureStream || !window.MediaStream) {
-          setStatus('unsupported'); showToast(translate('unsupported'),{tone:'danger'}); return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder !== 'function'
+          || !stageCanvas.captureStream || !window.MediaStream) {
+          setStatus('unsupported');
+          showToast(translate('unsupported'),{tone:'danger'});
+          return;
         }
         const token = state.generation;
         const requestedMode = selectedAudioMode();
@@ -2006,86 +2010,164 @@
         clearDrawing();
         setStatus('recordingStarting');
         try {
-          // Create/resume Web Audio synchronously from the explicit click, before
-          // waiting for rewind or browser microphone permission.
-          if(requestedMode==='mix') await activateAudioMix();
+          // AudioContext resume must occur during the user's explicit recording gesture.
+          if (requestedMode === 'mix') await activateAudioMix();
           await rewindSource();
           if (!withinSession(token)) return;
-          const mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+          if (document.hidden) throw new Error('interrupted');
+          const mic=await navigator.mediaDevices.getUserMedia({
+            audio:{echoCancellation:true,noiseSuppression:true},video:false
+          });
           if (!withinSession(token)) { mic.getTracks().forEach(track=>track.stop()); return; }
-          state.micStream = mic;
+          state.micStream=mic;
+          if (document.hidden) throw new Error('interrupted');
           renderFrame();
-          state.canvasStream = stageCanvas.captureStream(VIDEO_FPS);
-          const videoTrack = state.canvasStream.getVideoTracks()[0];
-          const micTrack = mic.getAudioTracks()[0];
-          if (!videoTrack || !micTrack) throw new Error('micFailure');
+          state.canvasStream=stageCanvas.captureStream(VIDEO_FPS);
+          const videoTrack=state.canvasStream.getVideoTracks()[0];
+          const micTrack=mic.getAudioTracks()[0];
+          if (!videoTrack || videoTrack.readyState!=='live'
+            || !micTrack || micTrack.readyState!=='live') throw new Error('micFailure');
           const capturedAudioTrack=requestedMode==='mix' ? createMixedAudioTrack(mic) : micTrack;
-          state.mediaStream = new MediaStream([videoTrack,capturedAudioTrack]);
-          state.recorder = recordingMime(state.mediaStream);
-          state.outputMime = state.recorder.mimeType.split(';')[0].toLowerCase();
-          state.outputExt = state.outputMime === 'video/mp4' ? 'mp4' : 'webm';
-          state.chunks = [];
-          state.recordedMs = 0;
-          state.autoStopped = false;
-          state.stopReason = '';
+          if (!capturedAudioTrack || capturedAudioTrack.readyState!=='live') throw new Error('micFailure');
+          state.mediaStream=new MediaStream([videoTrack,capturedAudioTrack]);
+          state.recorder=recordingMime(state.mediaStream);
+          state.outputMime=state.recorder.mimeType.split(';')[0].toLowerCase();
+          state.outputExt=state.outputMime==='video/mp4' ? 'mp4' : 'webm';
+          state.chunks=[];
+          state.chunkBytes=0;
+          state.finalizeStarted=false;
+          state.stopTimeoutHit=false;
+          state.recordedMs=0;
+          state.autoStopped=false;
+          state.stopReason='';
           state.recordedAudioMode=requestedMode;
-          state.recorder.ondataavailable = event => { if (withinSession(token) && event.data && event.data.size) state.chunks.push(event.data); };
-          state.recorder.onerror = event => {
-            logDetail('Recorder error: ' + (event.error?.message || event.type));
-            if (withinSession(token)) stopRecording('error');
+          state.recorder.ondataavailable=event=>{
+            if (!withinSession(token) || !event.data || !event.data.size || state.finalizeStarted) return;
+            state.chunks.push(event.data);
+            state.chunkBytes += event.data.size;
+            if (state.chunkBytes > MAX_STORED_CHUNK_BYTES) {
+              if (state.phase==='recording') {
+                logDetail('Capture buffer reached safety limit: '+state.chunkBytes);
+                stopRecording('memoryLimit');
+              } else if (state.phase==='finalizing' && state.stopReason==='manual') {
+                state.stopReason='memoryLimit';
+                state.autoStopped=true;
+              }
+            }
           };
-          state.recorder.onstop = () => {
+          state.recorder.onerror=event=>{
+            logDetail('Recorder error: '+(event.error?.message || event.type));
+            if (!withinSession(token)) return;
+            if (state.phase==='recording') stopRecording('recorderError');
+            else if (state.phase==='finalizing' && !state.finalizeStarted) {
+              state.stopReason='recorderError';
+              state.autoStopped=true;
+            }
+          };
+          state.recorder.onstop=()=>{
             if (withinSession(token)) void finalizeRecording(token);
           };
-          micTrack.addEventListener('ended',() => {
-            if (withinSession(token) && state.phase === 'recording') {
+          micTrack.addEventListener('ended',()=>{
+            if (withinSession(token) && state.phase==='recording') {
               logDetail('Microphone track ended unexpectedly');
               stopRecording('micEnded');
             }
           });
+          micTrack.addEventListener('mute',()=>{
+            if (!withinSession(token) || state.phase!=='recording') return;
+            logDetail('Microphone track muted; waiting for recovery');
+            if (state.micMuteTimer!==null) clearTimeout(state.micMuteTimer);
+            state.micMuteTimer=setTimeout(()=>{
+              state.micMuteTimer=null;
+              if (withinSession(token) && state.phase==='recording' && micTrack.muted) {
+                logDetail('Microphone mute exceeded grace period');
+                stopRecording('micMuted');
+              }
+            },MIC_MUTE_GRACE_MS);
+          });
+          micTrack.addEventListener('unmute',()=>{
+            if (state.micMuteTimer!==null) clearTimeout(state.micMuteTimer);
+            state.micMuteTimer=null;
+            if (withinSession(token)) logDetail('Microphone track recovered');
+          });
+          if (capturedAudioTrack!==micTrack) {
+            capturedAudioTrack.addEventListener('ended',()=>{
+              if (withinSession(token) && state.phase==='recording') stopRecording('audioEnded');
+            });
+          }
+          videoTrack.addEventListener('ended',()=>{
+            if (withinSession(token) && state.phase==='recording') {
+              logDetail('Canvas recording video track ended');
+              stopRecording('videoEnded');
+            }
+          });
           state.recorder.start(1000);
-          state.startedAt = performance.now();
+          state.startedAt=performance.now();
           setPhase('recording');
           setStatus('sourcePaused');
-          logDetail('Record start: ' + state.outputMime + ', mode=' + state.recordedAudioMode
-            + ', sourceGain=' + state.recordedSourceGain
-            + ', videoTrack=' + videoTrack.readyState + ', audioTrack=' + capturedAudioTrack.readyState);
-        } catch (error) {
+          logDetail('Record start: '+state.outputMime+', mode='+state.recordedAudioMode
+            +', sourceGain='+state.recordedSourceGain
+            +', videoTrack='+videoTrack.readyState+', audioTrack='+capturedAudioTrack.readyState);
+        } catch(error) {
           if (!withinSession(token)) return;
-          logDetail('Start error: ' + error.name + ' ' + error.message);
+          logDetail('Start error: '+error.name+' '+error.message);
+          const pending=state.recorder;
+          if (pending) {
+            pending.ondataavailable=null;
+            pending.onstop=null;
+            pending.onerror=null;
+            try { if (pending.state!=='inactive') pending.stop(); } catch { /* startup failed */ }
+          }
+          state.recorder=null;
           releaseCapture();
-          state.recorder = null;
           setPhase('ready');
-          const key = error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError' ? 'micDenied'
-            : error.name === 'NotFoundError' ? 'micMissing'
-            : error.message === 'audioMixFailed' ? 'audioMixFailed'
-            : error.message === 'unsupported' ? 'unsupported' : 'micFailure';
+          const key = error.name==='NotAllowedError' || error.name==='PermissionDeniedError' ? 'micDenied'
+            : error.name==='NotFoundError' ? 'micMissing'
+            : error.message==='audioMixFailed' ? 'audioMixFailed'
+            : error.message==='interrupted' ? 'interrupted'
+            : error.message==='unsupported' ? 'unsupported' : 'micFailure';
           setStatus(key);
           showToast(translate(key),{tone:'danger',duration:6000});
         }
       }
-      function stopRecording(reason = 'manual') {
-        if (state.phase !== 'recording' || !state.recorder) return;
+      function stopRecording(reason='manual') {
+        if (state.phase!=='recording' || !state.recorder) return;
         finishStroke(true);
-        state.recordedMs = Math.max(0, performance.now() - state.startedAt);
-        state.autoStopped = reason !== 'manual';
-        state.stopReason = reason;
+        state.recordedMs=Math.max(0,performance.now()-state.startedAt);
+        state.autoStopped=reason!=='manual';
+        state.stopReason=reason;
+        state.stopTimeoutHit=false;
         setPhase('finalizing');
-        setStatus(reason === 'manual' || reason === 'limit' ? 'recordingEnded' : 'interrupted');
+        setStatus(reason==='manual'||reason==='limit'?'recordingEnded':'interrupted');
         sourceVideo.pause();
-        logDetail('Stop requested: ' + reason + ', elapsed=' + state.recordedMs.toFixed(0) + 'ms');
+        logDetail('Stop requested: '+reason+', elapsed='+state.recordedMs.toFixed(0)+'ms'
+          +', chunks='+state.chunks.length+', bytes='+state.chunkBytes);
+        const token=state.generation;
+        state.stopWatchdog=setTimeout(()=>{
+          state.stopWatchdog=null;
+          if (!withinSession(token) || state.phase!=='finalizing' || state.finalizeStarted) return;
+          state.stopTimeoutHit=true;
+          state.autoStopped=true;
+          state.stopReason='stopTimeout';
+          logDetail('MediaRecorder stop event timed out; attempting partial recovery');
+          void finalizeRecording(token);
+        },STOP_FINALIZE_TIMEOUT_MS);
         try {
-          if (state.recorder.state !== 'inactive') {
-            state.recorder.requestData();
+          if (state.recorder.state!=='inactive') {
+            try { state.recorder.requestData(); }
+            catch(error) { logDetail('Recorder flush unavailable: '+error.message); }
             state.recorder.stop();
-          } else {
-            void finalizeRecording(state.generation);
           }
-        } catch (error) {
-          logDetail('Recorder stop error: ' + error.message);
-          releaseCapture();
-          setPhase('ready');
-          setStatus('failedRecord');
+          // An already-inactive recorder may still dispatch its final dataavailable
+          // and stop events asynchronously. The bounded watchdog prevents a stuck UI.
+        } catch(error) {
+          state.stopReason='stopException';
+          state.autoStopped=true;
+          logDetail('Recorder stop failed: '+error.message);
+          // Do not discard chunks; onstop or the watchdog can still salvage them.
+          if (state.recorder?.state!=='inactive') {
+            try { state.recorder.stop(); } catch { /* watchdog will release it */ }
+          }
         }
       }
       async function inspectRecordedBlob(blob,token) {
