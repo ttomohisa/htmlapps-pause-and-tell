@@ -11,7 +11,7 @@ $readmeJa = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "README.ja.md")
 
 if ([string]$config.name -ne "Pause & Tell") { throw "Pause & Tell name mismatch." }
 if ([string]$config.slug -ne "pause-and-tell") { throw "Pause & Tell slug mismatch." }
-if ([string]$config.version -ne "0.8.0") { throw "Unexpected Pause & Tell POC version." }
+if ([string]$config.version -ne "0.9.0") { throw "Unexpected Pause & Tell POC version." }
 if ([string]$config.repository.owner -ne "ttomohisa" -or [string]$config.repository.name -ne "htmlapps-pause-and-tell") {
   throw "Pause & Tell repository metadata mismatch."
 }
@@ -182,8 +182,8 @@ if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback 
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
   throw "Specification and development gates are missing."
 }
-if (-not $readme.Contains("v0.8.0") -or -not $readmeJa.Contains("v0.8.0")) {
-  throw "README must describe the experimental v0.8.0 stage."
+if (-not $readme.Contains("v0.9.0") -or -not $readmeJa.Contains("v0.9.0")) {
+  throw "README must describe the experimental v0.9.0 stage."
 }
 if (-not (Test-Path (Join-Path $Root "docs\G1_VALIDATION.md"))) { throw "Missing G1 validation protocol." }
 if (-not (Test-Path (Join-Path $Root "docs\G2_VALIDATION.md"))) { throw "Missing G2 validation protocol." }
@@ -193,6 +193,7 @@ if (-not (Test-Path (Join-Path $Root "docs\G5_VALIDATION.md"))) { throw "Missing
 if (-not (Test-Path (Join-Path $Root "docs\G6_VALIDATION.md"))) { throw "Missing G6 validation protocol." }
 if (-not (Test-Path (Join-Path $Root "docs\G7_VALIDATION.md"))) { throw "Missing G7 validation protocol." }
 if (-not (Test-Path (Join-Path $Root "docs\G8_VALIDATION.md"))) { throw "Missing G8 validation protocol." }
+if (-not (Test-Path (Join-Path $Root "docs\G9_VALIDATION.md"))) { throw "Missing G9 validation protocol." }
 if ($source.Contains("connect(audioMix.context.destination)") -or $source.Contains("connect(context.destination)")) {
   throw "Do not route mixed user media into speaker output."
 }
@@ -201,4 +202,4 @@ if (-not $icon.Contains('<rect width="64" height="64" rx="16" fill="#16624f"/>')
   throw "The canonical favicon must be the supplied Pause & Tell SVG."
 }
 
-Write-Host "[OK] Pause & Tell v0.8.0 contract markers passed." -ForegroundColor Green
+Write-Host "[OK] Pause & Tell v0.9.0 contract markers passed." -ForegroundColor Green
