@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### v0.7.0 — Download, share and help polish (2026-10-15)
+
+- Kept output preview and editable filename while adding user-visible save instructions that distinguish a **download request** from confirmed storage.
+- Hardened export filenames (path separators, control/bidi characters, trailing dots/spaces, extensions, reserved names and empty fallback).
+- Added native **Share video** only when the browser supports sharing the playable MP4/WebM `File` via `navigator.canShare({files})` in a secure context. Suppresses Share for interrupted/unverified recovery outputs.
+- Native share calls happen directly from a user click with transient activation; cancellation retains the result and other failures preserve Download fallback.
+- Downloading/sharing no longer exempts the user from a discard confirmation on source replacement or re-recording. The browser cannot prove an actual save.
+- Updated JA/EN Help to explain that explicit user-selected sharing may transmit generated files to other destinations, unlike completely local automatic processing.
+- Added G7 file export and OS/browser acceptance matrix; physical iOS/Android export and direct `file://` tests remain outstanding.
+
+
+
 ### v0.6.0 — Recording interruptions and partial recovery (2026-10-15)
 
 - Introduced `recovery` result state with localized interrupted/partial/unverified output notices. Unverifiable data is not displayed as a successfully created or playable video; users can optionally save recovered bytes with an explicit corruption warning.
