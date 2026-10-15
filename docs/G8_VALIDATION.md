@@ -63,3 +63,29 @@ Only headless/CI subset can be called automated-pass. **Overall G8 is PENDING** 
 No cloud backup, editing history, microphone recovery after browser termination, forced download completion confirmation or automatic upload is implemented. Correct playback in native players is not guaranteed until recorded on actual devices. A keyboard Point marker is supported, but full freehand drawing requires a mouse, pen or touch.
 
 Screenshots for final release must show the actual JA/EN app at current UI and be updated before v1.0.0; avoid reusing template screenshots.
+
+## Automated G8 Chromium evidence — 2026-10-15
+
+**Exact tested build:** `51a8ddc165e385e7e1275f4892691a733497883d`, Linux headless Chromium 144 with Playwright. Source: local 20-second 480×270 H.264 video. Microphone was an **880 Hz synthetic WebAudio oscillator**, not a real microphone. HTML was loaded into `about:blank` with `page.set_content`, **not** from direct `file://` or HTTPS due to test-environment navigation restrictions.
+
+| Test group | Observation |
+| --- | --- |
+| Template Windows CI | PowerShell syntax/preflight, repository checks and readable/self-extract HTML build: **PASS** |
+| HTML variants | Readable `dist/index.html` **170,169 bytes**, compressed loader **64,452 bytes**, root `pause-and-tell.html` byte-identical to readable HTML |
+| Compression/icon | Build manifest SHA256 checked; self-extract loader expanded to v0.8.0 UI in Chromium. Both header and favicon embed **exactly the provided 1,933-byte SVG** |
+| Language dictionary | `ja` and `en` have identical **163 keys** with no missing counterpart |
+| Keyboard Point | Arrow +5%, Shift+arrow +1%, Enter/Space placement, Undo, focus and source pause confirmed at 320/360/390/844×390/1280 viewports |
+| Real encoded media | Downloaded WebM decodes as **VP8 video 480×270 + Opus audio**; decoded output frame contains the placed keyboard ring, not the keyboard-only cursor overlay |
+| Pointer regression | Circle/Arrow/Pen mouse drags changed live Canvas; Undo/Clear returned to the empty drawing state |
+| Screen reader DOM/focus | Live phase message, imported-video heading focus, recording Play button focus, result heading focus and JA→EN re-localization confirmed in automated browser DOM. **Actual screen readers not tested** |
+| Strict CSP | `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`; deliberately attempted remote `fetch()` failed with `TypeError` and caused **zero outgoing HTTP requests** |
+| Normal processing | No JavaScript page errors; no application-initiated HTTP(S) requests. Local `blob:` media requests were expected and allowed |
+| Smartphone layout | 320×568, 360×800, 390×844 and 844×390 touch/coarse-pointer; no horizontal overflow, video stayed above bottom transport while keyboard Point was focused, mobile footer hidden |
+| Desktop | 1280×900 and screenshot capture at 1360×900 in Japanese and English; footer visible |
+| Reduced motion | Playwright `reduced_motion='reduce'` keyboard/recording flow passed |
+| Storage persistence | Source inspected: only language preference is persisted. **Live Storage verification blocked** by `about:blank` SecurityError in this test environment |
+| Direct file navigation | `file://` navigation blocked by test runtime (`ERR_BLOCKED_BY_ADMINISTRATOR`). **Not tested**, not categorized as a Pause & Tell bug |
+
+**Contrast calculations** for representative base tokens: muted text on white **5.58:1**; white on `#16624F` **7.26:1**; selected tool foreground/background **7.98:1**; recording status **6.52:1**; recovery notice **7.74:1**. These sampled pairs meet WCAG AA text contrast, but are not a full screen-by-screen audit.
+
+**Gate decision:** G8 automated/static subset **PASS**. **Overall G8 PENDING** until real iPhone Safari/Android Chrome/Windows microphone, native export/file playback, real `file://` operation, 200% browser text zoom and human NVDA/VoiceOver checks. G1–G7 physical gates also remain PENDING. Live screenshots used real rendered HTML but are **not yet committed as release screenshots**; final production screenshot assets remain v0.9/v1.0 work.
