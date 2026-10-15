@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### v0.6.0 — Recording interruptions and partial recovery (2026-10-15)
+
+- Introduced `recovery` result state with localized interrupted/partial/unverified output notices. Unverifiable data is not displayed as a successfully created or playable video; users can optionally save recovered bytes with an explicit corruption warning.
+- Added bounded (9s) MediaRecorder stop-event watchdog, one-time finalization guard and best-effort chunk salvage after browser recorder errors or missing stop callbacks.
+- Monitored microphone `ended` / sustained `mute` (3.2s grace), output video/audio track endings, source decode errors and page visibility interruptions.
+- Added 96MiB in-memory recording chunk limit while retaining input 30s/100MiB and output 90s prototype constraints. Never silently expand limits before real-device measurements.
+- Hardened startup abort handling, stream/audio graph cleanup, media source replacement guards, and safe filename/format messaging for unverified raw recovered bytes.
+- Added G6 verification plan. Browser build checks are not a substitute for physical iPhone/Android recording, native file playback or actual microphone tests.
+
+
+
 ### v0.5.0 — Opt-in original-audio mix prototype (2026-10-15)
 
 - Kept direct microphone-only recording as the default, with no source speaker playback or new runtime network dependencies.

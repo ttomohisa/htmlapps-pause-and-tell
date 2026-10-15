@@ -4,9 +4,18 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.5.0 annotated recording and audio-mixing experiment — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
+**Current status: v0.6.0 recovery-aware annotated recording prototype — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
 
-## What works in v0.5.0
+## What works in v0.6.0
+
+- Added **bounded MediaRecorder finalization** (9-second stop-event watchdog) and at-most-once finalization. Available data chunks are retained if a browser fails to dispatch the expected stop callback.
+- Monitors microphone track end and sustained mute (3.2-second grace), Canvas capture video end, MediaRecorder errors, source decoding errors and background interruptions.
+- **Normal output** is separate from **partially recovered / unverified output**. Recovered media has an explicit caution, and undecodable data is downloadable only as an unverified file with no preview; zero-byte captures are never reported as success.
+- Keeps provisional limits of **30s source, 100MiB input, 90s output** and adds a **96MiB recorded-chunk safety limit**. These are not expanded until physical smartphone testing.
+- Defensive capture cleanup: no dropped stop chunks, cleanup of recorder/MediaStream/Blob URLs, no repeated startup while finalizing, and file replacement disabled during active recording.
+- See [G6 failure/recovery acceptance matrix](docs/G6_VALIDATION.md). Physical iPhone/Android and real microphone cases remain **UNTESTED**.
+
+
 
 - **Voice only is still the default.** Source audio is never included unless the user explicitly opts in.
 - The collapsed **Audio options** section adds **Source sound + voice (experimental)** for desktop Chromium when Web Audio APIs are present. Mobile, Safari and Firefox are deliberately gated off pending testing.
@@ -60,9 +69,13 @@ Use a quiet, short source video for the initial test. Source-audio capture is **
 
 Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while speaking, then play the remaining **12 seconds**. Verify that the result is about **40 seconds** long, the frozen frames persist during the pause, and voice audio continues. Allow for the initial pause before pressing Play and manual button timing. Record browser/OS/device, real duration, codec/container, and any sync problems. See [G1 validation protocol](docs/G1_VALIDATION.md).
 
-This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
+This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md), and G6 recovery in [docs/G6_VALIDATION.md](docs/G6_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
 **Automated G5 evidence (not a compatibility guarantee):** In headless Chromium with a synthetic 440 Hz source and simulated 880 Hz microphone, decoded WebM audio contained both tones during playback, only the microphone during the source pause, and the source tone again after resume. Re-recording and replacing the source file also passed. Real iPhone/Android microphones and native-player compatibility are still untested. See [G5 validation](docs/G5_VALIDATION.md).
+
+### Interrupted recordings
+
+If capture is interrupted, Pause & Tell attempts to recover received recorder chunks. A playable partial file is shown with a **recovery** warning; if playback cannot be verified, recovered bytes may still be saved, but **they may be damaged**. An empty/unusable recording never appears as a completed video. This does not guarantee rescue after a browser crash, device shutdown, or screen lock. Review the downloaded video and sound before sharing it.
 
 ## Privacy
 
