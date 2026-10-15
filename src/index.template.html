@@ -548,6 +548,12 @@
     /* v0.6.0 recovery results must never look like normal successful outputs. */
     .pt-recovery-notice { padding:12px 14px; margin:14px 0; border:1px solid #c48c32; border-radius:10px; background:#fff7e9; color:#704514; font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
     .pt-recovery-notice[hidden], .pt-result-video[hidden] { display:none !important; }
+    .pt-export-hint { margin:9px 0 2px; font-size:12px; color:var(--muted); line-height:1.65; }
+    .pt-export-status { margin:10px 0 0; font-size:13px; line-height:1.6; color:var(--muted); }
+    .pt-share-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+    .pt-share-button svg { width:18px; height:18px; flex:0 0 18px; stroke:currentColor; stroke-width:1.9; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    #ptResultVideo { min-height:120px; }
+    @media (max-width:480px) { #ptResultPanel .pt-controls .button { min-height:48px; } }
     .pt-result-video:focus-visible { outline:3px solid var(--focus); }
     #ptDownload.recovery { background:var(--surface); color:var(--text); border-color:#c48c32; }
     #ptDownload.recovery:hover { background:#fff7e9; }
@@ -751,12 +757,18 @@
         <span class="pt-filename-ext" id="ptExtension">.webm</span>
       </div>
       <p id="ptFilenameHint" class="pt-muted" data-i18n="filenameHint">拡張子は実際の動画形式に合わせて自動で付きます。</p>
+      <p id="ptSaveHint" class="pt-export-hint" data-i18n="saveHint">動画を確認してから保存してください。保存先と保存完了はブラウザで確認できます。</p>
       <div class="pt-controls">
         <button type="button" class="button primary" id="ptDownload" data-i18n="saveVideo">動画を保存</button>
+        <button type="button" class="button pt-share-button" id="ptShare" data-i18n-aria-label="shareVideo" hidden disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5V3.5m-4 4 4-4 4 4M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+          <span data-i18n="shareVideo">共有</span>
+        </button>
         <button type="button" class="button" id="ptAgain" data-i18n="recordAgain">もう一度録る</button>
         <label class="pt-file-label" aria-label="動画を変更"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
       </div>
       <p id="ptResultWarning" class="pt-message" aria-live="polite"></p>
+      <p id="ptExportStatus" class="pt-export-status" role="status" aria-live="polite" hidden></p>
     </section>
 
     <section class="shell section" aria-labelledby="ptDiagnosticsTitle">
@@ -820,7 +832,7 @@
         <li data-i18n="helpStep3">元動画を再生・一時停止しながら説明します。元動画の停止中もマイクと完成動画の録画は続きます。</li>
         <li data-i18n="helpStep4">丸・矢印・ペンで注目箇所を描きます。描画開始で元動画だけ停止します。線は再生時に消えます。</li>
         <li data-i18n="helpStep5">音声の設定は初期値の「説明音声のみ」を推奨します。試験用の音声合成は確認可能なPCのみに制限しています。</li>
-        <li data-i18n="helpStep6">「録画を終了」で結果を作り、再生してから保存します。</li>
+        <li data-i18n="helpStep6">「録画を終了」で結果を確認し、名前を付けて保存します。端末がファイル共有に対応していれば共有ボタンも表示されます。</li>
       </ol>
       <h3 data-i18n="helpPrivacyTitle">プライバシー</h3>
       <p data-i18n="helpPrivacyBody">選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。</p>
@@ -832,6 +844,7 @@
         <li data-i18n="helpNote4">ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。</li>
         <li data-i18n="helpNoteRecovery">録画が途中で止まった場合は、正常な完成動画とは区別して回収データを表示します。破損や音声欠落の可能性があるため、必要なら録り直してください。</li>
         <li data-i18n="helpNoteLimits">試作版の上限は元動画30秒・100MiB、完成録画90秒です。録画データが大きすぎる場合も途中終了します。</li>
+        <li data-i18n="helpNoteExport">保存ボタンはダウンロードを開始するだけで完了を保証しません。ブラウザの保存先で再生を確認してください。共有は選択した相手へOSがファイルを渡す操作です。非対応端末では表示されません。</li>
       </ul>
       <p class="dialog-note" data-i18n="helpOffline">このアプリは実行時の外部通信なしで動くことを目指しています。マイクはブラウザの安全なコンテキストと許可が必要です。file:// と HTTPS は別々に検証します。</p>
       <!-- APP:HELP:END -->
@@ -988,9 +1001,9 @@
           "stopRecord": "録画を終了",
           "pocNote": "録画が中断された場合は、回収したデータを区別して表示します。元音声の合成はPC向けの試験機能です。",
           "resultTitle": "録画結果を確認する",
-          "resultHelp": "保存前に音声と停止区間が正しいか再生して確かめてください。",
+          "resultHelp": "映像と音声を実際に再生して確認し、ファイル名を付けて保存してください。",
           "outputFilename": "出力ファイル名",
-          "filenameHint": "拡張子は実際の動画形式に合わせて自動で付きます。",
+          "filenameHint": "拡張子は実際の動画形式に合わせて付けます。保存後もこのページには結果が残ります。",
           "saveVideo": "動画を保存",
           "recordAgain": "もう一度録る",
           "diagnostics": "技術検証ログ（端末内のみ）",
@@ -1014,9 +1027,9 @@
           "interrupted": "画面切り替え／マイク中断を検知しました。回収できた録画を確認しています。",
           "resultUnknown": "録画の長さを正確に取得できませんでした。保存前に最初から最後まで再生してください。",
           "resultOk": "録画を作成しました。動画を再生して映像・音声を確認してください。",
-          "downloadStarted": "動画の保存を開始しました。保存先で再生を確認してください。",
-          "confirmDiscard": "録画を破棄しますか？",
-          "discardMessage": "まだ保存していない録画は失われます。",
+          "downloadStarted": "ダウンロードを開始しました。実際に保存できたかはブラウザの保存先で確認してください。",
+          "confirmDiscard": "この録画結果を破棄しますか？",
+          "discardMessage": "結果はこのページから失われます。保存や共有の操作が完了したか、先にご確認ください。",
           "discard": "破棄する",
           "confirmTitle": "確認",
           "confirmAction": "実行する",
@@ -1068,7 +1081,7 @@
           "audioMixInterrupted": "音声合成が中断されました。作成できた動画の声と元音声を確認してください。",
           "audioResultVoice": "音声：説明音声のみ",
           "audioResultMixed": "音声：元動画と説明音声（試験用）",
-          "helpStep6": "「録画を終了」で結果を作り、再生してから保存します。",
+          "helpStep6": "「録画を終了」で完成動画を確認し、名前を付けて保存します。ファイル共有に対応する端末では共有ボタンも表示されます。",
           "resultRecovery": "録画の一部を回収しました",
           "resultRecoveryHelp": "中断・破損の可能性があるため、正常に保存できたとは限りません。",
           "recoverPlayable": "録画が途中で終わりました。再生できる部分だけ回収しました。動画と音声を必ず最後まで確認してください。",
@@ -1086,7 +1099,15 @@
           "captureErrorDetail": "録画を確認できません。再生可能な部分がある場合だけ保存してください。",
           "helpNoteRecovery": "録画が途中で止まった場合は、通常の完成動画とは区別して回収データを表示します。破損・音声欠落の可能性があるため、必要なら録り直してください。",
           "helpNoteLimits": "試作版の上限：元動画30秒・100MiB、完成録画90秒。保存前の録画データが大きい場合も安全のため途中で停止します。",
-          "downloadRecoveredStarted": "回収できたデータの保存を開始しました。破損している可能性があるため、保存後に確認してください。"
+          "downloadRecoveredStarted": "回収できたデータの保存を開始しました。破損している可能性があるため、保存後に確認してください。",
+          "shareVideo": "動画を共有",
+          "shareUnavailable": "この端末では動画ファイルを直接共有できません。「動画を保存」を使ってください。",
+          "shareFailed": "動画を共有できませんでした。端末の共有先やファイル形式を確認し、必要なら動画を保存してください。",
+          "shareRequested": "共有先へ動画を渡しました。実際に保存・送信できたか共有先で確認してください。",
+          "saveHint": "完成動画を再生して、映像と音声を確認してから保存してください。保存が完了したかはブラウザの保存先でご確認ください。",
+          "recoverySaveHint": "回収されたデータは破損や音声欠落の可能性があります。必要なら保存して確かめてください。共有機能は使えません。",
+          "downloadFailed": "ダウンロードを開始できませんでした。ブラウザの設定を確認して再試行してください。",
+          "helpNoteExport": "保存ボタンはダウンロードの開始であり、保存完了を保証しません。ブラウザの保存先でご確認ください。共有ボタンを押すと、選んだ共有先へOS経由で動画が渡されます。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1129,9 +1150,9 @@
           "stopRecord": "Finish recording",
           "pocNote": "Interrupted recordings are labeled as recoverable/unverified. Original audio mixing remains an experimental desktop option.",
           "resultTitle": "Review the recording",
-          "resultHelp": "Play the output and verify its audio and paused sections before downloading.",
+          "resultHelp": "Play to verify video and audio, then name the file and download it.",
           "outputFilename": "Output filename",
-          "filenameHint": "The actual video format determines the extension.",
+          "filenameHint": "The actual output format determines the extension. This result stays available after download.",
           "saveVideo": "Download video",
           "recordAgain": "Record again",
           "diagnostics": "Local technical diagnostics",
@@ -1155,9 +1176,9 @@
           "interrupted": "Backgrounding or microphone interruption detected. Checking any recorded data.",
           "resultUnknown": "Exact recorded duration is unavailable. Play the entire result before saving.",
           "resultOk": "Output ready. Play it to verify video and audio before use.",
-          "downloadStarted": "Video download requested. Verify the saved file plays.",
-          "confirmDiscard": "Discard the recording?",
-          "discardMessage": "An unsaved recording will be lost.",
+          "downloadStarted": "Download requested. Check that it actually saved in your browser or file manager.",
+          "confirmDiscard": "Discard this recording?",
+          "discardMessage": "The recording will be lost from this page. First make sure your download or share reached its destination.",
           "discard": "Discard",
           "confirmTitle": "Confirm",
           "confirmAction": "Continue",
@@ -1209,7 +1230,7 @@
           "audioMixInterrupted": "Audio mixing was interrupted. Review the output for missing voice or source sound.",
           "audioResultVoice": "Audio: voice only",
           "audioResultMixed": "Audio: source + voice (experimental)",
-          "helpStep6": "Finish recording, review the result and save the video.",
+          "helpStep6": "Finish recording, review it, edit its filename, and download. Supported devices will also offer a file Share button.",
           "resultRecovery": "Partially recovered recording",
           "resultRecoveryHelp": "Interrupted or damaged recordings may not be playable or complete.",
           "recoverPlayable": "Recording ended unexpectedly. Some video was recovered. Play the entire output and check its video and audio.",
@@ -1227,7 +1248,15 @@
           "captureErrorDetail": "Recording was not verified. Save only if you want to attempt recovery.",
           "helpNoteRecovery": "If recording is interrupted, recovered data is shown separately from successful videos. It may be broken or missing sound; record again if needed.",
           "helpNoteLimits": "Prototype limits: source video 30 seconds / 100MiB, output recording 90 seconds. Capture also stops if stored data grows too large.",
-          "downloadRecoveredStarted": "Recovered data download requested. The file may be damaged; check it after saving."
+          "downloadRecoveredStarted": "Recovered data download requested. The file may be damaged; check it after saving.",
+          "shareVideo": "Share video",
+          "shareUnavailable": "File sharing is unavailable here. Use Download video instead.",
+          "shareFailed": "Could not share the file. Check the destination and video format, or download it instead.",
+          "shareRequested": "File handed to the selected share destination. Check whether it was actually saved or delivered.",
+          "saveHint": "Play the finished video to check picture and sound. Confirm that the download was saved in your browser or file manager.",
+          "recoverySaveHint": "Recovered data may be corrupt or missing sound. Save only if you want to inspect it. Sharing is not available for recovery data.",
+          "downloadFailed": "Could not start downloading. Check your browser settings and try again.",
+          "helpNoteExport": "Download requests do not prove that a file was saved. Check your browser's saved files. Sharing sends the video via your OS to a destination you select."
         }
       };
 
