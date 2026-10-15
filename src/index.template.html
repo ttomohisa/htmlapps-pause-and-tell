@@ -1779,6 +1779,8 @@
         $('#ptResultPanel').querySelector('[data-i18n="resultHelp"]').textContent=
           translate(recovery?'resultRecoveryHelp':'resultHelp');
         $('#ptRecoveryNotice').hidden=!recovery;
+        // Show the recovery warning only once, directly above the preview.
+        $('#ptResultWarning').hidden=recovery;
         if(recovery) {
           const note=state.recoveryIssue || (state.outputPlayable?'recoverPlayable':'recoverUnverified');
           $('#ptRecoveryNotice').textContent=translate(note);
@@ -2326,10 +2328,13 @@
       function updateResultMeta() {
         if (!state.outputBlob) return;
         const actual = Number.isFinite(state.outputDuration) ? formatTime(state.outputDuration*1000) : '—';
+        const elapsed = state.recordedMs<10000
+          ? (state.recordedMs/1000).toFixed(1)+(language==='ja'?'秒':' s')
+          : formatTime(state.recordedMs);
         const description = ' ' + formatBytes(state.outputBlob.size) + ' · ' + state.outputMime
           + ' · ' + translate(state.recordedAudioMode==='mix'?'audioResultMixed':'audioResultVoice')
           + (state.recordedAudioMode==='mix' ? ' (' + Math.round(state.recordedSourceGain*100) + '%)' : '')
-          + ' · ' + (language === 'ja' ? '録画経過' : 'Elapsed') + ' ' + formatTime(state.recordedMs)
+          + ' · ' + (language === 'ja' ? '録画経過' : 'Elapsed') + ' ' + elapsed
           + ' · ' + (language === 'ja' ? '検出された動画長' : 'Detected duration') + ' ' + actual;
         $('#ptResultMeta').textContent = description;
       }
