@@ -2170,24 +2170,27 @@
           }
         }
       }
+
       async function inspectRecordedBlob(blob,token) {
-        const url = URL.createObjectURL(blob);
-        const probe = document.createElement('video');
-        probe.preload = 'auto';
-        probe.muted = true;
-        probe.playsInline = true;
-        probe.src = url;
+        const url=URL.createObjectURL(blob);
+        const probe=document.createElement('video');
+        probe.preload='auto';
+        probe.muted=true;
+        probe.playsInline=true;
+        probe.src=url;
         try {
-          if (probe.readyState < HTMLMediaElement.HAVE_METADATA) await waitForVideoEvent(probe,'loadedmetadata','error',20000);
-          if (!withinSession(token)) throw new Error('stale');
-          const duration = probe.duration;
-          if (Number.isFinite(duration) && duration <= 0) throw new Error('failedRecord');
-          if (Number.isFinite(duration) && duration * 1000 < state.recordedMs - 2500) {
-            throw new Error('resultShort');
+          if (probe.readyState<HTMLMediaElement.HAVE_METADATA) {
+            await waitForVideoEvent(probe,'loadedmetadata','error',20000);
           }
-          // Metadata may report Infinity for MediaRecorder WebM. The file must still decode its first frame.
-          if (probe.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) await waitForVideoEvent(probe,'loadeddata','error',20000);
-          if (!(probe.videoWidth > 0 && probe.videoHeight > 0)) throw new Error('failedRecord');
+          if (!withinSession(token)) throw new Error('stale');
+          const duration=probe.duration;
+          if (Number.isFinite(duration) && duration<=0) throw new Error('failedRecord');
+          // MediaRecorder WebM may return duration=Infinity. A playable first frame
+          // is useful evidence but never proves that the original audio survived.
+          if (probe.readyState<HTMLMediaElement.HAVE_CURRENT_DATA) {
+            await waitForVideoEvent(probe,'loadeddata','error',20000);
+          }
+          if (!(probe.videoWidth>0 && probe.videoHeight>0)) throw new Error('failedRecord');
           if (!withinSession(token)) throw new Error('stale');
           return {url,duration};
         } catch(error) {
@@ -2200,49 +2203,108 @@
         }
       }
       async function finalizeRecording(token) {
-        if (!withinSession(token) || state.phase !== 'finalizing') return;
-        const chunks = state.chunks.slice();
+        if (!withinSession(token) || state.phase!=='finalizing' || state.finalizeStarted) return;
+        // onstop is expected after the last dataavailable, but a watchdog may
+        // call this when the browser never dispatches onstop. Never finalize twice.
+        state.finalizeStarted=true;
+        const chunks=state.chunks.slice();
+        const chunkBytes=state.chunkBytes;
+        const reason=state.stopReason;
+        const interrupted=state.autoStopped || state.stopTimeoutHit
+          || !['manual','limit'].includes(reason);
+        const recorder=state.recorder;
+        if (recorder) {
+          recorder.ondataavailable=null;
+          recorder.onstop=null;
+          recorder.onerror=null;
+          try { if (recorder.state!=='inactive') recorder.stop(); }
+          catch(error) { logDetail('Final forced stop: '+error.message); }
+        }
+        state.recorder=null;
         releaseCapture();
-        state.recorder = null;
-        logDetail('Recorder finalized: ' + chunks.length + ' chunk(s).');
+        stopTimers();
+        logDetail('Recorder finalized: '+chunks.length+' chunks / '+chunkBytes
+          +' bytes; reason='+reason+', watchdog='+state.stopTimeoutHit);
+        let blob=null;
+        let format='';
         try {
-          const firstType = chunks.find(chunk => chunk.type)?.type || '';
-          const mediaType = firstType || state.outputMime;
-          const containerType = mediaType.split(';')[0].toLowerCase();
-          if (containerType !== 'video/mp4' && containerType !== 'video/webm') throw new Error('failedRecord');
-          const blob = new Blob(chunks,{type:mediaType});
-          if (blob.size < 1024) throw new Error('failedRecord');
-          const inspected = await inspectRecordedBlob(blob,token);
-          if (!withinSession(token)) { URL.revokeObjectURL(inspected.url); return; }
-          state.outputBlob = blob;
-          state.outputMime = containerType;
-          state.outputExt = containerType === 'video/mp4' ? 'mp4' : 'webm';
-          state.outputUrl = inspected.url;
-          state.outputDuration = inspected.duration;
-          resultVideo.src = inspected.url;
-          resultVideo.load();
-          const inputBase = (state.input?.name || 'video').replace(/\.[^.]+$/,'');
-          outputFilename.value = normalizeFilename(inputBase + '-explained');
-          $('#ptExtension').textContent = '.' + state.outputExt;
-          state.saveRequested = false;
-          stopTimers();
-          state.resultStatusKey = state.stopReason === 'limit' ? 'resultLimit'
-            : state.stopReason === 'mixInterrupted' ? 'audioMixInterrupted'
-            : state.autoStopped ? 'resultInterrupted'
-            : Number.isFinite(inspected.duration) ? 'resultOk' : 'resultUnknown';
-          $('#ptResultWarning').textContent = translate(state.resultStatusKey);
-          setPhase('result');
+          const firstType=chunks.find(chunk=>chunk.type)?.type || '';
+          const mediaType=firstType || state.outputMime || 'application/octet-stream';
+          format=mediaType.split(';')[0].toLowerCase();
+          // An unknown recorder format is kept as a .bin recovery file, rather
+          // than mislabeled as an MP4 or WebM that may not actually decode.
+          const knownFormat=format==='video/mp4' || format==='video/webm';
+          blob=new Blob(chunks,{type:knownFormat?mediaType:'application/octet-stream'});
+          if (blob.size<1024) throw new Error('recordingFailedNoData');
+          state.outputBlob=blob;
+          state.outputMime=knownFormat?format:'application/octet-stream';
+          state.outputExt=knownFormat?(format==='video/mp4'?'mp4':'webm'):'bin';
+          state.outputPlayable=false;
+          state.recoveryIssue='';
+          state.outputDuration=NaN;
+          state.saveRequested=false;
+          const inputBase=(state.input?.name || 'video').replace(/\.[^.]+$/,'');
+          outputFilename.value=normalizeFilename(inputBase+'-explained');
+          $('#ptExtension').textContent='.'+state.outputExt;
+          let verified=null, verifyError=null;
+          if (knownFormat) {
+            try { verified=await inspectRecordedBlob(blob,token); }
+            catch(error) { verifyError=error; logDetail('Output decode failed: '+error.message); }
+          }
+          if (!withinSession(token)) {
+            if (verified?.url) URL.revokeObjectURL(verified.url);
+            return;
+          }
+          state.outputPlayable=Boolean(verified);
+          if (verified) {
+            state.outputUrl=verified.url;
+            state.outputDuration=verified.duration;
+            const inspected=verified;
+            resultVideo.src = inspected.url;
+            resultVideo.load();
+          } else {
+            // Explicit salvage: bytes are offered for download, NOT called success.
+            state.outputUrl=URL.createObjectURL(blob);
+            resultVideo.pause();
+            resultVideo.removeAttribute('src');
+            resultVideo.load();
+          }
+          const durationShort=state.outputPlayable && Number.isFinite(state.outputDuration)
+            && state.outputDuration*1000<state.recordedMs-2500;
+          const recovered=interrupted || !state.outputPlayable || durationShort;
+          if (recovered) {
+            state.recoveryIssue=state.stopTimeoutHit?'recoverTimeout'
+              : reason==='memoryLimit'?'recoverLimit'
+              : durationShort?'recoverShort'
+              : state.outputPlayable?'recoverPlayable':'recoverUnverified';
+            state.resultStatusKey=state.recoveryIssue;
+            $('#ptResultWarning').textContent=translate(state.resultStatusKey);
+            setPhase('recovery');
+          } else {
+            state.resultStatusKey=reason==='limit'?'resultLimit'
+              : Number.isFinite(state.outputDuration)?'resultOk':'resultUnknown';
+            $('#ptResultWarning').textContent=translate(state.resultStatusKey);
+            setPhase('result');
+          }
           updateResultMeta();
           focusWorkflowSection('#ptResultPanel');
-          logDetail('Result: ' + blob.size + ' bytes, type=' + mediaType + ', duration=' + inspected.duration + ', wall=' + (state.recordedMs/1000).toFixed(2) + 's');
-        } catch (error) {
+          logDetail((recovered?'Recovered':'Result')+': '+blob.size+' bytes, '+state.outputMime
+            +', duration='+state.outputDuration+', reason='+reason
+            +(verifyError?', verification='+verifyError.message:''));
+        } catch(error) {
           if (!withinSession(token)) return;
-          logDetail('Verification failed: ' + error.message);
+          logDetail('No usable recording chunks: '+error.message);
+          // No output exists; permit a fresh attempt. Do not show success.
+          releaseOutput();
+          state.chunks=[];
+          state.chunkBytes=0;
           setPhase('ready');
-          setStatus(error.message === 'resultShort' ? 'resultShort' : 'failedRecord');
-          showToast(translate(error.message === 'resultShort' ? 'resultShort' : 'failedRecord'),{tone:'danger',duration:8000});
+          setStatus('recordingFailedNoData');
+          startRendering();
+          showToast(translate('recordingFailedNoData'),{tone:'danger',duration:8000});
         } finally {
-          state.chunks = [];
+          state.chunks=[];
+          state.chunkBytes=0;
         }
       }
       function updateResultMeta() {
