@@ -8,6 +8,7 @@
 - Added skip-to-app link, localized phase announcements, accessible seek position, focus changes after source import and recording result, and explanatory Help text for pointer-only drawing.
 - Strengthened CSP to `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`, with only local Blob/data resources and inline HTML-embedded code allowed. Retained self-contained template build and canonical SVG favicon.
 - Updated G8 verification plan, source contract, bilingual README, security/privacy boundary and CI marker checks.
+- Headless Chromium v0.8 keyboard Point, recorded WebM VP8+Opus, 5 viewport sizes, bilingual Help, gzip HTML loader, canonical SVG and strict CSP fetch blocking passed; 163 JA/EN translation keys match.
 - Physical iPhone/Android recording and file:// runtime, real screen-reader testing (NVDA/VoiceOver), and overall G1–G8 acceptance remain **PENDING**.
 
 
