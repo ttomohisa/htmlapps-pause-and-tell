@@ -30,6 +30,7 @@ $requiredTokens = @(
   'function updateOutputPresentation()',
   'data-i18n="helpNoteExport"',
   'shareRequested',
+  'shareCancelled',
   'shareUnavailable',
   'recoverySaveHint',
   'id="ptRecoveryNotice"',
