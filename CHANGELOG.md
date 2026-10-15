@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### v0.9.0 — Release-candidate verification (2026-10-15)
+
+- Prepared a G9 full-flow acceptance plan (T-01–T-16 and AC-01–AC-12) with explicit **NO-GO** until actual iPhone Safari and Android Chrome recorded files can be saved and replayed natively.
+- Preserved v0.1–v0.8 recorder, annotated Canvas, recovery, local privacy constraints, JA/EN, template standalone formats, and optional experimental desktop-only source-audio mixing.
+- Kept cautious prototype limits (30s source, 100 MiB source input, 90s output, 96 MiB accumulated chunks) pending measured physical-device support for the proposed 60s/250MiB/180s.
+- Added G9 test plan for landscape/portrait/square/rotated clips, 0/1/3/10 pauses, encoded-frame/audio onset synchronization, failure paths, device compatibility, and screenshots.
+- A CI/Chromium auto-pass alone is insufficient for G9/v1.0.0 release approval.
+
+
+
 ### v0.8.0 — Single-HTML privacy and accessibility review (2026-10-15)
 
 - Added keyboard Point placement (arrow keys 5%, Shift+arrows 1%, Enter/Space commits), with a DOM-only cursor omitted from the captured video.

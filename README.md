@@ -4,9 +4,13 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.8.0 standalone/privacy/accessibility prototype — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
+**Current status: v0.9.0 RC evaluation (device tests outstanding) — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
 
-## What works in v0.8.0
+## v0.9.0 release-candidate review
+
+**Release decision: NO-GO.** v0.9.0 is an RC *evaluation build*, not a published or certified release. The headless browser can test output streams, but the required physical iPhone Safari / Android Chrome recording and native saved-file playback have not been completed. The provisional caps remain **30 seconds source / 100 MiB input / 90 seconds output** until mobile memory/performance tests justify raising them. See the [G9 acceptance matrix and release blockers](docs/G9_VALIDATION.md).
+
+## What works in v0.9.0
 
 - **Keyboard Point:** select Point, Tab to the video, use arrow keys (5% per press, Shift+arrow for 1%) to position a cursor, then press Enter or Space to record a ring. The temporary keyboard cursor is **not** included in the exported Canvas video.
 - **Accessible workflow:** skip link, localized state announcements, heading focus after video import and capture finalization, keyboard seek-position text, visible focus and Help dialog scroll lock. Circle, Arrow and Pen paths still require a mouse, pen or touch.
@@ -131,7 +135,7 @@ Firefox / desktop Safari | Not verified
 
 The above is a verification status, not a claim of incompatibility.
 
-Screenshots in the imported template were not recordings of this app; real Japanese/English screenshots must be taken once the implementation has been validated, before v1.0.0 release.
+Representative screenshots must show this app's actual recording workspace, in Japanese and English, and are part of the G9 review. Do not reuse template screenshots.
 
 ## License
 
