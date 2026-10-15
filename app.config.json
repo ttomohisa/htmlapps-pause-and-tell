@@ -3,9 +3,9 @@
   "name": "Pause & Tell",
   "nameJa": "Pause & Tell｜動画解説レコーダー",
   "slug": "pause-and-tell",
-  "version": "0.6.0",
-  "description": "Record narrated and annotated videos locally, with interruption recovery and experimental desktop-only source-audio mixing.",
-  "descriptionJa": "描画と音声の動画解説を端末内で録画。中断時の回収に対応し、元音声の合成はPC向けの試験機能です。",
+  "version": "0.7.0",
+  "description": "Explain short videos with voice and annotations, review and download the result, or share the file on supported devices.",
+  "descriptionJa": "短い動画に声と描画で説明を加え、端末内で録画。結果を確認して保存し、対応端末ではファイル共有できます。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",
