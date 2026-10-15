@@ -2210,8 +2210,8 @@
         const chunks=state.chunks.slice();
         const chunkBytes=state.chunkBytes;
         const reason=state.stopReason;
-        const interrupted=state.autoStopped || state.stopTimeoutHit
-          || !['manual','limit'].includes(reason);
+        // A planned 90-second duration limit is a controlled stop, not an error.
+        const interrupted=state.stopTimeoutHit || !['manual','limit'].includes(reason);
         const recorder=state.recorder;
         if (recorder) {
           recorder.ondataavailable=null;
