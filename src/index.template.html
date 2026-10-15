@@ -530,6 +530,20 @@
       .pt-annotation-actions { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
+
+    /* v0.5.0: optional local Web Audio mixing (experimental desktop Chromium). */
+    .pt-audio-options { border:1px solid var(--line); border-radius:12px; background:var(--surface); margin:12px 0 8px; box-shadow:none; overflow:visible; }
+    .pt-audio-options > summary { display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding:11px 14px; font-size:14px; font-weight:700; }
+    .pt-audio-options > summary::after { content:""; width:7px; height:7px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); }
+    .pt-audio-options[open] > summary::after { transform:rotate(225deg); }
+    .pt-audio-body { border-top:1px solid var(--line); padding:12px 14px 15px; display:grid; gap:12px; }
+    .pt-audio-field { display:grid; gap:5px; font-size:13px; font-weight:650; min-width:0; }
+    .pt-audio-field select { width:100%; min-height:44px; padding:7px 10px; border:1px solid var(--line-strong); background:var(--surface); border-radius:9px; color:var(--text); font-size:14px; }
+    .pt-audio-field select:disabled { opacity:.55; cursor:not-allowed; }
+    .pt-audio-hint { margin:0; color:var(--muted); font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+    .pt-audio-hint.warn { color:#87571a; }
+    .pt-audio-hint.warn::before { content:"! "; font-weight:800; }
+
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
@@ -685,6 +699,28 @@
         <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 01:30</strong></div>
       </div>
       <label class="pt-seek" id="ptSeekWrap"><span data-i18n="seek">位置</span><input id="ptSeek" type="range" min="0" max="1000" value="0" aria-label="再生位置" data-i18n-aria-label="seekPosition"></label>
+      <details id="ptAudioOptions" class="pt-audio-options">
+        <summary data-i18n="audioSettings">音声の設定</summary>
+        <div class="pt-audio-body">
+          <label class="pt-audio-field" for="ptAudioMode">
+            <span data-i18n="audioModeLabel">録音する音声</span>
+            <select id="ptAudioMode">
+              <option value="mic" data-i18n="audioVoiceOnly" selected>説明音声のみ（既定）</option>
+              <option value="mix" data-i18n="audioMixed" disabled>元動画の音＋説明音声（試験用）</option>
+            </select>
+          </label>
+          <label id="ptSourceGainWrap" class="pt-audio-field" for="ptSourceGain" hidden>
+            <span data-i18n="audioSourceLevel">元動画の音量</span>
+            <select id="ptSourceGain">
+              <option value="0.15" data-i18n="audioLevelLow">小さめ 15%</option>
+              <option value="0.30" data-i18n="audioLevelNormal" selected>標準 30%</option>
+              <option value="0.50" data-i18n="audioLevelHigh">大きめ 50%</option>
+            </select>
+          </label>
+          <p class="pt-audio-hint" id="ptAudioHint" aria-live="polite"></p>
+          <p class="pt-audio-hint warn" id="ptMixWarning" data-i18n="audioMixWarning" hidden>試験機能です。端末のスピーカーには再生せず録画へ合成します。音量や同期は保存後に確認してください。</p>
+        </div>
+      </details>
       <p class="pt-mic-note" id="ptMicNote" data-i18n="micNote">マイクは「説明を録画」を押したときだけ使用します。動画と音声は端末内で処理します。</p>
       <div class="pt-controls pt-transport" id="ptTransport">
         <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">説明を録画</button>
@@ -774,14 +810,15 @@
         <li data-i18n="helpStep2">マイクを許可して録画を開始します。録画開始時、元動画は停止しています。</li>
         <li data-i18n="helpStep3">元動画を再生・一時停止しながら説明します。元動画の停止中もマイクと完成動画の録画は続きます。</li>
         <li data-i18n="helpStep4">丸・矢印・ペンで注目箇所を描きます。描画開始で元動画だけ停止します。線は再生時に消えます。</li>
-        <li data-i18n="helpStep5">「録画を終了」で結果を作り、再生してから保存します。</li>
+        <li data-i18n="helpStep5">音声の設定は初期値の「説明音声のみ」を推奨します。試験用の音声合成は確認可能なPCのみに制限しています。</li>
+        <li data-i18n="helpStep6">「録画を終了」で結果を作り、再生してから保存します。</li>
       </ol>
       <h3 data-i18n="helpPrivacyTitle">プライバシー</h3>
       <p data-i18n="helpPrivacyBody">選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。</p>
       <h3 data-i18n="helpNotesTitle">技術試作版の注意</h3>
       <ul>
         <li data-i18n="helpNote1">「1つ戻す」「線を消す」は現在の表示だけに効きます。すでに録画された声・線・映像は取り消せません。</li>
-        <li data-i18n="helpNote2">音声はマイクのみを録ります。元動画の音声は含まれません。</li>
+        <li data-i18n="helpNote2">既定の録音はマイクだけです。元動画音声との合成はPC版Chromiumの試験機能です。実機で品質を確認するまでは他の環境では選択できません。</li>
         <li data-i18n="helpNote3">ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。</li>
         <li data-i18n="helpNote4">ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。</li>
       </ul>
@@ -912,7 +949,7 @@
           "helpPrivacyBody": "選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。",
           "helpNotesTitle": "技術試作版の注意",
           "helpNote1": "「1つ戻す」「線を消す」は現在の表示だけに効きます。すでに録画された声・線・映像は取り消せません。",
-          "helpNote2": "音声はマイクのみを録ります。元動画の音声は含まれません。",
+          "helpNote2": "既定ではマイクだけを録音します。元動画音声との合成はPC版Chromiumの試験機能で、端末ごとの再生互換性は未検証です。",
           "helpNote3": "ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。",
           "helpNote4": "ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。",
           "helpOffline": "このアプリは実行時の外部通信なしで動くことを目指しています。マイクはブラウザの安全なコンテキストと許可が必要です。file:// と HTTPS は別々に検証します。",
@@ -938,7 +975,7 @@
           "play": "元動画を再生",
           "pause": "元動画を止める",
           "stopRecord": "録画を終了",
-          "pocNote": "声と描画を一緒に録画できます。元動画の音声は含まれません。",
+          "pocNote": "声と描画を一緒に録画できます。元音声との合成は対応環境限定の試験機能です。",
           "resultTitle": "録画結果を確認する",
           "resultHelp": "保存前に音声と停止区間が正しいか再生して確かめてください。",
           "outputFilename": "出力ファイル名",
@@ -1001,9 +1038,26 @@
           "drawSurface": "動画上に図形を描く領域",
           "drawNote": "指差しはタップ、他はドラッグ。再生で線を消去。録画済みの部分は戻せません。",
           "drawLimit": "線が多くなりました。不要な線を消してから続けてください。",
-          "helpStep5": "「録画を終了」で結果を作り、再生してから保存します。",
+          "helpStep5": "音声設定の初期値「説明音声のみ」を推奨します。元動画音声との合成はPC版Chromiumだけの試験機能です。",
           "toolPoint": "指差し",
-          "pointNote": "動画の場所を1回タップしてリングを置きます。再生・消去まで表示されます。"
+          "pointNote": "動画の場所を1回タップしてリングを置きます。再生・消去まで表示されます。",
+          "audioSettings": "音声の設定",
+          "audioModeLabel": "録音する音声",
+          "audioVoiceOnly": "説明音声のみ（既定）",
+          "audioMixed": "元動画の音＋説明音声（試験用）",
+          "audioSourceLevel": "元動画の音量",
+          "audioLevelLow": "小さめ 15%",
+          "audioLevelNormal": "標準 30%",
+          "audioLevelHigh": "大きめ 50%",
+          "audioVoiceHint": "説明音声だけを録音します。元動画の音は含まれません。",
+          "audioUnavailable": "この環境では元動画音声の合成を選べません。説明音声のみで録画できます。",
+          "audioMixHint": "PC版Chromiumでの技術検証用です。実機での安定動作を保証しません。",
+          "audioMixWarning": "試験機能です。元音声は録画へ合成し、スピーカーには再生しません。音量と同期を保存後に確認してください。",
+          "audioMixFailed": "元動画の音声を合成できませんでした。「説明音声のみ」を選んで再試行してください。",
+          "audioMixInterrupted": "音声合成が中断されました。作成できた動画の声と元音声を確認してください。",
+          "audioResultVoice": "音声：説明音声のみ",
+          "audioResultMixed": "音声：元動画と説明音声（試験用）",
+          "helpStep6": "「録画を終了」で結果を作り、再生してから保存します。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1018,7 +1072,7 @@
           "helpPrivacyBody": "Your source video and microphone are processed on your device. The app does not upload them to an API or cloud. Only your language preference is stored.",
           "helpNotesTitle": "Technical prototype limitations",
           "helpNote1": "Undo and Clear affect only the current display. They cannot change previously recorded lines or voice.",
-          "helpNote2": "Only microphone audio is recorded. The source video's audio is not included.",
+          "helpNote2": "Microphone-only recording is the default. Mixing original video sound is an unverified desktop Chromium experiment; device compatibility is not guaranteed.",
           "helpNote3": "Output is MP4 or WebM depending on the browser. Backgrounding, screen lock or interruptions can break a recording.",
           "helpNote4": "Recordings stay in memory and are lost when the page closes. Please play the result through before using it.",
           "helpOffline": "Runtime network requests are disabled. Microphone access requires a secure browser context and permission. HTTPS and file:// need separate testing.",
@@ -1044,7 +1098,7 @@
           "play": "Play source video",
           "pause": "Pause source video",
           "stopRecord": "Finish recording",
-          "pocNote": "Record your voice and drawing together. Original source audio is not included.",
+          "pocNote": "Your voice and drawings are recorded together. Source audio mixing is an experimental desktop-only option.",
           "resultTitle": "Review the recording",
           "resultHelp": "Play the output and verify its audio and paused sections before downloading.",
           "outputFilename": "Output filename",
@@ -1107,9 +1161,26 @@
           "drawSurface": "Draw on the video",
           "drawNote": "Tap to point; drag to draw. Play clears marks; recorded video cannot be undone.",
           "drawLimit": "Too many lines are visible. Clear some before adding more.",
-          "helpStep5": "Finish recording, review the output, and save the video.",
+          "helpStep5": "Voice only is the recommended default. Original sound mixing is experimental on desktop Chromium only.",
           "toolPoint": "Point",
-          "pointNote": "Tap once to place a ring on the video. It stays until playback resumes or you clear it."
+          "pointNote": "Tap once to place a ring on the video. It stays until playback resumes or you clear it.",
+          "audioSettings": "Audio options",
+          "audioModeLabel": "Record audio",
+          "audioVoiceOnly": "Voice only (default)",
+          "audioMixed": "Source sound + voice (experimental)",
+          "audioSourceLevel": "Source sound volume",
+          "audioLevelLow": "Quiet 15%",
+          "audioLevelNormal": "Normal 30%",
+          "audioLevelHigh": "Louder 50%",
+          "audioVoiceHint": "Only your microphone is recorded. The source video's sound is not included.",
+          "audioUnavailable": "Source audio mixing is unavailable on this device. Voice-only recording remains available.",
+          "audioMixHint": "Experimental on desktop Chromium only; reliable recording has not been verified on physical devices.",
+          "audioMixWarning": "Experimental: source audio is mixed into the file, not played through speakers. Check levels and sync in the saved video.",
+          "audioMixFailed": "Could not mix source audio. Select Voice only and try again.",
+          "audioMixInterrupted": "Audio mixing was interrupted. Review the output for missing voice or source sound.",
+          "audioResultVoice": "Audio: voice only",
+          "audioResultMixed": "Audio: source + voice (experimental)",
+          "helpStep6": "Finish recording, review the result and save the video."
         }
       };
 
