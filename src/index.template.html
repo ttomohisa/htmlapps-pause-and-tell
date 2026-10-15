@@ -1299,9 +1299,118 @@
         phase: 'empty', generation: 0, input: null, inputUrl: '', outputUrl: '', outputBlob: null,
         recorder: null, mediaStream: null, micStream: null, canvasStream: null, chunks: [],
         startedAt: 0, recordedMs: 0, outputDuration: NaN, outputMime: '', outputExt: '',
+        recordedAudioMode: 'mic', recordedSourceGain: 0.3,
         renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
       };
       const diagnostics = [];
+
+      // v0.5.0 experimental audio mixer.
+      // createMediaElementSource permanently binds one HTMLVideoElement to one AudioContext.
+      // Keep that pair alive and SUSPENDED across recording attempts; close on pagehide.
+      // Never connect either media source to audioMix.context.destination: source audio
+      // is only routed into a recording MediaStream, never to the device speakers.
+      const audioMix = {
+        context: null, sourceNode: null, micNode: null, sourceGain: null,
+        micGain: null, captureDestination: null
+      };
+      function sourceMixAvailable() {
+        const AudioContextType=window.AudioContext || window.webkitAudioContext;
+        const ua=navigator.userAgent || '';
+        const mobile=Boolean(navigator.userAgentData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+        const desktopChromium=/(Chrome|Chromium|Edg)\/[0-9]+/i.test(ua);
+        return Boolean(!mobile && desktopChromium && AudioContextType
+          && typeof AudioContextType.prototype.createMediaElementSource==='function'
+          && typeof AudioContextType.prototype.createMediaStreamSource==='function'
+          && typeof AudioContextType.prototype.createMediaStreamDestination==='function');
+      }
+      function selectedAudioMode() { return $('#ptAudioMode').value==='mix' && sourceMixAvailable() ? 'mix' : 'mic'; }
+      function updateAudioControls() {
+        const mode=$('#ptAudioMode');
+        const mixOption=mode.querySelector('option[value="mix"]');
+        const supported=sourceMixAvailable();
+        mixOption.disabled=!supported;
+        if (!supported && mode.value==='mix') mode.value='mic';
+        const editable=state.phase==='ready';
+        mode.disabled=!editable;
+        $('#ptSourceGainWrap').hidden=mode.value!=='mix';
+        $('#ptSourceGain').disabled=!editable || mode.value!=='mix';
+        $('#ptMixWarning').hidden=mode.value!=='mix';
+        $('#ptAudioHint').textContent=translate(!supported?'audioUnavailable':mode.value==='mix'?'audioMixHint':'audioVoiceHint');
+      }
+      function disconnectAudioMixSession() {
+        // Calls are idempotent; the element->AudioContext binding remains for later takes.
+        sourceVideo.muted=true;
+        for(const key of ['sourceNode','micNode','sourceGain','micGain']) {
+          const node=audioMix[key];
+          if(node) { try { node.disconnect(); } catch { /* may already be detached */ } }
+        }
+        if(audioMix.captureDestination) {
+          audioMix.captureDestination.stream.getTracks().forEach(track=>track.stop());
+        }
+        audioMix.captureDestination=null;
+        audioMix.sourceGain=null;
+        audioMix.micGain=null;
+        audioMix.micNode=null;
+        if(audioMix.context && audioMix.context.state==='running') {
+          void audioMix.context.suspend().catch(error=>logDetail('Audio suspend: '+error.message));
+        }
+      }
+      async function activateAudioMix() {
+        if (!sourceMixAvailable()) throw new Error('audioMixFailed');
+        if (!audioMix.context) {
+          const AudioContextType=window.AudioContext || window.webkitAudioContext;
+          audioMix.context=new AudioContextType();
+          try {
+            audioMix.sourceNode=audioMix.context.createMediaElementSource(sourceVideo);
+          } catch(error) {
+            logDetail('Media element audio source failed: '+error.message);
+            // A failed createMediaElementSource may leave a permanently bound element.
+            await audioMix.context.close().catch(()=>{});
+            audioMix.context=null;
+            audioMix.sourceNode=null;
+            throw new Error('audioMixFailed');
+          }
+          audioMix.context.addEventListener('statechange',()=>{
+            if(state.phase==='recording' && state.recordedAudioMode==='mix'
+              && audioMix.context?.state!=='running') stopRecording('mixInterrupted');
+          });
+        }
+        if(audioMix.context.state==='closed') throw new Error('audioMixFailed');
+        await audioMix.context.resume(); // initiated by the user's explicit Record click
+        if(audioMix.context.state!=='running') throw new Error('audioMixFailed');
+      }
+      function createMixedAudioTrack(microphone) {
+        const context=audioMix.context;
+        if(!context || context.state!=='running' || !audioMix.sourceNode) throw new Error('audioMixFailed');
+        const gain=Number($('#ptSourceGain').value);
+        if(![0.15,0.30,0.50].includes(gain)) throw new Error('audioMixFailed');
+        audioMix.captureDestination=context.createMediaStreamDestination();
+        audioMix.sourceGain=context.createGain();
+        audioMix.sourceGain.gain.value=gain;
+        audioMix.micGain=context.createGain();
+        audioMix.micGain.gain.value=1;
+        audioMix.micNode=context.createMediaStreamSource(microphone);
+        audioMix.sourceNode.connect(audioMix.sourceGain);
+        audioMix.sourceGain.connect(audioMix.captureDestination);
+        audioMix.micNode.connect(audioMix.micGain);
+        audioMix.micGain.connect(audioMix.captureDestination);
+        const audioTrack=audioMix.captureDestination.stream.getAudioTracks()[0];
+        if(!audioTrack || audioTrack.readyState!=='live') throw new Error('audioMixFailed');
+        // Only unmute after the media element has been fully rerouted.
+        sourceVideo.muted=false;
+        state.recordedSourceGain=gain;
+        return audioTrack;
+      }
+      function closeAudioMixer() {
+        disconnectAudioMixSession();
+        const context=audioMix.context;
+        audioMix.context=null;
+        audioMix.sourceNode=null;
+        if(context && context.state!=='closed') void context.close().catch(()=>{});
+      }
+      $('#ptAudioMode').addEventListener('change',updateAudioControls);
+      $('#ptSourceGain').addEventListener('change',updateAudioControls);
+
 
       // Drawing is session-local; only the current visible strokes are editable.
       // Normalized coordinates (0..1) make the same geometry work on portrait
@@ -1582,6 +1691,7 @@
         });
         $('#ptLoading').hidden = phase !== 'loading';
         $('#ptMicNote').hidden = phase !== 'ready';
+        updateAudioControls();
         updateDrawingControls();
         $('#ptInputPanel').hidden = !['empty','loading','error'].includes(phase);
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
@@ -1619,6 +1729,7 @@
         $('#brandName').textContent = APP_CONFIG.name;
         $('#footerName').textContent = APP_CONFIG.name;
         if (state.statusKey) $('#ptMessage').textContent = translate(state.statusKey);
+        updateAudioControls();
         refreshStageStatus();
         updateTransport();
         setPhase(state.phase);
@@ -1628,6 +1739,7 @@
         }
       }
       function releaseCapture() {
+        disconnectAudioMixSession();
         if (state.micStream) state.micStream.getTracks().forEach(track => track.stop());
         if (state.canvasStream) state.canvasStream.getTracks().forEach(track => track.stop());
         if (state.mediaStream) state.mediaStream.getTracks().forEach(track => track.stop());
@@ -1808,10 +1920,14 @@
           setStatus('unsupported'); showToast(translate('unsupported'),{tone:'danger'}); return;
         }
         const token = state.generation;
+        const requestedMode = selectedAudioMode();
         setPhase('preparing');
         clearDrawing();
         setStatus('recordingStarting');
         try {
+          // Create/resume Web Audio synchronously from the explicit click, before
+          // waiting for rewind or browser microphone permission.
+          if(requestedMode==='mix') await activateAudioMix();
           await rewindSource();
           if (!withinSession(token)) return;
           const mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
@@ -1822,7 +1938,8 @@
           const videoTrack = state.canvasStream.getVideoTracks()[0];
           const micTrack = mic.getAudioTracks()[0];
           if (!videoTrack || !micTrack) throw new Error('micFailure');
-          state.mediaStream = new MediaStream([videoTrack,micTrack]);
+          const capturedAudioTrack=requestedMode==='mix' ? createMixedAudioTrack(mic) : micTrack;
+          state.mediaStream = new MediaStream([videoTrack,capturedAudioTrack]);
           state.recorder = recordingMime(state.mediaStream);
           state.outputMime = state.recorder.mimeType.split(';')[0].toLowerCase();
           state.outputExt = state.outputMime === 'video/mp4' ? 'mp4' : 'webm';
@@ -1830,6 +1947,7 @@
           state.recordedMs = 0;
           state.autoStopped = false;
           state.stopReason = '';
+          state.recordedAudioMode=requestedMode;
           state.recorder.ondataavailable = event => { if (withinSession(token) && event.data && event.data.size) state.chunks.push(event.data); };
           state.recorder.onerror = event => {
             logDetail('Recorder error: ' + (event.error?.message || event.type));
@@ -1848,7 +1966,9 @@
           state.startedAt = performance.now();
           setPhase('recording');
           setStatus('sourcePaused');
-          logDetail('Record start: ' + state.outputMime + ', videoTrack=' + videoTrack.readyState + ', micTrack=' + micTrack.readyState);
+          logDetail('Record start: ' + state.outputMime + ', mode=' + state.recordedAudioMode
+            + ', sourceGain=' + state.recordedSourceGain
+            + ', videoTrack=' + videoTrack.readyState + ', audioTrack=' + capturedAudioTrack.readyState);
         } catch (error) {
           if (!withinSession(token)) return;
           logDetail('Start error: ' + error.name + ' ' + error.message);
@@ -1857,6 +1977,7 @@
           setPhase('ready');
           const key = error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError' ? 'micDenied'
             : error.name === 'NotFoundError' ? 'micMissing'
+            : error.message === 'audioMixFailed' ? 'audioMixFailed'
             : error.message === 'unsupported' ? 'unsupported' : 'micFailure';
           setStatus(key);
           showToast(translate(key),{tone:'danger',duration:6000});
@@ -1943,6 +2064,7 @@
           state.saveRequested = false;
           stopTimers();
           state.resultStatusKey = state.stopReason === 'limit' ? 'resultLimit'
+            : state.stopReason === 'mixInterrupted' ? 'audioMixInterrupted'
             : state.autoStopped ? 'resultInterrupted'
             : Number.isFinite(inspected.duration) ? 'resultOk' : 'resultUnknown';
           $('#ptResultWarning').textContent = translate(state.resultStatusKey);
@@ -1964,6 +2086,8 @@
         if (!state.outputBlob) return;
         const actual = Number.isFinite(state.outputDuration) ? formatTime(state.outputDuration*1000) : '—';
         const description = ' ' + formatBytes(state.outputBlob.size) + ' · ' + state.outputMime
+          + ' · ' + translate(state.recordedAudioMode==='mix'?'audioResultMixed':'audioResultVoice')
+          + (state.recordedAudioMode==='mix' ? ' (' + Math.round(state.recordedSourceGain*100) + '%)' : '')
           + ' · ' + (language === 'ja' ? '録画経過' : 'Elapsed') + ' ' + formatTime(state.recordedMs)
           + ' · ' + (language === 'ja' ? '検出された動画長' : 'Detected duration') + ' ' + actual;
         $('#ptResultMeta').textContent = description;
@@ -2120,7 +2244,7 @@
       document.addEventListener('visibilitychange',() => {
         if (document.hidden && state.phase === 'recording') stopRecording('background');
       });
-      window.addEventListener('pagehide',() => { resetResources(); });
+      window.addEventListener('pagehide',() => { resetResources(); closeAudioMixer(); });
       window.addEventListener('beforeunload',event => {
         if (state.phase === 'recording' || (state.outputBlob && !state.saveRequested)) {
           event.preventDefault(); event.returnValue = '';
