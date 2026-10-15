@@ -1085,7 +1085,8 @@
           "recordingStopTimeout": "録画終了の確認が取れませんでした。回収したデータを確認してください。",
           "captureErrorDetail": "録画を確認できません。再生可能な部分がある場合だけ保存してください。",
           "helpNoteRecovery": "録画が途中で止まった場合は、通常の完成動画とは区別して回収データを表示します。破損・音声欠落の可能性があるため、必要なら録り直してください。",
-          "helpNoteLimits": "試作版の上限：元動画30秒・100MiB、完成録画90秒。保存前の録画データが大きい場合も安全のため途中で停止します。"
+          "helpNoteLimits": "試作版の上限：元動画30秒・100MiB、完成録画90秒。保存前の録画データが大きい場合も安全のため途中で停止します。",
+          "downloadRecoveredStarted": "回収できたデータの保存を開始しました。破損している可能性があるため、保存後に確認してください。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1225,7 +1226,8 @@
           "recordingStopTimeout": "Could not confirm recording completion. Review the recovered data.",
           "captureErrorDetail": "Recording was not verified. Save only if you want to attempt recovery.",
           "helpNoteRecovery": "If recording is interrupted, recovered data is shown separately from successful videos. It may be broken or missing sound; record again if needed.",
-          "helpNoteLimits": "Prototype limits: source video 30 seconds / 100MiB, output recording 90 seconds. Capture also stops if stored data grows too large."
+          "helpNoteLimits": "Prototype limits: source video 30 seconds / 100MiB, output recording 90 seconds. Capture also stops if stored data grows too large.",
+          "downloadRecoveredStarted": "Recovered data download requested. The file may be damaged; check it after saving."
         }
       };
 
@@ -1339,11 +1341,16 @@
       const MAX_SOURCE_SECONDS = 30;
       const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
       const MAX_RECORD_MS = 90000;
+      const MAX_STORED_CHUNK_BYTES = 96 * 1024 * 1024;
+      const STOP_FINALIZE_TIMEOUT_MS = 9000;
+      const MIC_MUTE_GRACE_MS = 3200;
       const VIDEO_FPS = 30;
       const state = {
         phase: 'empty', generation: 0, input: null, inputUrl: '', outputUrl: '', outputBlob: null,
         recorder: null, mediaStream: null, micStream: null, canvasStream: null, chunks: [],
+        chunkBytes: 0, finalizeStarted: false, stopWatchdog: null, micMuteTimer: null, stopTimeoutHit: false,
         startedAt: 0, recordedMs: 0, outputDuration: NaN, outputMime: '', outputExt: '',
+        outputPlayable: false, recoveryIssue: '',
         recordedAudioMode: 'mic', recordedSourceGain: 0.3,
         renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
       };
@@ -1727,7 +1734,7 @@
       }
       function setPhase(phase) {
         state.phase = phase;
-        const currentStep = ['empty','loading','error'].includes(phase) ? 1 : phase === 'result' ? 3 : 2;
+        const currentStep = ['empty','loading','error'].includes(phase) ? 1 : ['result','recovery'].includes(phase) ? 3 : 2;
         document.querySelectorAll('#ptSteps .pt-step').forEach(step => {
           const number = Number(step.dataset.step);
           step.dataset.state = number === currentStep ? 'current' : number < currentStep ? 'done' : 'upcoming';
@@ -1740,7 +1747,7 @@
         updateDrawingControls();
         $('#ptInputPanel').hidden = !['empty','loading','error'].includes(phase);
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
-        $('#ptResultPanel').hidden = phase !== 'result';
+        $('#ptResultPanel').hidden = !['result','recovery'].includes(phase);
         const busy = phase === 'preparing' || phase === 'finalizing';
         const canTransport = phase==='ready' || phase==='recording';
         $('#ptTransport').hidden = !canTransport;
@@ -1759,6 +1766,24 @@
         updateTransport();
         updateClock();
         refreshStageStatus();
+        updateOutputPresentation();
+      }
+      function updateOutputPresentation() {
+        const recovery=state.phase==='recovery';
+        $('#ptResultTitle').textContent=translate(recovery?'resultRecovery':'resultTitle');
+        $('#ptResultPanel').querySelector('[data-i18n="resultHelp"]').textContent=
+          translate(recovery?'resultRecoveryHelp':'resultHelp');
+        $('#ptRecoveryNotice').hidden=!recovery;
+        if(recovery) {
+          const note=state.recoveryIssue || (state.outputPlayable?'recoverPlayable':'recoverUnverified');
+          $('#ptRecoveryNotice').textContent=translate(note);
+        }
+        resultVideo.hidden=recovery && !state.outputPlayable;
+        const save=$('#ptDownload');
+        save.textContent=translate(recovery
+          ? state.outputPlayable?'downloadPartial':'downloadRecovered'
+          : 'saveVideo');
+        save.classList.toggle('recovery',recovery);
       }
       function updateTransport() {
         $('#ptPlayPause').textContent = translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
@@ -1785,6 +1810,8 @@
       }
       function releaseCapture() {
         disconnectAudioMixSession();
+        if (state.micMuteTimer !== null) clearTimeout(state.micMuteTimer);
+        state.micMuteTimer=null;
         if (state.micStream) state.micStream.getTracks().forEach(track => track.stop());
         if (state.canvasStream) state.canvasStream.getTracks().forEach(track => track.stop());
         if (state.mediaStream) state.mediaStream.getTracks().forEach(track => track.stop());
@@ -1793,6 +1820,8 @@
         state.mediaStream = null;
       }
       function stopTimers() {
+        if (state.stopWatchdog !== null) clearTimeout(state.stopWatchdog);
+        state.stopWatchdog=null;
         if (state.renderTimer !== null) clearInterval(state.renderTimer);
         if (state.clockTimer !== null) clearInterval(state.clockTimer);
         state.renderTimer = null;
@@ -1806,6 +1835,8 @@
         state.outputUrl = '';
         state.outputBlob = null;
         state.outputDuration = NaN;
+        state.outputPlayable = false;
+        state.recoveryIssue = '';
         state.recordedMs = 0;
         state.saveRequested = false;
         state.resultStatusKey = '';
@@ -1815,6 +1846,8 @@
         state.generation += 1;
         clearDrawing();
         stopTimers();
+        if (state.micMuteTimer !== null) clearTimeout(state.micMuteTimer);
+        state.micMuteTimer=null;
         sourceVideo.pause();
         if (state.recorder && state.recorder.state !== 'inactive') {
           state.recorder.ondataavailable = null;
@@ -1833,6 +1866,9 @@
         $('#ptCurrentFile').textContent = '';
         $('#ptCurrentFile').hidden = true;
         state.chunks = [];
+        state.chunkBytes=0;
+        state.finalizeStarted=false;
+        state.stopTimeoutHit=false;
         state.startedAt = 0;
       }
       function renderFrame() {
@@ -1874,8 +1910,8 @@
         if (file.size > MAX_SOURCE_BYTES) throw new Error('fileTooLarge');
       }
       async function chooseFile(file) {
-        if (!file) return;
-        if (state.phase === 'recording' || (state.outputBlob && !state.saveRequested)) {
+        if (!file || ['preparing','recording','finalizing'].includes(state.phase)) return;
+        if (state.outputBlob && !state.saveRequested) {
           const confirmed = await AppConfirm.ask({
             title: translate('confirmDiscard'), message: translate('discardMessage'),
             confirmLabel: translate('discard'), cancelLabel: translate('cancel'), tone: 'danger'
@@ -2144,7 +2180,7 @@
         return base;
       }
       function downloadResult() {
-        if (state.phase !== 'result' || !state.outputBlob || !state.outputUrl) return;
+        if (!['result','recovery'].includes(state.phase) || !state.outputBlob || !state.outputUrl) return;
         outputFilename.value = normalizeFilename(outputFilename.value);
         const anchor = document.createElement('a');
         anchor.href = state.outputUrl;
@@ -2153,10 +2189,12 @@
         anchor.click();
         anchor.remove();
         state.saveRequested = true;
-        showToast(translate('downloadStarted'),{tone:'success',duration:6500});
+        showToast(translate(state.phase==='recovery'?'downloadRecoveredStarted':'downloadStarted'),{
+          tone:state.phase==='recovery'?'warning':'success',duration:6500
+        });
       }
       async function recordAgain() {
-        if (state.phase !== 'result') return;
+        if (!['result','recovery'].includes(state.phase)) return;
         if (!state.saveRequested) {
           const ok = await AppConfirm.ask({
             title:translate('confirmDiscard'),message:translate('discardMessage'),
@@ -2205,10 +2243,14 @@
         });
       });
       const dropZone = $('#ptDropZone');
-      dropZone.addEventListener('dragover',event => {event.preventDefault(); dropZone.classList.add('drag-over');});
+      dropZone.addEventListener('dragover',event => {
+        if (['preparing','recording','finalizing'].includes(state.phase)) return;
+        event.preventDefault(); dropZone.classList.add('drag-over');
+      });
       dropZone.addEventListener('dragleave',() => dropZone.classList.remove('drag-over'));
       dropZone.addEventListener('drop',event => {
         event.preventDefault(); dropZone.classList.remove('drag-over');
+        if (['preparing','recording','finalizing'].includes(state.phase)) return;
         const file = event.dataTransfer?.files?.[0];
         if (file) void chooseFile(file);
       });
