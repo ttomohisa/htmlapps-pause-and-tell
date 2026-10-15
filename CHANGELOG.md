@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### v0.8.0 — Single-HTML privacy and accessibility review (2026-10-15)
+
+- Added keyboard Point placement (arrow keys 5%, Shift+arrows 1%, Enter/Space commits), with a DOM-only cursor omitted from the captured video.
+- Added skip-to-app link, localized phase announcements, accessible seek position, focus changes after source import and recording result, and explanatory Help text for pointer-only drawing.
+- Strengthened CSP to `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`, with only local Blob/data resources and inline HTML-embedded code allowed. Retained self-contained template build and canonical SVG favicon.
+- Updated G8 verification plan, source contract, bilingual README, security/privacy boundary and CI marker checks.
+- Physical iPhone/Android recording and file:// runtime, real screen-reader testing (NVDA/VoiceOver), and overall G1–G8 acceptance remain **PENDING**.
+
+
+
 ### v0.7.0 — Download, share and help polish (2026-10-15)
 
 - Kept output preview and editable filename while adding user-visible save instructions that distinguish a **download request** from confirmed storage.
