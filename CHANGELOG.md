@@ -10,7 +10,7 @@
 - Native share calls happen directly from a user click with transient activation; cancellation retains the result and other failures preserve Download fallback.
 - Downloading/sharing no longer exempts the user from a discard confirmation on source replacement or re-recording. The browser cannot prove an actual save.
 - Updated JA/EN Help to explain that explicit user-selected sharing may transmit generated files to other destinations, unlike completely local automatic processing.
-- Added G7 file export and OS/browser acceptance matrix; physical iOS/Android export and direct `file://` tests remain outstanding.
+- Added G7 file export and OS/browser acceptance matrix. Chromium automated checks covered safe download names, supported/unsupported Share states, cancellation/failure, recovery restrictions, compact mobile widths and self-extract HTML; physical iOS/Android export and direct `file://` tests remain outstanding.
 
 
 

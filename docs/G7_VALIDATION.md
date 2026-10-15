@@ -52,3 +52,18 @@
 ## Gate
 
 Automated browser tests may check output filename, native share capability gating, simulated share outcomes, no JS/network errors and retained Blob/URL behavior. These **cannot** certify native OS filesystem save/share, user permissions, or hardware microphone continuity. G7 remains **PENDING** until the physical-device matrix is completed; G1–G6 physical tests are also still open.
+
+## Automated browser evidence — 2026-10-15
+
+**Exact source tested:** GitHub Actions-generated `dist/index.html` from commit `1559ee00e916898f342b3d8a5c08523146bc87d0`, in **Linux headless Chromium 144.0.7559.96**. A local 20-second H.264 test video was recorded with a **synthetic 880Hz WebAudio microphone**, not a hardware microphone. The output was an actual `video/webm` file with **VP8 video and Opus audio**, verified by `ffprobe`.
+
+- **Unsupported native share:** When the browser has no `navigator.share`, Share is hidden and Download remains available. The normal output was saved as `CON-video.webm` after entering Windows-reserved `CON`; it was decoded successfully. No JavaScript errors or external HTTP requests.
+- **Safe names:** In the file-sharing test, entering `lesson:demo?.mp4` generated a shared `File` named **`lesson-demo-.webm`** (type `video/webm`, with the actual output Blob). Blank/only trailing-dot input fell back to **`pause-and-tell.webm`**.
+- **Discard after attempted download:** Record Again still opens the shared confirmation dialog. Cancel preserves the preview/Blob; Confirm returns to the original source ready for recording.
+- **Browser file-share simulation:** The test injected `navigator.share`, `navigator.canShare` and a simulated `isSecureContext=true` into an **insecure `about:blank` Playwright page** because this test environment blocks navigation to HTTPS and `file://`. With the shim, Share appeared for valid output, received one `File` with the expected name/MIME, and resolved without losing the recording. `AbortError` reported a neutral cancellation while retaining the output; `NotAllowedError` reported a localized failure and left Download available. This verifies JavaScript wiring, **not native OS sharing**.
+- **Language switch:** After a download/share failure, JA→EN re-localized the export status and review instructions without losing the result.
+- **Recovery never shared:** Triggering a simulated microphone `ended` event produced a recovery result, while the shim claimed file sharing was available. Share remained hidden, partial WebM download remained possible and changing the input required a discard confirmation. Recovery output decoded as VP8+Opus. Verified at 320×568, 390×844 and 844×390 browser viewports.
+- **Share-button mobile layout:** At 320, 360, 390px and 844px short-landscape, Download/Share/Record Again fit without horizontal page scroll; visible buttons were 44 CSS px or taller. On **844×390 coarse touch** the footer remained hidden.
+- **Self-extracting single HTML:** `dist/index.self-extract.html` expanded in Chromium and exposed v0.7.0 UI with exactly matching embedded favicon and header image. This test loaded its source into the browser, not a direct local-file navigation. External traffic observed: **none**.
+
+**G7 decision:** automated browser-path subset **PASS** for the scenarios above; **G7 physical-device acceptance remains PENDING** because real iPhone Safari, Android Chrome, Windows browser file manager, native recipient delivery and direct `file://` microphone/save behavior have not been observed. Earlier G1–G6 physical gates also remain outstanding.
