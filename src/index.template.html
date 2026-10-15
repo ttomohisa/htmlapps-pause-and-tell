@@ -558,6 +558,26 @@
     #ptDownload.recovery { background:var(--surface); color:var(--text); border-color:#c48c32; }
     #ptDownload.recovery:hover { background:#fff7e9; }
 
+
+    /* v0.8.0: keyboard/screen-reader access while keeping the video Canvas local. */
+    .pt-skip-link { position:fixed; z-index:99; left:12px; top:-90px; padding:11px 16px;
+      border-radius:9px; background:var(--accent); color:#fff; font-weight:700; }
+    .pt-skip-link:focus { top:12px; outline:3px solid var(--focus); outline-offset:2px; }
+    #ptDrawSurface:focus-visible { outline:3px solid #fff; outline-offset:-5px;
+      box-shadow:inset 0 0 0 7px #16624f; }
+    .pt-keyboard-cursor { position:absolute; z-index:5; width:28px; height:28px; border-radius:50%;
+      border:3px solid #fff; box-shadow:0 0 0 3px #111, inset 0 0 0 2px #111;
+      transform:translate(-50%,-50%); pointer-events:none; }
+    .pt-keyboard-cursor::after { content:""; display:block; position:absolute; width:5px; height:5px;
+      top:50%; left:50%; border-radius:50%; background:#fff; transform:translate(-50%,-50%); }
+    .pt-keyboard-hint { margin:9px 0 0; color:var(--muted); font-size:12px; line-height:1.65; }
+    .pt-panel [tabindex="-1"]:focus { outline:none; }
+    #ptSeek:focus-visible, #ptAudioMode:focus-visible, #ptSourceGain:focus-visible {
+      outline:3px solid var(--focus); outline-offset:2px; }
+    @media (prefers-reduced-motion: reduce) {
+      .pt-skip-link { transition:none; }
+    }
+
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
@@ -616,6 +636,7 @@
   </style>
 </head>
 <body>
+  <a href="#mainContent" class="pt-skip-link" data-i18n="skipMain">操作エリアへ移動</a>
   <header class="app-header">
     <div class="header-inner">
       <div class="brand">
@@ -636,7 +657,8 @@
     </div>
   </header>
 
-  <main class="main">
+  <main class="main" id="mainContent" tabindex="-1">
+    <p id="ptScreenAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     <section class="page-intro" aria-labelledby="heroTitle">
       <div>
         <h2 id="heroTitle" data-i18n="introTitle">動画を止めて、声で説明する</h2>
@@ -669,7 +691,7 @@
 
     <section class="shell pt-panel" id="ptStudioPanel" aria-labelledby="ptStudioTitle" hidden>
       <div class="pt-control-head">
-        <h2 id="ptStudioTitle" data-i18n="studioTitle">動画を見ながら説明する</h2>
+        <h2 id="ptStudioTitle" tabindex="-1" data-i18n="studioTitle">動画を見ながら説明する</h2>
         <span class="pt-status-pill" id="ptRecordBadge" data-i18n="notRecording">録画前</span>
       </div>
       <p id="ptCurrentFile" class="pt-current-file" hidden></p>
@@ -699,12 +721,14 @@
           </div>
         </div>
         <p class="pt-draw-help" data-i18n="drawNote">表示中の線だけを消せます。すでに録画された映像は元に戻りません。録画開始時と動画の再生時にも線は消えます。</p>
+        <p id="ptKeyboardDrawHelp" class="pt-keyboard-hint" data-i18n="keyboardPointHelp">キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます。</p>
       </section>
       <div class="pt-stage-wrap">
         <div class="pt-stage" id="ptStage">
           <video id="ptVideo" class="pt-source-video" preload="auto" playsinline muted disablepictureinpicture aria-hidden="true"></video>
           <canvas id="ptCanvas" width="640" height="360" role="img" data-i18n-aria-label="stageDescription" aria-label="元動画のプレビュー"></canvas>
-          <div id="ptDrawSurface" class="pt-draw-surface" aria-disabled="true" data-i18n-aria-label="drawSurface" aria-label="動画上に図形を描く領域"></div>
+          <div id="ptDrawSurface" class="pt-draw-surface" role="img" tabindex="-1" aria-disabled="true" aria-describedby="ptKeyboardDrawHelp" data-i18n-aria-label="drawSurface" aria-label="動画上に図形を描く領域"></div>
+          <div id="ptKeyboardCursor" class="pt-keyboard-cursor" aria-hidden="true" hidden></div>
           <div id="ptStageStatus" class="pt-video-status" aria-live="polite" hidden></div>
         </div>
       </div>
@@ -742,11 +766,12 @@
         <button type="button" class="button pt-record-stop" id="ptStop" data-i18n="stopRecord" hidden disabled>録画を終了</button>
       </div>
       <p id="ptMessage" class="pt-message" aria-live="polite"></p>
+      <p id="ptDrawAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
       <p class="pt-poc-note" data-i18n="pocNote">録画が中断された場合は、回収したデータを区別して表示します。元音声の合成はPC向けの試験機能です。</p>
     </section>
 
     <section class="shell pt-panel" id="ptResultPanel" aria-labelledby="ptResultTitle" hidden>
-      <h2 id="ptResultTitle" data-i18n="resultTitle">録画結果を確認する</h2>
+      <h2 id="ptResultTitle" tabindex="-1" data-i18n="resultTitle">録画結果を確認する</h2>
       <p class="pt-muted" data-i18n="resultHelp">保存前に音声と停止区間が正しいか再生して確かめてください。</p>
       <p id="ptRecoveryNotice" class="pt-recovery-notice" role="alert" aria-live="assertive" hidden></p>
       <video id="ptResultVideo" class="pt-result-video" playsinline controls preload="metadata"></video>
@@ -845,6 +870,7 @@
         <li data-i18n="helpNoteRecovery">録画が途中で止まった場合は、正常な完成動画とは区別して回収データを表示します。破損や音声欠落の可能性があるため、必要なら録り直してください。</li>
         <li data-i18n="helpNoteLimits">試作版の上限は元動画30秒・100MiB、完成録画90秒です。録画データが大きすぎる場合も途中終了します。</li>
         <li data-i18n="helpNoteExport">保存ボタンはダウンロードを開始するだけで完了を保証しません。ブラウザの保存先で再生を確認してください。共有は選択した相手へOSがファイルを渡す操作です。非対応端末では表示されません。</li>
+        <li data-i18n="helpKeyboard">キーボードでも動画の再生・録画・保存を操作できます。指差しは矢印キーで位置を調整してEnterで配置できます。丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。</li>
       </ul>
       <p class="dialog-note" data-i18n="helpOffline">このアプリは実行時の外部通信なしで動くことを目指しています。マイクはブラウザの安全なコンテキストと許可が必要です。file:// と HTTPS は別々に検証します。</p>
       <!-- APP:HELP:END -->
@@ -1108,7 +1134,22 @@
           "recoverySaveHint": "回収されたデータは破損や音声欠落の可能性があります。必要なら保存して確かめてください。共有機能は使えません。",
           "downloadFailed": "ダウンロードを開始できませんでした。ブラウザの設定を確認して再試行してください。",
           "helpNoteExport": "保存ボタンはダウンロードの開始であり、保存完了を保証しません。ブラウザの保存先でご確認ください。共有ボタンを押すと、選んだ共有先へOS経由で動画が渡されます。",
-          "shareCancelled": "共有は完了しませんでした。動画はこのページに残っています。"
+          "shareCancelled": "共有は完了しませんでした。動画はこのページに残っています。",
+          "skipMain": "操作エリアへ移動",
+          "keyboardPointHelp": "キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます。",
+          "keyboardPointName": "動画上の指差し（矢印キーで位置調整、Enterで配置）",
+          "keyboardPointPlaced": "指差しリングを置きました。録画済みの部分は変更されません。",
+          "keyboardPointPosition": "指差し位置",
+          "keyboardPointUnavailable": "キーボードでの指差しは「指差し」ツールを選んでください。",
+          "helpKeyboard": "キーボードでも動画の再生・録画・保存を操作できます。指差しは矢印キーで位置を調整してEnterで配置できます。丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。",
+          "phaseEmpty": "動画を選ぶ画面です。",
+          "phaseReady": "動画の準備ができました。説明を録画できます。",
+          "phasePreparing": "録画の準備中です。",
+          "phaseRecording": "録画が始まりました。元動画の再生を操作できます。",
+          "phaseFinalizing": "録画の結果を確認しています。",
+          "phaseResult": "録画結果ができました。動画を確認して保存できます。",
+          "phaseRecovery": "中断された録画データがあります。回収した内容を確認してください。",
+          "phaseError": "動画の読み込みに失敗しました。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1258,7 +1299,22 @@
           "recoverySaveHint": "Recovered data may be corrupt or missing sound. Save only if you want to inspect it. Sharing is not available for recovery data.",
           "downloadFailed": "Could not start downloading. Check your browser settings and try again.",
           "helpNoteExport": "Download requests do not prove that a file was saved. Check your browser's saved files. Sharing sends the video via your OS to a destination you select.",
-          "shareCancelled": "The share was not completed. Your video is still available on this page."
+          "shareCancelled": "The share was not completed. Your video is still available on this page.",
+          "skipMain": "Skip to app",
+          "keyboardPointHelp": "Keyboard: select Point, Tab to the video, move with arrow keys, and press Enter or Space to place a marker.",
+          "keyboardPointName": "Point on video (arrow keys to move; Enter to place)",
+          "keyboardPointPlaced": "Point marker placed. Already recorded video cannot be changed.",
+          "keyboardPointPosition": "Point position",
+          "keyboardPointUnavailable": "Select the Point tool to place a marker with the keyboard.",
+          "helpKeyboard": "You can record, play and save by keyboard. In Point mode, move the marker with arrow keys and place it with Enter. Circle, Arrow and Pen tracing require mouse, touch or a stylus.",
+          "phaseEmpty": "Choose a video.",
+          "phaseReady": "Video is ready. You can record an explanation.",
+          "phasePreparing": "Preparing the recording.",
+          "phaseRecording": "Recording started. You can play or pause the source.",
+          "phaseFinalizing": "Verifying the recording result.",
+          "phaseResult": "Recording result is ready. Review and save it.",
+          "phaseRecovery": "A recording was interrupted. Review recovered data carefully.",
+          "phaseError": "Could not load the video."
         }
       };
 
