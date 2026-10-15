@@ -1559,6 +1559,7 @@
       const MAX_VISIBLE_STROKES = 120;
       const MAX_PEN_POINTS = 2500;
       const drawing = { tool: 'point', color: 'yellow', strokes: [], active: null };
+      const keyboardPoint = { u: .5, v: .5 };
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
       // When a tool is selected on mobile, keep the drawing target in view.
@@ -1663,9 +1664,28 @@
         }
         stageContext.restore();
       }
+      function updateKeyboardPointCursor() {
+        const active=isDrawPhase() && drawing.tool==='point'
+          && document.activeElement===drawSurface;
+        const cursor=$('#ptKeyboardCursor');
+        cursor.hidden=!active;
+        cursor.style.left=(keyboardPoint.u*100)+'%';
+        cursor.style.top=(keyboardPoint.v*100)+'%';
+      }
+      function announceKeyboardPoint(messageKey,showPosition=false) {
+        const where=showPosition
+          ? ' · '+Math.round(keyboardPoint.u*100)+'%, '+Math.round(keyboardPoint.v*100)+'%'
+          : '';
+        $('#ptDrawAnnouncement').textContent=translate(messageKey)+where;
+      }
       function updateDrawingControls() {
         const available=isDrawPhase();
+        const keyboardEnabled=available && drawing.tool==='point';
         drawSurface.setAttribute('aria-disabled',String(!available));
+        drawSurface.tabIndex=keyboardEnabled?0:-1;
+        drawSurface.setAttribute('role',keyboardEnabled?'button':'img');
+        drawSurface.setAttribute('aria-label',translate(keyboardEnabled?'keyboardPointName':'drawSurface'));
+        updateKeyboardPointCursor();
         document.querySelectorAll('[data-draw-tool]').forEach(button=>{
           button.disabled=!available;
           button.setAttribute('aria-pressed',String(button.dataset.drawTool===drawing.tool));
@@ -1709,6 +1729,34 @@
         }
         renderFrame();
       }
+      drawSurface.addEventListener('focus',updateKeyboardPointCursor);
+      drawSurface.addEventListener('blur',updateKeyboardPointCursor);
+      drawSurface.addEventListener('keydown',event=>{
+        if (!isDrawPhase() || drawing.tool!=='point') return;
+        const keys={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+        if(Object.prototype.hasOwnProperty.call(keys,event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+          const delta=event.shiftKey?.01:.05;
+          keyboardPoint.u=clamp01(keyboardPoint.u+keys[event.key][0]*delta);
+          keyboardPoint.v=clamp01(keyboardPoint.v+keys[event.key][1]*delta);
+          updateKeyboardPointCursor();
+          announceKeyboardPoint('keyboardPointPosition',true);
+          return;
+        }
+        if(event.key!=='Enter' && event.key!==' ' && event.code!=='Space') return;
+        event.preventDefault();
+        event.stopPropagation();
+        if(drawing.strokes.length>=MAX_VISIBLE_STROKES) {
+          showToast(translate('drawLimit'),{tone:'warning'});return;
+        }
+        if(!sourceVideo.paused && !sourceVideo.ended) sourceVideo.pause();
+        const point={u:keyboardPoint.u,v:keyboardPoint.v};
+        drawing.strokes.push({tool:'point',color:drawing.color,from:point,to:point});
+        updateDrawingControls();
+        renderFrame();
+        announceKeyboardPoint('keyboardPointPlaced');
+      });
       drawSurface.addEventListener('pointerdown',event=>{
         if (!isDrawPhase() || drawing.active || event.isPrimary===false || (event.pointerType==='mouse' && event.button!==0)) return;
         const point=pointerToVideo(event);
@@ -1794,6 +1842,11 @@
       function updateClock() {
         const duration = Number.isFinite(sourceVideo.duration) ? sourceVideo.duration * 1000 : 0;
         $('#ptSourceClock').textContent = formatTime(sourceVideo.currentTime * 1000) + ' / ' + formatTime(duration);
+        if(Number.isFinite(sourceVideo.duration) && sourceVideo.duration>0) {
+          $('#ptSeek').setAttribute('aria-valuetext',
+            translate('sourceClock')+' '+formatTime(sourceVideo.currentTime*1000)
+            +' / '+formatTime(duration));
+        }
         const running = state.phase === 'recording' && state.startedAt;
         const recorded = running ? performance.now() - state.startedAt : state.recordedMs;
         $('#ptRecordClock').textContent = formatTime(recorded) + ' / ' + formatTime(MAX_RECORD_MS);
@@ -1825,7 +1878,14 @@
         refreshStageStatus();
       }
       function setPhase(phase) {
+        const previousPhase=state.phase;
         state.phase = phase;
+        if(previousPhase!==phase) {
+          const names={empty:'phaseEmpty',loading:'loadingVideo',error:'phaseError',
+            ready:'phaseReady',preparing:'phasePreparing',recording:'phaseRecording',
+            finalizing:'phaseFinalizing',result:'phaseResult',recovery:'phaseRecovery'};
+          $('#ptScreenAnnouncement').textContent=translate(names[phase]||'phaseEmpty');
+        }
         const currentStep = ['empty','loading','error'].includes(phase) ? 1 : ['result','recovery'].includes(phase) ? 3 : 2;
         document.querySelectorAll('#ptSteps .pt-step').forEach(step => {
           const number = Number(step.dataset.step);
@@ -2058,6 +2118,7 @@
           setPhase('ready');
           setStatus('sourceReady');
           startRendering();
+          $('#ptStudioTitle').focus({preventScroll:true});
           focusWorkflowSection('.pt-draw-panel');
           logDetail('Loaded: ' + file.name + ', ' + duration.toFixed(3) + 's, ' + sourceVideo.videoWidth + 'x' + sourceVideo.videoHeight + ', canvas ' + stageCanvas.width + 'x' + stageCanvas.height);
         } catch (error) {
@@ -2222,6 +2283,7 @@
           state.startedAt=performance.now();
           setPhase('recording');
           setStatus('sourcePaused');
+          $('#ptPlayPause').focus({preventScroll:true});
           logDetail('Record start: '+state.outputMime+', mode='+state.recordedAudioMode
             +', sourceGain='+state.recordedSourceGain
             +', videoTrack='+videoTrack.readyState+', audioTrack='+capturedAudioTrack.readyState);
@@ -2238,6 +2300,7 @@
           state.recorder=null;
           releaseCapture();
           setPhase('ready');
+          $('#ptStart').focus({preventScroll:true});
           const key = error.name==='NotAllowedError' || error.name==='PermissionDeniedError' ? 'micDenied'
             : error.name==='NotFoundError' ? 'micMissing'
             : error.message==='audioMixFailed' ? 'audioMixFailed'
@@ -2405,6 +2468,9 @@
           }
           updateResultMeta();
           focusWorkflowSection('#ptResultPanel');
+          requestAnimationFrame(()=>{
+            if(['result','recovery'].includes(state.phase)) $('#ptResultTitle').focus({preventScroll:true});
+          });
           logDetail((recovered?'Recovered':'Result')+': '+blob.size+' bytes, '+state.outputMime
             +', duration='+state.outputDuration+', reason='+reason
             +(verifyError?', verification='+verifyError.message:''));
@@ -2566,6 +2632,7 @@
         setPhase('ready');
         setStatus('sourceReady');
         startRendering();
+        $('#ptStudioTitle').focus({preventScroll:true});
         focusWorkflowSection('.pt-draw-panel');
       }
       async function togglePlayback() {
@@ -2676,7 +2743,8 @@
         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) helpDialog.close();
       });
       window.addEventListener('keydown',event => {
-        if (event.code !== 'Space' || event.repeat || helpDialog.open || $('#appConfirmDialog').open) return;
+        if (event.defaultPrevented || event.code !== 'Space' || event.repeat
+          || helpDialog.open || $('#appConfirmDialog').open) return;
         if (event.target instanceof HTMLElement && event.target.closest('button,input,textarea,select,[contenteditable]')) return;
         if (state.phase === 'ready' || state.phase === 'recording') {
           event.preventDefault(); void togglePlayback();
