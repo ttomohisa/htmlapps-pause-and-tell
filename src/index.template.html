@@ -1379,7 +1379,7 @@
         recorder: null, mediaStream: null, micStream: null, canvasStream: null, chunks: [],
         chunkBytes: 0, finalizeStarted: false, stopWatchdog: null, micMuteTimer: null, stopTimeoutHit: false,
         startedAt: 0, recordedMs: 0, outputDuration: NaN, outputMime: '', outputExt: '',
-        outputPlayable: false, recoveryIssue: '',
+        outputPlayable: false, recoveryIssue: '', exportStatusKey: '', shareInProgress: false,
         recordedAudioMode: 'mic', recordedSourceGain: 0.3,
         renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
       };
@@ -1810,6 +1810,10 @@
         $('#ptRecoveryNotice').hidden=!recovery;
         // Show the recovery warning only once, directly above the preview.
         $('#ptResultWarning').hidden=recovery;
+        $('#ptSaveHint').textContent=translate(recovery?'recoverySaveHint':'saveHint');
+        const exportStatus=$('#ptExportStatus');
+        exportStatus.hidden=!state.exportStatusKey;
+        exportStatus.textContent=state.exportStatusKey?translate(state.exportStatusKey):'';
         if(recovery) {
           const note=state.recoveryIssue || (state.outputPlayable?'recoverPlayable':'recoverUnverified');
           $('#ptRecoveryNotice').textContent=translate(note);
@@ -1820,6 +1824,10 @@
           ? state.outputPlayable?'downloadPartial':'downloadRecovered'
           : 'saveVideo');
         save.classList.toggle('recovery',recovery);
+        const share=$('#ptShare');
+        const shareAvailable=!recovery && state.phase==='result' && state.outputPlayable && canShareFile();
+        share.hidden=!shareAvailable;
+        share.disabled=!shareAvailable || state.shareInProgress;
       }
       function updateTransport() {
         $('#ptPlayPause').textContent = translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
@@ -1873,6 +1881,8 @@
         state.outputDuration = NaN;
         state.outputPlayable = false;
         state.recoveryIssue = '';
+        state.exportStatusKey = '';
+        state.shareInProgress = false;
         state.recordedMs = 0;
         state.saveRequested = false;
         state.resultStatusKey = '';
@@ -1946,8 +1956,10 @@
         if (file.size > MAX_SOURCE_BYTES) throw new Error('fileTooLarge');
       }
       async function chooseFile(file) {
-        if (!file || ['preparing','recording','finalizing'].includes(state.phase)) return;
-        if (state.outputBlob && !state.saveRequested) {
+        if (!file || state.shareInProgress || ['preparing','recording','finalizing'].includes(state.phase)) return;
+        // A click on Download does not tell us whether the browser saved the file.
+        // Always confirm before replacing the only in-memory recording.
+        if (state.outputBlob) {
           const confirmed = await AppConfirm.ask({
             title: translate('confirmDiscard'), message: translate('discardMessage'),
             confirmLabel: translate('discard'), cancelLabel: translate('cancel'), tone: 'danger'
@@ -2368,34 +2380,110 @@
         $('#ptResultMeta').textContent = description;
       }
       function normalizeFilename(value) {
-        let base = String(value || '').replace(/\.(mp4|webm)$/i,'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').replace(/[. ]+$/g,'').trim().slice(0,120);
+        let base = String(value || '')
+          .replace(/\.(mp4|webm|mov|m4v|avi|mkv|bin)$/i,'')
+          .replace(/[\\/:*?"<>|\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,'-')
+          .replace(/[. ]+$/g,'').trim().slice(0,120);
         if (!base) base = 'pause-and-tell';
         if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base)) base += '-video';
         return base;
       }
-      function downloadResult() {
-        if (!['result','recovery'].includes(state.phase) || !state.outputBlob || !state.outputUrl) return;
-        outputFilename.value = normalizeFilename(outputFilename.value);
-        const anchor = document.createElement('a');
-        anchor.href = state.outputUrl;
-        anchor.download = outputFilename.value + '.' + state.outputExt;
-        document.body.append(anchor);
-        anchor.click();
-        anchor.remove();
-        state.saveRequested = true;
-        showToast(translate(state.phase==='recovery'?'downloadRecoveredStarted':'downloadStarted'),{
-          tone:state.phase==='recovery'?'warning':'success',duration:6500
+
+      function makeExportName() {
+        const stem=normalizeFilename(outputFilename.value);
+        outputFilename.value=stem;
+        return stem + '.' + state.outputExt;
+      }
+      function buildShareFile() {
+        if (state.phase!=='result' || !state.outputPlayable || !state.outputBlob
+            || !['video/webm','video/mp4'].includes(state.outputMime) || typeof File!=='function') return null;
+        return new File([state.outputBlob], normalizeFilename(outputFilename.value)+'.'+state.outputExt, {
+          type:state.outputMime, lastModified:Date.now()
         });
       }
-      async function recordAgain() {
-        if (!['result','recovery'].includes(state.phase)) return;
-        if (!state.saveRequested) {
-          const ok = await AppConfirm.ask({
-            title:translate('confirmDiscard'),message:translate('discardMessage'),
-            confirmLabel:translate('discard'),cancelLabel:translate('cancel'),tone:'danger'
-          });
-          if (!ok) return;
+      function canShareFile() {
+        if (!window.isSecureContext || typeof navigator.share!=='function'
+            || typeof navigator.canShare!=='function' || state.shareInProgress) return false;
+        try {
+          const file=buildShareFile();
+          return Boolean(file && navigator.canShare({files:[file]}));
+        } catch(error) {
+          logDetail('Share capability check: '+error.message);
+          return false;
         }
+      }
+      function setExportStatus(key, tone='default') {
+        state.exportStatusKey=key;
+        const notice=$('#ptExportStatus');
+        notice.hidden=!key;
+        notice.textContent=key?translate(key):'';
+        if (key) showToast(translate(key),{tone,duration:5000});
+      }
+      function downloadResult() {
+        if (!['result','recovery'].includes(state.phase) || !state.outputBlob
+            || !state.outputUrl || state.shareInProgress) return;
+        const anchor=document.createElement('a');
+        anchor.href=state.outputUrl;
+        anchor.download=makeExportName();
+        try {
+          document.body.append(anchor);
+          anchor.click();
+          // This only requests a browser download; it does NOT prove saved bytes.
+          state.saveRequested=true;
+          setExportStatus(state.phase==='recovery'?'downloadRecoveredStarted':'downloadStarted',
+            state.phase==='recovery'?'warning':'default');
+        } catch(error) {
+          logDetail('Download failed to start: '+error.message);
+          setExportStatus('downloadFailed','danger');
+        } finally {
+          anchor.remove();
+        }
+      }
+      async function shareResult() {
+        // No promise/await before navigator.share: requires transient user activation.
+        if (!canShareFile()) {
+          setExportStatus('shareUnavailable','warning');
+          updateOutputPresentation();
+          return;
+        }
+        const file=buildShareFile();
+        if(!file) return;
+        const data={files:[new File([state.outputBlob],makeExportName(),{type:state.outputMime})]};
+        if (!navigator.canShare(data)) {
+          setExportStatus('shareUnavailable','warning');
+          updateOutputPresentation();
+          return;
+        }
+        const generation=state.generation;
+        state.shareInProgress=true;
+        updateOutputPresentation();
+        try {
+          await navigator.share(data);
+          if(withinSession(generation)) {
+            // Resolution timing differs by OS. Delivery to final recipient isn't proven.
+            state.saveRequested=true;
+            setExportStatus('shareRequested','default');
+          }
+        } catch(error) {
+          if(withinSession(generation) && error.name!=='AbortError') {
+            logDetail('Native file share rejected: '+error.name+' '+error.message);
+            setExportStatus('shareFailed','warning');
+          }
+        } finally {
+          if(withinSession(generation)) {
+            state.shareInProgress=false;
+            updateOutputPresentation();
+          }
+        }
+      }
+      async function recordAgain() {
+        if (!['result','recovery'].includes(state.phase) || state.shareInProgress) return;
+        // Saving/sharing was requested, but the browser cannot confirm delivery.
+        const ok = await AppConfirm.ask({
+          title:translate('confirmDiscard'),message:translate('discardMessage'),
+          confirmLabel:translate('discard'),cancelLabel:translate('cancel'),tone:'danger'
+        });
+        if (!ok) return;
         const token = ++state.generation;
         clearDrawing();
         releaseOutput();
@@ -2457,6 +2545,7 @@
         }
       });
       $('#ptDownload').addEventListener('click',downloadResult);
+      $('#ptShare').addEventListener('click',() => void shareResult());
       $('#ptAgain').addEventListener('click',() => void recordAgain());
       outputFilename.addEventListener('blur',() => { outputFilename.value = normalizeFilename(outputFilename.value); });
       sourceVideo.addEventListener('play',() => {
@@ -2527,7 +2616,8 @@
       });
       window.addEventListener('pagehide',() => { resetResources(); closeAudioMixer(); });
       window.addEventListener('beforeunload',event => {
-        if (state.phase === 'recording' || (state.outputBlob && !state.saveRequested)) {
+        // Download/share buttons do not confirm the output reached permanent storage.
+        if (['preparing','recording','finalizing'].includes(state.phase) || state.outputBlob) {
           event.preventDefault(); event.returnValue = '';
         }
       });
