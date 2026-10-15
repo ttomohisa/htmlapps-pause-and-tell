@@ -571,6 +571,11 @@
     .pt-keyboard-cursor::after { content:""; display:block; position:absolute; width:5px; height:5px;
       top:50%; left:50%; border-radius:50%; background:#fff; transform:translate(-50%,-50%); }
     .pt-keyboard-hint { margin:9px 0 0; color:var(--muted); font-size:12px; line-height:1.65; }
+    @media (pointer:coarse) {
+      /* Screen readers still receive the description via aria-describedby. */
+      .pt-keyboard-hint { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+        overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+    }
     .pt-panel [tabindex="-1"]:focus { outline:none; }
     #ptSeek:focus-visible, #ptAudioMode:focus-visible, #ptSourceGain:focus-visible {
       outline:3px solid var(--focus); outline-offset:2px; }
@@ -1574,20 +1579,23 @@
           const target=focusVideo ? stageCanvas : $(selector);
           if (!target || !target.getClientRects().length) return;
           target.scrollIntoView({block:focusVideo?'center':'start',behavior:'instant'});
+          if(focusVideo) showDrawableStage();
         });
       }
       function showDrawableStage() {
-        const compact = isCompactVideoLayout();
-        if (!compact) return;
+        if (!isCompactVideoLayout()) return;
         const rect=stageCanvas.getBoundingClientRect();
-        const topLimit=72, bottomLimit=window.innerHeight-94;
-        const visibleHeight=bottomLimit-topLimit;
-        if (rect.top<topLimit || rect.bottom>bottomLimit) {
+        const bar=$('#ptTransport');
+        const topLimit=72;
+        const bottomLimit=bar && !bar.hidden ? bar.getBoundingClientRect().top-12 : innerHeight-12;
+        if (!(rect.height>0 && bottomLimit>topLimit)) return;
+        // scrollIntoView('center') ignores our fixed transport. Measure the real
+        // space above the transport so the entire video stays available to touch.
+        let delta=rect.bottom>bottomLimit ? rect.bottom-bottomLimit : 0;
+        if (rect.top-delta<topLimit) delta=rect.top-topLimit;
+        if (Math.abs(delta)>1) {
           const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          stageCanvas.scrollIntoView({
-            block:rect.height>visibleHeight?'start':'center',
-            behavior:reducedMotion?'instant':'smooth'
-          });
+          window.scrollBy({top:delta,behavior:reducedMotion?'instant':'smooth'});
         }
       }
       function pointerToVideo(event, allowOutside = false) {
@@ -1729,7 +1737,10 @@
         }
         renderFrame();
       }
-      drawSurface.addEventListener('focus',updateKeyboardPointCursor);
+      drawSurface.addEventListener('focus',()=>{
+        updateKeyboardPointCursor();
+        requestAnimationFrame(showDrawableStage);
+      });
       drawSurface.addEventListener('blur',updateKeyboardPointCursor);
       drawSurface.addEventListener('keydown',event=>{
         if (!isDrawPhase() || drawing.tool!=='point') return;
