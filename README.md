@@ -4,9 +4,17 @@
 
 Pause a source video while recording your spoken explanation. The output recording keeps running even while the source video is paused.
 
-**Current status: v0.7.0 recording, review and export prototype — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
+**Current status: v0.8.0 standalone/privacy/accessibility prototype — not a production release.** Real iPhone and Android touch/recording reliability is **not yet verified**.
 
-## What works in v0.7.0
+## What works in v0.8.0
+
+- **Keyboard Point:** select Point, Tab to the video, use arrow keys (5% per press, Shift+arrow for 1%) to position a cursor, then press Enter or Space to record a ring. The temporary keyboard cursor is **not** included in the exported Canvas video.
+- **Accessible workflow:** skip link, localized state announcements, heading focus after video import and capture finalization, keyboard seek-position text, visible focus and Help dialog scroll lock. Circle, Arrow and Pen paths still require a mouse, pen or touch.
+- **Stricter local CSP:** `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`; only embedded script/style, local media Blob URLs and icon data URLs are allowed. No CDN, telemetry, automatic upload or runtime npm dependency.
+- **Template outputs:** continue to produce readable `dist/index.html`, gzip self-extracting `dist/index.self-extract.html` and matching root `pause-and-tell.html`.
+- The [G8 verification matrix](docs/G8_VALIDATION.md) distinguishes automated Chromium checks from physical iPhone/Android, keyboard screen-reader and direct `file://` acceptance, which remain incomplete.
+
+
 
 - **Review → Name → Download**: preview the recording, confirm video and audio, edit the filename and download the exact MP4 or WebM that the browser generated.
 - Filename sanitization removes directory separators, unsafe/control/bidi characters, trailing spaces/dots, and known duplicate video extensions; empty input falls back to `pause-and-tell`.
@@ -64,6 +72,10 @@ Pause a source video while recording your spoken explanation. The output recordi
 
 **Not yet supported for general release:** Original source-audio mixing is experimental and may be excluded from v1.0.0. Sharing and timeline editing are not implemented. These are staged in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Keyboard operation and accessibility
+
+Video file selection, recording controls, source playback, naming and download are keyboard-reachable. In Point mode, the keyboard video control uses arrows/Enter/Space; Space there **does not** start source playback. Other drawn shapes need a pointing device. Native Help opens as a dialog and Escape closes it. Screen-reader quality (NVDA, VoiceOver) is not yet certified by real-device tests.
+
 ## How to try
 
 1. Open the built HTML in a supported secure context (HTTPS or `file://`, subject to browser permissions).
@@ -78,7 +90,7 @@ Use a quiet, short source video for the initial test. Source-audio capture is **
 
 Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while speaking, then play the remaining **12 seconds**. Verify that the result is about **40 seconds** long, the frozen frames persist during the pause, and voice audio continues. Allow for the initial pause before pressing Play and manual button timing. Record browser/OS/device, real duration, codec/container, and any sync problems. See [G1 validation protocol](docs/G1_VALIDATION.md).
 
-This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md), and G6 recovery in [docs/G6_VALIDATION.md](docs/G6_VALIDATION.md), and G7 export/share in [docs/G7_VALIDATION.md](docs/G7_VALIDATION.md). Automated Chromium tests passed for filename normalization, mocked Share results, result retention and output file codecs, but real OS delivery is not yet verified. This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
+This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md), and G6 recovery in [docs/G6_VALIDATION.md](docs/G6_VALIDATION.md), and G7 export/share in [docs/G7_VALIDATION.md](docs/G7_VALIDATION.md), and G8 standalone/a11y in [docs/G8_VALIDATION.md](docs/G8_VALIDATION.md). Automated Chromium tests passed for filename normalization, mocked Share results, result retention and output file codecs, but real OS delivery is not yet verified. This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
 **Automated G5 evidence (not a compatibility guarantee):** In headless Chromium with a synthetic 440 Hz source and simulated 880 Hz microphone, decoded WebM audio contained both tones during playback, only the microphone during the source pause, and the source tone again after resume. Re-recording and replacing the source file also passed. Real iPhone/Android microphones and native-player compatibility are still untested. See [G5 validation](docs/G5_VALIDATION.md).
 
