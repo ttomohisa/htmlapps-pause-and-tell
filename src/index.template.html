@@ -1713,7 +1713,12 @@
         if (duration > 0 && state.phase !== 'recording') {
           $('#ptSeek').value = String(Math.round(1000 * sourceVideo.currentTime / sourceVideo.duration));
         }
-        if (running && recorded >= MAX_RECORD_MS) {
+        if (running && state.recorder?.state==='inactive') {
+          // Some browsers end MediaRecorder without first raising an error.
+          // Treat the unexpected inactive state as an interruption, not a result.
+          logDetail('Recorder became inactive before stop was requested');
+          stopRecording('recorderInactive');
+        } else if (running && recorded >= MAX_RECORD_MS) {
           logDetail('Recording time limit reached; requesting stop.');
           stopRecording('limit');
         }
@@ -2065,7 +2070,18 @@
             }
           };
           state.recorder.onstop=()=>{
-            if (withinSession(token)) void finalizeRecording(token);
+            if (!withinSession(token)) return;
+            if (state.phase==='recording') {
+              // Unexpected onstop must be captured rather than ignored.
+              logDetail('Recorder emitted stop before user or limit stop');
+              state.recordedMs=Math.max(0,performance.now()-state.startedAt);
+              state.stopReason='recorderInactive';
+              state.autoStopped=true;
+              sourceVideo.pause();
+              setPhase('finalizing');
+              setStatus('interrupted');
+            }
+            if (state.phase==='finalizing') void finalizeRecording(token);
           };
           micTrack.addEventListener('ended',()=>{
             if (withinSession(token) && state.phase==='recording') {
