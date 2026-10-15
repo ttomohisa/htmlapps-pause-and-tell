@@ -1107,7 +1107,8 @@
           "saveHint": "完成動画を再生して、映像と音声を確認してから保存してください。保存が完了したかはブラウザの保存先でご確認ください。",
           "recoverySaveHint": "回収されたデータは破損や音声欠落の可能性があります。必要なら保存して確かめてください。共有機能は使えません。",
           "downloadFailed": "ダウンロードを開始できませんでした。ブラウザの設定を確認して再試行してください。",
-          "helpNoteExport": "保存ボタンはダウンロードの開始であり、保存完了を保証しません。ブラウザの保存先でご確認ください。共有ボタンを押すと、選んだ共有先へOS経由で動画が渡されます。"
+          "helpNoteExport": "保存ボタンはダウンロードの開始であり、保存完了を保証しません。ブラウザの保存先でご確認ください。共有ボタンを押すと、選んだ共有先へOS経由で動画が渡されます。",
+          "shareCancelled": "共有は完了しませんでした。動画はこのページに残っています。"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1256,7 +1257,8 @@
           "saveHint": "Play the finished video to check picture and sound. Confirm that the download was saved in your browser or file manager.",
           "recoverySaveHint": "Recovered data may be corrupt or missing sound. Save only if you want to inspect it. Sharing is not available for recovery data.",
           "downloadFailed": "Could not start downloading. Check your browser settings and try again.",
-          "helpNoteExport": "Download requests do not prove that a file was saved. Check your browser's saved files. Sharing sends the video via your OS to a destination you select."
+          "helpNoteExport": "Download requests do not prove that a file was saved. Check your browser's saved files. Sharing sends the video via your OS to a destination you select.",
+          "shareCancelled": "The share was not completed. Your video is still available on this page."
         }
       };
 
@@ -2449,12 +2451,21 @@
         // Build the final File before calling share(), with no asynchronous work
         // between this click and the native share invocation.
         const data={files:[new File([state.outputBlob],makeExportName(),{type:state.outputMime})]};
-        if (!navigator.canShare(data)) {
+        try {
+          if(!navigator.canShare(data)) {
+            setExportStatus('shareUnavailable','warning');
+            updateOutputPresentation();
+            return;
+          }
+        } catch(error) {
+          logDetail('Native File share validation error: '+error.message);
           setExportStatus('shareUnavailable','warning');
           updateOutputPresentation();
           return;
         }
         const generation=state.generation;
+        // Do not leave a previous Share success visible if this attempt is canceled.
+        state.exportStatusKey='';
         state.shareInProgress=true;
         updateOutputPresentation();
         try {
@@ -2465,9 +2476,13 @@
             setExportStatus('shareRequested','default');
           }
         } catch(error) {
-          if(withinSession(generation) && error.name!=='AbortError') {
-            logDetail('Native file share rejected: '+error.name+' '+error.message);
-            setExportStatus('shareFailed','warning');
+          if(withinSession(generation)) {
+            if(error.name==='AbortError') {
+              setExportStatus('shareCancelled','default');
+            } else {
+              logDetail('Native file share rejected: '+error.name+' '+error.message);
+              setExportStatus('shareFailed','warning');
+            }
           }
         } finally {
           if(withinSession(generation)) {
