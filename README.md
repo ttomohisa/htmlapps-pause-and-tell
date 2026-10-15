@@ -62,6 +62,8 @@ Play a **20-second** source for **8 seconds**, pause it for **20 seconds** while
 
 This is a **work-in-progress experiment**; physical-device G1 verification from v0.1.0 is still missing. This is not a G1 or G2 sign-off. G2 interaction review is tracked in [docs/G2_VALIDATION.md](docs/G2_VALIDATION.md). G3 annotation behavior is tracked in [docs/G3_VALIDATION.md](docs/G3_VALIDATION.md), and G4 touch/point acceptance in [docs/G4_VALIDATION.md](docs/G4_VALIDATION.md), and G5 audio mixing in [docs/G5_VALIDATION.md](docs/G5_VALIDATION.md). This is an **unverified experiment** until tested on actual **iPhone Safari and Android Chrome**, as well as desktop Chrome/Edge. A passing build or preview deploy does not establish recording correctness.
 
+**Automated G5 evidence (not a compatibility guarantee):** In headless Chromium with a synthetic 440 Hz source and simulated 880 Hz microphone, decoded WebM audio contained both tones during playback, only the microphone during the source pause, and the source tone again after resume. Re-recording and replacing the source file also passed. Real iPhone/Android microphones and native-player compatibility are still untested. See [G5 validation](docs/G5_VALIDATION.md).
+
 ## Privacy
 
 File data and microphone samples are kept in this page and processed on your device. The app makes no intentional runtime CDN/API/telemetry calls; the standard restrictive CSP contains `connect-src 'none'`. No video or voice is uploaded. Only language preference can be stored locally. A deliberate browser download exports the result to your device. Reloading or closing the tab discards unsaved recordings.

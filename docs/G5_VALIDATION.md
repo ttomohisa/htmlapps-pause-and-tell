@@ -47,6 +47,31 @@ Simulated microphone: an oscillator generating 880 Hz via `AudioContext.createMe
 | G5-14 | Network capture / CSP / standalone file | No runtime CDN/API/upload, `connect-src 'none'`; direct `file://` checked separately |
 | G5-15 | Physical iPhone Safari and Android Chrome | Voice-only G1–G4 must pass; mixing remains hidden until independently verified |
 
+
+## Automated Chromium proof (2026-10-15; **not** a G5 release pass)
+
+Tested exact GitHub Actions standalone HTML from commit `6cb164795d18613a6cadc9fc39e388f1765d2b19` in **headless Linux Chromium 144**. Generated local H.264/AAC source clip contains 440 Hz sine; injected WebAudio-simulated microphone emits 880 Hz (not a real microphone). The final recording files contain VP8 video and Opus 48kHz audio. The runtime opened the HTML with Playwright `page.set_content`, **not** `file://` (direct local navigation is blocked by the test environment).
+
+| Recording window (1 s) | Measured 440 Hz source amplitude | Measured 880 Hz simulated mic amplitude |
+| --- | ---: | ---: |
+| Mix at 30%, source playing (0.6–1.6s) | 0.0530882 | 0.2262205 |
+| Same mix, source paused (3.0–4.0s) | 0.0000015 | 0.2264438 |
+| Same mix, source resumed (5.6–6.6s) | 0.0529405 | 0.2261968 |
+| Microphone-only take, source playing | 0.0000028 | 0.2252034 |
+| Mix at 50%, source playing | 0.0883236 | 0.2256270 |
+
+The source gain ratio 50%/30% was **1.664×**, near the requested 1.667×. During the source pause, the original-tone amplitude fell below 0.003% of the playing segment while simulated microphone remained continuous. Measured by sine/cosine amplitude fitting against 48kHz decoded PCM, not loudness or device compatibility.
+
+Additional checks:
+
+- **Repeat-take regression:** mix → voice-only → mix, all three saved as WebM, with zero page JavaScript errors.
+- **Source replacement:** replace 440 Hz file with a 550 Hz file after earlier takes; next mixed output measured 550 Hz = 0.088533, old 440 Hz ≈ 0.000053, simulated mic 880 Hz ≈ 0.225811. No stale prior audio detected.
+- **No original audio track:** 5-second silent-source video still records the simulated microphone in mixed mode without an exception.
+- **Denied microphone:** localized permission error, return to Ready, no false recording success.
+- **Conservative UI gate:** desktop Chromium experiment selectable; simulated Android Chrome, iPhone Safari and desktop Firefox user agents disabled mix mode while retaining Voice only. No horizontal overflow in 360/390px simulated mobile viewports.
+
+**Limits:** no actual iPhone/Android, Windows desktop browser, device microphone, physical speaker monitoring, hardware mute, OS-level interruptions, native playback or direct `file://` test was performed. G5 automated-prototype requirements G5-03/04/05/06/07/08/09/10 are partially supported, but **overall G5 remains PENDING**. G1–G4 physical gates remain outstanding.
+
 ## Gate decision
 
 - G5 can be **automated-prototype PASS** only with objective *decoded output audio* showing source sound playing + narration together, source sound stopping during source pause, narration staying present and gains being distinguishable.
