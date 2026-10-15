@@ -1888,14 +1888,14 @@
         $('#ptMessage').textContent = key ? translate(key) : '';
         refreshStageStatus();
       }
+      const phaseAnnouncementKeys={empty:'phaseEmpty',loading:'loadingVideo',error:'phaseError',
+        ready:'phaseReady',preparing:'phasePreparing',recording:'phaseRecording',
+        finalizing:'phaseFinalizing',result:'phaseResult',recovery:'phaseRecovery'};
       function setPhase(phase) {
         const previousPhase=state.phase;
         state.phase = phase;
         if(previousPhase!==phase) {
-          const names={empty:'phaseEmpty',loading:'loadingVideo',error:'phaseError',
-            ready:'phaseReady',preparing:'phasePreparing',recording:'phaseRecording',
-            finalizing:'phaseFinalizing',result:'phaseResult',recovery:'phaseRecovery'};
-          $('#ptScreenAnnouncement').textContent=translate(names[phase]||'phaseEmpty');
+          $('#ptScreenAnnouncement').textContent=translate(phaseAnnouncementKeys[phase]||'phaseEmpty');
         }
         const currentStep = ['empty','loading','error'].includes(phase) ? 1 : ['result','recovery'].includes(phase) ? 3 : 2;
         document.querySelectorAll('#ptSteps .pt-step').forEach(step => {
@@ -1976,6 +1976,7 @@
         refreshStageStatus();
         updateTransport();
         setPhase(state.phase);
+        $('#ptScreenAnnouncement').textContent=translate(phaseAnnouncementKeys[state.phase]||'phaseEmpty');
         if (state.outputBlob) {
           updateResultMeta();
           if (state.resultStatusKey) $('#ptResultWarning').textContent = translate(state.resultStatusKey);
