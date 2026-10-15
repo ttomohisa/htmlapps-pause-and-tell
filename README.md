@@ -12,7 +12,7 @@ Pause a source video while recording your spoken explanation. The output recordi
 - **Accessible workflow:** skip link, localized state announcements, heading focus after video import and capture finalization, keyboard seek-position text, visible focus and Help dialog scroll lock. Circle, Arrow and Pen paths still require a mouse, pen or touch.
 - **Stricter local CSP:** `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`; only embedded script/style, local media Blob URLs and icon data URLs are allowed. No CDN, telemetry, automatic upload or runtime npm dependency.
 - **Template outputs:** continue to produce readable `dist/index.html`, gzip self-extracting `dist/index.self-extract.html` and matching root `pause-and-tell.html`.
-- The [G8 verification matrix](docs/G8_VALIDATION.md) distinguishes automated Chromium checks from physical iPhone/Android, keyboard screen-reader and direct `file://` acceptance, which remain incomplete.
+- The [G8 verification matrix](docs/G8_VALIDATION.md) records the passing Chromium keyboard/codec/CSP/self-extract tests and distinguishes these from the still-unverified physical iPhone/Android, actual screen-reader and direct `file://` acceptance.
 
 
 
