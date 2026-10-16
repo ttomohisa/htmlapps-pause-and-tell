@@ -19,7 +19,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <main>
 <section class="panel" id="sourcePanel">
 <h2 data-ja="1. 元動画を選ぶ" data-en="1. Choose a source video">1. 元動画を選ぶ</h2>
-<p class="muted" data-ja="この技術検証では15秒・30MiB以内の無音動画だけを扱います。元動画に音声がある場合は読み込み時に停止します。" data-en="This experiment supports only silent source videos up to 15 seconds and 30 MiB; files with original audio are rejected.">この技術検証では15秒・30MiB以内の無音動画だけを扱います。元動画に音声がある場合は読み込み時に停止します。</p>
+<p class="muted" data-ja="この技術検証では15秒・30MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。" data-en="This experiment supports source videos up to 15 seconds and 30 MiB. Original audio plays before and after the inserted explanation, not during it.">この技術検証では15秒・30MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。</p>
 <input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="Select source video">
 </section>
 <section class="panel" id="editor" hidden>

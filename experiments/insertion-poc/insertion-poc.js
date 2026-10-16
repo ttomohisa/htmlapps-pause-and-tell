@@ -95,7 +95,7 @@ import {
       const track = await input.getPrimaryVideoTrack();
       if (!track) throw new Error(l('映像トラックがありません。','Source has no video track.'));
       const audio = await input.getPrimaryAudioTrack();
-      if (audio) throw new Error(l('現段階は無音の元動画のみ対応です。元音声を削除せず、処理を止めました。','Silent sources only in this PoC. The source audio was not discarded.'));
+      // Source audio is preserved outside inserted explanations at export.
       const duration = await input.computeDuration();
       if (!(duration > 0 && duration <= MAX_SOURCE_SECONDS))
         throw new Error(l('元動画は15秒以内を選択してください。','Choose a source up to 15 seconds.'));
@@ -129,7 +129,8 @@ import {
       $('editor').hidden = false;
       $('seek').value = '0';
       $('position').textContent = fmt(0);
-      $('sourceInfo').textContent = file.name + ' · ' + fmt(duration) + ' · ' + width + '×' + height;
+      $('sourceInfo').textContent = file.name + ' · ' + fmt(duration) + ' · ' + width + '×' + height
+        + ' · ' + (audio ? l('元音声あり','Original audio present') : l('無音動画','Silent source'));
       info(l('任意の位置へ移動し、「この位置に説明を追加」を押します。','Seek and select Record explanation here.'));
     } catch (e) {
       input?.dispose();
@@ -346,8 +347,8 @@ import {
       const vt=await videoInput.getPrimaryVideoTrack();
       const at=await audioInput.getPrimaryAudioTrack();
       if(!vt||!at) throw new Error(l('映像または説明音声を読み込めません。','Missing video or narration track.'));
-      if(await videoInput.getPrimaryAudioTrack())throw new Error(l('元音声付き動画は次の開発段階で対応します。','Original sound support is planned for the next phase.'));
-      const duration=await videoInput.computeDuration();
+      const originalAudio=await videoInput.getPrimaryAudioTrack();
+      const duration=await vt.computeDuration();
       const voiceDuration=await at.computeDuration();
       const cutFrame=Math.max(0,Math.min(Math.round(duration*FPS),Math.round(note.position*FPS)));
       const sourceFrames=Math.max(1,Math.round(duration*FPS));
@@ -366,16 +367,35 @@ import {
       output.addAudioTrack(audioSource);
       $('exportStatus').textContent=l('音声を合成しています…','Composing narration audio…');
       await output.start();
-      // Only a short PoC: silence over the original (which is required to be silent).
-      // Narration is placed at precisely the start of the insertion on the export clock.
+      // Compose source sound and narration on a shared output clock.
+      // Source sound plays only before and after the insertion, never over it.
       const sampleRate=48000;
-      const offline=new OfflineAudioContext(1,Math.ceil(fullDuration*sampleRate),sampleRate);
+      const channels=originalAudio ? Math.min(2,Math.max(1,await originalAudio.getNumberOfChannels())) : 1;
+      const offline=new OfflineAudioContext(channels,Math.ceil(fullDuration*sampleRate),sampleRate);
+      function scheduleRange(buffer,chunkTimestamp,start,end,outputStart) {
+        const left=Math.max(start,chunkTimestamp);
+        const right=Math.min(end,chunkTimestamp+buffer.duration);
+        if(right-left<1/sampleRate)return;
+        const node=offline.createBufferSource();
+        node.buffer=buffer;
+        node.connect(offline.destination);
+        node.start(Math.max(0,outputStart+(left-start)),
+          Math.max(0,left-chunkTimestamp),right-left);
+      }
+      let seenOriginal=false;
+      if(originalAudio) {
+        const sourceSink=new AudioBufferSink(originalAudio);
+        for await(const {buffer,timestamp} of sourceSink.buffers()){
+          scheduleRange(buffer,timestamp,0,cutSeconds,0);
+          scheduleRange(buffer,timestamp,cutSeconds,duration,cutSeconds+voiceFrames/FPS);
+          seenOriginal=true;
+        }
+        if(!seenOriginal)throw new Error(l('元動画の音声を読み取れません。','Original audio could not be decoded.'));
+      }
       let seenVoice=false;
       const voiceSink=new AudioBufferSink(at);
       for await(const {buffer,timestamp} of voiceSink.buffers()){
-        const node=offline.createBufferSource();
-        node.buffer=buffer;node.connect(offline.destination);
-        node.start(cutSeconds+Math.max(0,timestamp));
+        scheduleRange(buffer,timestamp,0,voiceDuration,cutSeconds);
         seenVoice=true;
       }
       if(!seenVoice)throw new Error('No decodable recorded audio');
@@ -423,7 +443,8 @@ import {
       state.resultUrl=URL.createObjectURL(new Blob([bytes],{type:'video/webm'}));
       await checkResultPlayable(state.resultUrl);
       $('result').hidden=false;
-      $('resultInfo').textContent=l('完成動画 ', 'Output ') + fmt(fullDuration) + ' · WebM VP8/Opus · '+Math.round(bytes.byteLength/1024)+' KiB';
+      $('resultInfo').textContent=l('完成動画 ', 'Output ') + fmt(fullDuration) + ' · WebM VP8/Opus · '+Math.round(bytes.byteLength/1024)+' KiB'
+        + ' · ' + (originalAudio ? l('元音声を保持','Original audio retained') : l('元動画は無音','Silent original'));
       $('exportStatus').textContent=l('動画を作成しました。最後まで再生して確認してください。','Composition complete. Play the full video to check it.');
     }catch(error){
       showError(error);
