@@ -3,6 +3,7 @@
 import argparse
 import json
 import math
+import re
 import subprocess
 import time
 from array import array
@@ -30,6 +31,8 @@ def main():
     ap.add_argument('--chromium',default='/usr/bin/chromium')
     ap.add_argument('--source-audio',action='store_true',help='Use a source with 440 Hz original soundtrack')
     ap.add_argument('--multiple',action='store_true',help='Record, delete and rerecord a second explanation')
+    ap.add_argument('--memory-target',action='store_true',help='Disable OPFS to exercise the memory fallback')
+    ap.add_argument('--expanded-input',action='store_true',help='Verify loading an input longer than the old 15-second prototype cap')
     a=ap.parse_args()
     a.out.mkdir(parents=True,exist_ok=True)
     source=a.out/('source-audio-4s.webm' if a.source_audio else 'silent-4s.webm')
@@ -63,7 +66,21 @@ def main():
             return dest.stream;
           }});
         })()""")
+        if a.memory_target:
+            page.add_init_script("""(() => {
+              if(navigator.storage) Object.defineProperty(navigator.storage,
+                'getDirectory',{configurable:true,value:undefined});
+            })()""")
         page.goto(a.url,wait_until='domcontentloaded')
+        if a.expanded_input:
+            larger=a.out/'expanded-20s.webm'
+            command(['ffmpeg','-v','error','-y','-f','lavfi','-i',
+              'testsrc2=size=160x90:rate=5:duration=20','-an','-c:v','libvpx',
+              '-deadline','realtime','-cpu-used','8','-b:v','150k',str(larger)])
+            page.locator('#sourceFile').set_input_files(str(larger))
+            page.locator('#editor').wait_for(state='visible',timeout=25000)
+            assert '20.0s' in page.locator('#sourceInfo').inner_text()
+            assert not page.locator('#startNote').is_disabled()
         page.locator('#sourceFile').set_input_files(str(source))
         try:
             page.locator('#editor').wait_for(state='visible',timeout=25000)
@@ -126,6 +143,11 @@ def main():
             page.locator('#finishNote').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==2)
             assert '2' in page.locator('#noteSummary').inner_text()
+        # Read user-visible, rounded clip durations rather than assuming every
+        # browser's MediaRecorder returns exactly 1.94 seconds.
+        notes=page.locator('#noteList .note-item button:first-child').all_inner_texts()
+        durations=[float(re.search(r'·\s*([0-9]+\.[0-9]+)s',item).group(1)) for item in notes]
+        expected_output=4.0+sum(durations)
         page.locator('#export').click()
         try:
             page.locator('#result').wait_for(state='visible',timeout=100000)
@@ -148,7 +170,8 @@ def main():
         assert streams['video']['codec_name']=='vp8',streams
         assert streams['audio']['codec_name']=='opus',streams
         duration=float(probe['format']['duration'])
-        assert (6.0<duration<8.0 if a.multiple else 5.15<duration<7.5), f'Unexpected composed duration: {duration}'
+        assert abs(duration-expected_output)<.65, (
+            f'Output duration {duration} differs from source + separate clips {expected_output}')
         audio=command(['ffmpeg','-v','error','-i',str(result),'-vn','-ar','48000',
             '-ac','1','-f','s16le','-'],binary=True)
         pcm=array('h');pcm.frombytes(audio)
@@ -220,6 +243,10 @@ def main():
               }))""")
             page.screenshot(path=str(a.out/'320px-overflow.png'),full_page=True)
             raise AssertionError('320px phone layout has horizontal overflow: '+json.dumps(offenders))
+        storage=page.locator('#result').get_attribute('data-storage')
+        assert storage in ('temporary-file','memory'),storage
+        if a.memory_target:
+            assert storage=='memory','Memory fallback did not run'
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
@@ -228,6 +255,7 @@ def main():
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
           'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,'multiple':a.multiple,
+          'storage':storage,'expectedOutput':expected_output,
           'originalToneBefore':lead_original,'originalToneDuring':insert_original,
           'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,
           'networkRequests':external,'pageErrors':errors}

@@ -581,6 +581,7 @@ import { buildTimeline } from './timeline.js';
       await checkResultPlayable(state.resultUrl);
       state.resultTemp=temporaryResult;
       temporaryResult=null;
+      $('result').dataset.storage=state.resultTemp ? 'temporary-file' : 'memory';
       $('result').hidden=false;
       $('resultInfo').textContent=l('完成動画 ','Output ')+fmt(fullDuration)
         +' · WebM VP8/Opus · '+Math.round(resultBlob.size/1024)+' KiB'

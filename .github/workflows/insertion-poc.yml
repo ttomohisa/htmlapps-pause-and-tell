@@ -4,7 +4,11 @@ on:
     branches:
       - main
     paths:
-      - 'experiments/insertion-poc/**'
+      - 'experiments/insertion-poc/*.js'
+      - 'experiments/insertion-poc/*.mjs'
+      - 'experiments/insertion-poc/*.py'
+      - 'experiments/insertion-poc/*.json'
+      - 'experiments/insertion-poc/index.template.html'
       - '.github/workflows/insertion-poc.yml'
   workflow_dispatch:
 permissions:
@@ -43,7 +47,7 @@ jobs:
         shell: bash
         run: |
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/insertion-http.log 2>&1 &
-          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/silent
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/silent --memory-target --expanded-input
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/source-audio --source-audio
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/multiple-source-audio --source-audio --multiple
       - name: Archive PoC output and inspection report
