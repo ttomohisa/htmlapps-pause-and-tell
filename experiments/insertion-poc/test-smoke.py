@@ -42,7 +42,7 @@ def main():
         errors=[]; external=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.on('request',lambda req:external.append(req.url) if req.url.startswith(('http:','https:')) and not req.url.startswith('http://127.0.0.1:') else None)
-        page.add_init_script("""() => {
+        page.add_init_script("""(() => {
           const mediaDevices = navigator.mediaDevices;
           Object.defineProperty(mediaDevices, 'getUserMedia', { configurable:true, value: async () => {
             const context = new AudioContext();
@@ -52,7 +52,7 @@ def main():
             window.__pocTracks=(window.__pocTracks||[]).concat(dest.stream.getAudioTracks());
             return dest.stream;
           }});
-        }""")
+        })()""")
         page.goto(a.url,wait_until='domcontentloaded')
         page.locator('#sourceFile').set_input_files(str(source))
         try:
