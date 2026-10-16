@@ -435,46 +435,61 @@ import { buildTimeline } from './timeline.js';
       $('exportStatus').textContent=l('元音声と説明音声を合成しています…','Composing source audio and explanations…');
       await output.start();
 
+      // Bound peak audio memory independently of completed movie length.
+      // AudioBufferSource.add() appends each 2-second rendered block with
+      // encoder backpressure; we no longer allocate one movie-long PCM buffer.
       const sampleRate=48000;
       const channels=originalAudio ? Math.min(2,Math.max(1,await originalAudio.getNumberOfChannels())) : 1;
-      const offline=new OfflineAudioContext(channels,Math.ceil(fullDuration*sampleRate),sampleRate);
-      function scheduleRange(buffer,chunkTimestamp,start,end,outputStart) {
-        const left=Math.max(start,chunkTimestamp);
-        const right=Math.min(end,chunkTimestamp+buffer.duration);
-        if(right-left<1/sampleRate)return;
-        const node=offline.createBufferSource();
-        node.buffer=buffer;
-        node.connect(offline.destination);
-        node.start(Math.max(0,outputStart+(left-start)),Math.max(0,left-chunkTimestamp),right-left);
-      }
-
-      if(originalAudio) {
-        const sourceSink=new AudioBufferSink(originalAudio);
-        let sawAudio=false;
-        const originalSegments=timeline.segments.filter(seg=>seg.kind==='original');
-        for await(const {buffer,timestamp} of sourceSink.buffers()){
-          for(const seg of originalSegments) {
-            scheduleRange(buffer,timestamp,seg.sourceStart/FPS,
-              (seg.sourceStart+seg.length)/FPS,seg.outputStart/FPS);
+      const maxAudioBlockSamples=sampleRate*2;
+      const sinks=new Map();
+      const seenAudio=new Set();
+      if(originalAudio) sinks.set('original',new AudioBufferSink(originalAudio));
+      for(const item of audioInputs) sinks.set(item.note.id,new AudioBufferSink(item.track));
+      let audioSamplesWritten=0;
+      for (const seg of timeline.segments) {
+        const outputStartSamples=Math.round(seg.outputStart/FPS*sampleRate);
+        const outputEndSamples=Math.round((seg.outputStart+seg.length)/FPS*sampleRate);
+        const totalSamples=outputEndSamples-outputStartSamples;
+        const sink=seg.kind==='original' ? sinks.get('original') : sinks.get(seg.note.id);
+        const segmentSourceStart=seg.kind==='original' ? seg.sourceStart/FPS : 0;
+        const trackId=seg.kind==='original' ? 'original' : seg.note.id;
+        for (let offset=0;offset<totalSamples;offset+=maxAudioBlockSamples) {
+          const count=Math.min(maxAudioBlockSamples,totalSamples-offset);
+          const start=segmentSourceStart+offset/sampleRate;
+          const end=start+count/sampleRate;
+          const context=new OfflineAudioContext(channels,count,sampleRate);
+          if(sink) {
+            function addAudioSlice({buffer,timestamp}) {
+              const left=Math.max(start,timestamp);
+              const right=Math.min(end,timestamp+buffer.duration);
+              if(right-left<1/sampleRate)return;
+              const node=context.createBufferSource();
+              node.buffer=buffer;
+              node.connect(context.destination);
+              node.start(Math.max(0,left-start),Math.max(0,left-timestamp),right-left);
+              seenAudio.add(trackId);
+            }
+            // Include the sample that began before the requested block edge.
+            const preceding=await sink.getBuffer(start);
+            if(preceding) addAudioSlice(preceding);
+            for await(const item of sink.buffers(start,end)) {
+              if(preceding&&Math.abs(item.timestamp-preceding.timestamp)<1e-7) continue;
+              addAudioSlice(item);
+            }
           }
-          sawAudio=true;
+          await audioSource.add(await context.startRendering());
+          audioSamplesWritten+=count;
         }
-        if(!sawAudio)throw new Error(l('元動画の音声を読み取れません。','Could not decode source audio.'));
       }
-      for(const seg of timeline.segments) {
-        if(seg.kind!=='explanation')continue;
-        const item=audioInputs.find(x=>x.note.id===seg.note.id);
-        if(!item)throw new Error('Explanation audio track was lost');
-        let sawVoice=false;
-        const voiceSink=new AudioBufferSink(item.track);
-        for await(const {buffer,timestamp} of voiceSink.buffers()){
-          scheduleRange(buffer,timestamp,0,item.note.duration,seg.outputStart/FPS);
-          sawVoice=true;
-        }
-        if(!sawVoice)throw new Error('No decodable audio in explanation '+seg.note.id);
+      if(audioSamplesWritten!==Math.round(timeline.frames/FPS*sampleRate)) {
+        throw new Error('Audio timeline sample count mismatch');
       }
-      const renderedAudio=await offline.startRendering();
-      await audioSource.add(renderedAudio);
+      if(originalAudio&&!seenAudio.has('original')) {
+        throw new Error(l('元動画の音声を読み取れません。','Could not decode source soundtrack.'));
+      }
+      for(const item of audioInputs) {
+        if(!seenAudio.has(item.note.id))throw new Error('Explanation audio missing: '+item.note.id);
+      }
       $('exportStatus').textContent=l('元動画と説明を結合しています…','Composing original frames and explanations…');
 
       const sink=new VideoSampleSink(vt);
