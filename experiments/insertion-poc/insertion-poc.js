@@ -1,6 +1,6 @@
 import {
   Input, BlobSource, ALL_FORMATS, VideoSampleSink, AudioBufferSink,
-  Output, WebMOutputFormat, BufferTarget, CanvasSource, AudioBufferSource, Quality
+  Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality
 } from 'mediabunny';
 import { buildTimeline } from './timeline.js';
 
@@ -8,13 +8,16 @@ import { buildTimeline } from './timeline.js';
   'use strict';
   const $ = id => document.getElementById(id);
   const FPS = 15;
-  const MAX_SOURCE_SECONDS = 15;
-  const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
-  const MAX_NOTE_SECONDS = 15;
+  // Experimental envelopes, not device or codec performance guarantees.
+  const MAX_SOURCE_SECONDS = 5 * 60;
+  const MAX_SOURCE_BYTES = 250 * 1024 * 1024;
+  const MAX_NOTE_SECONDS = 2 * 60;
+  const MAX_OUTPUT_SECONDS = 10 * 60;
+  const MAX_RAM_EXPORT_ESTIMATE = 96 * 1024 * 1024;
   let lang = 'ja';
   const state = {
     file: null, input: null, track: null, duration: 0,
-    sourceUrl: null, noteUrl: null, resultUrl: null,
+    sourceUrl: null, noteUrl: null, resultUrl: null, resultTemp: null,
     note: null, notes: [], nextNoteId: 1, recorder: null, mic: null, chunks: [],
     startedAt: 0, drawing: false, pointerId: null, activeStroke: null,
     events: [], strokes: [], freeze: null, busy: false
@@ -65,6 +68,9 @@ import { buildTimeline } from './timeline.js';
     playback.removeAttribute('src');
     playback.load();
     releaseUrl('resultUrl');
+    const expired=state.resultTemp;
+    state.resultTemp=null;
+    if(expired) void expired.directory.removeEntry(expired.name).catch(()=>{});
     $('result').hidden = true;
     $('resultInfo').textContent = '';
   }
@@ -143,7 +149,7 @@ import { buildTimeline } from './timeline.js';
     let input = null;
     let url = null;
     try {
-      if (file.size === 0 || file.size > MAX_SOURCE_BYTES) throw new Error(l('ファイルサイズは30MiB以内です。','Maximum file size is 30 MiB.'));
+      if (file.size === 0 || file.size > MAX_SOURCE_BYTES) throw new Error(l('動画は250MiB以内を選んでください。','Choose a video up to 250 MiB.'));
       input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
       const track = await input.getPrimaryVideoTrack();
       if (!track) throw new Error(l('映像トラックがありません。','Source has no video track.'));
@@ -151,7 +157,7 @@ import { buildTimeline } from './timeline.js';
       // Source audio is preserved outside inserted explanations at export.
       const duration = await input.computeDuration();
       if (!(duration > 0 && duration <= MAX_SOURCE_SECONDS))
-        throw new Error(l('元動画は15秒以内を選択してください。','Choose a source up to 15 seconds.'));
+        throw new Error(l('元動画は5分以内を選択してください。','Choose a source up to five minutes.'));
       const width = await track.getDisplayWidth();
       const height = await track.getDisplayHeight();
       if (!(width > 0 && height > 0)) throw new Error(l('映像のサイズが不明です。','Video dimensions are missing.'));
@@ -398,7 +404,7 @@ import { buildTimeline } from './timeline.js';
     errorNode.textContent='';
     clearResult();
     setBusy(true);
-    let videoInput=null,output=null;
+    let videoInput=null,output=null,temporaryResult=null;
     const audioInputs=[];
     try {
       if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined') {
@@ -423,11 +429,38 @@ import { buildTimeline } from './timeline.js';
       }
       const timeline=buildTimeline(duration,ordered,FPS);
       const fullDuration=timeline.duration;
-      if(fullDuration>32)throw new Error(l('このPoCでは完成動画を32秒以内にしてください。','Experimental export must be under 32 seconds.'));
+      if(fullDuration>MAX_OUTPUT_SECONDS)throw new Error(l('完成動画は試験上限10分を超えています。','Experimental output exceeds the 10-minute limit.'));
       const renderCanvas=document.createElement('canvas');
       renderCanvas.width=canvas.width;renderCanvas.height=canvas.height;
       const renderCtx=renderCanvas.getContext('2d',{alpha:false});
-      output=new Output({format:new WebMOutputFormat(),target:new BufferTarget()});
+      // Prefer a local temporary file, so long output doesn't continually
+      // grow and duplicate one giant in-memory ArrayBuffer.
+      let outputTarget=null;
+      if(navigator.storage?.getDirectory && crypto.randomUUID) {
+        try {
+          const directory=await navigator.storage.getDirectory();
+          const name='pause-and-tell-temp-'+crypto.randomUUID()+'.webm';
+          const handle=await directory.getFileHandle(name,{create:true});
+          temporaryResult={directory,handle,name};
+          const writable=await handle.createWritable();
+          outputTarget=new StreamTarget(writable,{chunked:true,chunkSize:2**20});
+        }catch(storageError) {
+          console.warn('Local temporary file unavailable:',storageError);
+          if(temporaryResult) {
+            try {await temporaryResult.directory.removeEntry(temporaryResult.name);}catch{}
+          }
+          temporaryResult=null;
+        }
+      }
+      if(!outputTarget) {
+        const estimate=fullDuration*(900000+96000)/8*1.5;
+        if(estimate>MAX_RAM_EXPORT_ESTIMATE) {
+          throw new Error(l('この端末では長い動画を一時保存できません。短くして再試行してください。',
+            'Temporary storage is unavailable; try a shorter composition.'));
+        }
+        outputTarget=new BufferTarget();
+      }
+      output=new Output({format:new WebMOutputFormat(),target:outputTarget});
       const videoSource=new CanvasSource(renderCanvas,{codec:'vp8',quality:new Quality({bitrate:900000})});
       const audioSource=new AudioBufferSource({codec:'opus',quality:new Quality({bitrate:96000})});
       output.addVideoTrack(videoSource,{frameRate:FPS});
@@ -541,13 +574,16 @@ import { buildTimeline } from './timeline.js';
         }
       }
       await output.finalize();
-      const bytes=output.target.buffer;
-      if(!bytes||bytes.byteLength<2048)throw new Error('Encoded output is empty');
-      state.resultUrl=URL.createObjectURL(new Blob([bytes],{type:'video/webm'}));
+      const encoded=temporaryResult ? await temporaryResult.handle.getFile() : output.target.buffer;
+      const resultBlob=encoded && new Blob([encoded],{type:'video/webm'});
+      if(!resultBlob||resultBlob.size<2048)throw new Error('Encoded output is empty');
+      state.resultUrl=URL.createObjectURL(resultBlob);
       await checkResultPlayable(state.resultUrl);
+      state.resultTemp=temporaryResult;
+      temporaryResult=null;
       $('result').hidden=false;
       $('resultInfo').textContent=l('完成動画 ','Output ')+fmt(fullDuration)
-        +' · WebM VP8/Opus · '+Math.round(bytes.byteLength/1024)+' KiB'
+        +' · WebM VP8/Opus · '+Math.round(resultBlob.size/1024)+' KiB'
         +' · '+ordered.length+l('件の説明',' inserted explanation(s)');
       $('exportStatus').textContent=l('完成動画を生成しました。最後まで再生して確認してください。',
         'Composition complete. Play the entire output to check it.');
@@ -560,6 +596,9 @@ import { buildTimeline } from './timeline.js';
         try {await output.cancel();}catch{}
       }
     }finally{
+      if(temporaryResult) {
+        try {await temporaryResult.directory.removeEntry(temporaryResult.name);}catch{}
+      }
       videoInput?.dispose();
       for(const item of audioInputs) item.input?.dispose();
       setBusy(false);
@@ -575,7 +614,8 @@ import { buildTimeline } from './timeline.js';
   window.addEventListener('pagehide',()=>{
     state.mic?.getTracks().forEach(t=>t.stop());
     if(state.input)state.input.dispose();
-    for(const k of ['sourceUrl','noteUrl','resultUrl'])releaseUrl(k);
+    clearResult();
+    for(const k of ['sourceUrl','noteUrl'])releaseUrl(k);
   });
   translate();setBusy(false);
 })();
