@@ -11,7 +11,10 @@ from playwright.sync_api import sync_playwright
 
 
 def command(argv, binary=False):
-    completed = subprocess.run(argv, check=True, capture_output=True)
+    completed = subprocess.run(argv, check=False, capture_output=True)
+    if completed.returncode:
+        raise RuntimeError(f"Command failed with exit {completed.returncode}: {argv}\n"
+                           + completed.stderr.decode(errors='replace')[-5000:])
     return completed.stdout if binary else completed.stdout.decode()
 
 
@@ -135,8 +138,13 @@ def main():
         # Source frame after the inserted section should be recognizably similar,
         # allowing for lossy VP8 recompression and frame-boundary timestamp rounding.
         def frame_at(path,second):
-            return command(['ffmpeg','-v','error','-ss',f'{second:.3f}',
-              '-i',str(path),'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','-'],binary=True)
+            # Seek AFTER opening the stream so FFmpeg decodes through the
+            # requested position. This checks that the late original frames
+            # actually decode sequentially instead of relying on WebM indexing.
+            # Limit FFmpeg worker threads on small hosted runners.
+            return command(['ffmpeg','-v','error','-threads','2','-filter_threads','1',
+              '-i',str(path),'-ss',f'{second:.3f}',
+              '-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','-'],binary=True)
         original=frame_at(source,args.source_seconds-3)
         composed=frame_at(output,duration-3)
         assert len(original)==len(composed) and original
