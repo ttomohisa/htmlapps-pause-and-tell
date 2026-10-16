@@ -1,11 +1,11 @@
 # G9 — Release-candidate verification and release decision (v0.9.0)
 
-> **Release decision: NO-GO / Draft** until required real iPhone Safari and Android Chrome full-flow tests pass. This is an *RC candidate review*, not permission to publish v1.0.0, merge a PR, claim device support or raise resource limits.
+> **Release decision: NO-GO / Draft** until required real iPhone Safari and Android Chrome full-flow tests pass. This is an *RC candidate review*, not permission to publish v1.0.0, merge a PR, claim device support or treat trial resource limits as verified.
 
 ## Actual scope / fixed prototype limits
 
 - Keep all v0.1–v0.8 behavior. Do not silently remove annotation tools, opt-in desktop Chromium audio mix, protected local microphone-only recording, partial recovery or conditional OS Share.
-- Do not increase the **source 30s / 100MiB**, **recording 90s** or **96MiB recording-chunk** caps to proposed 60s / 250MiB / 180s without physical memory, performance and audio/video verification.
+- **v0.9.2 trial policy:** Following explicit user feedback, input 5min / 250MiB, recording 10min and 256MiB recorded-chunk caps are enabled **without claiming real-device validation**. These are not guaranteed device-supported durations; mobile memory, audio/video synchronization and saved-file testing remain release blockers.
 - Current automatic processing remains local, with strict `default-src 'none'`, `connect-src 'none'`, `worker-src 'none'`. Explicit user-initiated OS Share may deliver *generated* output to an external recipient; don't misstate it as on-device only.
 - Do not promise MP4; the browser selects an actual MediaRecorder-supported MP4 or WebM container.
 - Template release artifacts: `dist/index.html`, `dist/index.self-extract.html`, `pause-and-tell.html` (readable root copy) and canonical `assets/favicon.svg`. Exact content paths must be derived from the current build, not guessed.
@@ -29,7 +29,7 @@
 | T-13 | Smartphone native Save / Share | Saved file opens in file app / recipient | **BLOCKER: iOS + Android untested** |
 | T-14 / AC-11 | HTTPS and direct file:// readable + self-extract | Real mic/save/CSP without hidden network | **BLOCKER: file:// untested** |
 | T-15 / AC-12 | JA/EN, 320px, long name, landscape, help and error | No clipping/scroll trap/collisions | Prior G8 Chromium PASS; v0.9 JA/EN screenshots acquired (not yet in repo); physical PENDING |
-| T-16 | Progressively increase input/output size after device profiling | Determine 60s/250MiB/180s feasibility | **BLOCKER for increasing limits** |
+| T-16 | Test long inputs and recording on physical devices | Check 5-minute/250MiB input, 10-minute output and 256MiB chunks without corrupting audio or video | **BLOCKER for release (new limits unverified)** |
 
 ## AC acceptance and release blockers
 
@@ -179,3 +179,12 @@ In desktop and 320px cases the exported result had video+audio, with Ctrl+Z, Ctr
 - **Automation:** The existing optional `tests/g9-browser-regression.py` was updated to match Record & play autoplay semantics, and `tests/recording-ux-smoke.py` added for browser/filename, Undo/Redo and pause continuity. These developer-only harnesses are **not** runtime app dependencies or real-device certification.
 
 **Gate:** automated v0.9.1 usability + output-media subset PASS. **Overall G9 NO-GO** continues because actual iOS/Android microphone, pause/replay, native file save/playback, device rotation and `file://` testing remain unverified. Source 30s/100 MiB and output 90s remain trial limits; the observed Chromium successes do not justify raising them for all smartphones yet.
+
+
+## v0.9.2 longer-recording / hero regression — 2026-10-16
+
+The user requested more recording time and the previous hero / three-step progress back. Application code now accepts **5-minute source video, 250 MiB input file and 10-minute output recording**, guarded by an in-memory **256 MiB chunk budget** (previously 30s / 100MiB / 90s and 96MiB chunks). The encoder still targets **2.4 Mbps video**. This is an experimental software cap, not a guarantee of a ten-minute capture on every phone; output may stop early on memory pressure, chunk limit or device interruption.
+
+The hero heading, description, local-processing badge and three-step progress remain in the DOM and visible through ready, recording and result phases. The video-first drawing tools and inline playback/record/finish buttons remain unchanged. Narrow-view hero typography is compact.
+
+**Not yet tested on physical devices:** real-time recording exceeding 90 seconds, sessions of at least 5 minutes, near-10-minute output, 250 MiB inputs, low-memory recovery, independent saved-file playback, and audio synchronization after long pauses. Manual Playwright/Chromium can exercise the 95-second branch with the option --long-recording in tests/recording-ux-smoke.py; this does not replace actual phone testing. Standalone build/contract checks are also not proof of long-session reliability. **G9 NO-GO** remains.

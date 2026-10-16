@@ -193,7 +193,7 @@ if ($source.Contains("Single HTML App Starter") -or $source.Contains("Starter wo
   throw "A starter-specific page has leaked into Pause & Tell."
 }
 if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback must never pause MediaRecorder." }
-if ($source.Contains("document.querySelector('.page-intro').hidden=!inputPhase") -or $source.Contains("$('#ptSteps').hidden=!inputPhase")) { throw "Hero and steps must remain visible after loading." }
+if ($source.Contains("document.querySelector('.page-intro').hidden=!inputPhase") -or $source.Contains("`$('#ptSteps').hidden=!inputPhase")) { throw "Hero and steps must remain visible after loading." }
 if ($source.Contains("body:has(#ptStudioPanel:not([hidden])) .page-intro,")) { throw "Mobile recording must not hide the hero." }
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
   throw "Specification and development gates are missing."

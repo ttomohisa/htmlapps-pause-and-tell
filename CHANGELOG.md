@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.9.2 — Recording extension and restored hero (2026-10-16)
+
+- Raised experimental input caps from 30s / 100MiB to **5min / 250MiB** and output duration from 90s to **10min**. Increased the in-memory chunk guard from 96MiB to **256MiB** while retaining the 2.4Mbps video target; recording can still end early under memory pressure.
+- Restored the hero description and three-step progress in loaded, recording and result states on desktop and mobile, without moving recording controls away from the video.
+- Aligned Japanese/English help, error strings, README, APP_SPEC, development plan and optional browser regression with the new limits.
+- **No release approval:** longer session stability and actual iPhone/Android save/playback still require physical verification.
+
 ### v0.9.1 — Video-first recording, Undo/Redo and UI cleanup (2026-10-16)
 
 - Compact recording workspace: drawing tools above the video, source play/record/finish actions immediately below the video, followed by clocks and optional audio controls. Removed the mobile bottom-fixed recording bar and unnecessary progress panels during editing.
