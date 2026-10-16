@@ -123,12 +123,33 @@ def main():
         signal=pcm[48000*2:48000*3]
         rms=math.sqrt(sum(v*v for v in signal)/len(signal))/32768 if signal else 0
         assert rms>.01,f'No narration samples at the inserted interval, RMS={rms}'
+        # Verify original frames survive both before AND after insertion.
+        def rgb_at(file, seconds):
+            return command(['ffmpeg','-v','error','-ss',f'{seconds:.3f}','-i',
+              str(file),'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','-'],binary=True)
+        def mean_abs(a,b):
+            assert len(a)==len(b) and len(a)>0,(len(a),len(b))
+            return sum(abs(x-y) for x,y in zip(a,b))/len(a)
+        shift=duration-4.0
+        prefix_diff=mean_abs(rgb_at(source,.4),rgb_at(result,.4))
+        suffix_diff=mean_abs(rgb_at(source,3.1),rgb_at(result,3.1+shift))
+        assert prefix_diff<35, f'Original opening frames altered too much: {prefix_diff}'
+        assert suffix_diff<35, f'Original trailing frames missing or wrong: {suffix_diff}'
+        # The original source was silent: there must not be narration outside
+        # of the explicitly inserted interval.
+        before=pcm[int(.35*48000):int(.85*48000)]
+        after=pcm[int((duration-.7)*48000):int((duration-.2)*48000)]
+        def rms_of(data):
+            return math.sqrt(sum(v*v for v in data)/max(1,len(data)))/32768
+        assert rms_of(before)<.03 and rms_of(after)<.03, 'Narration leaked into original intervals'
+        page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
         assert live==0,f'Microphone tracks not released: {live}'
         report={'status':'PASS','input':4,'output':duration,'video':streams['video']['codec_name'],
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
-          'outputBytes':result.stat().st_size,'networkRequests':external,'pageErrors':errors}
+          'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
+          'tailFrameError':suffix_diff,'networkRequests':external,'pageErrors':errors}
         (a.out/'report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
         print('PASS insertion PoC:',json.dumps(report))
         context.close();browser.close()

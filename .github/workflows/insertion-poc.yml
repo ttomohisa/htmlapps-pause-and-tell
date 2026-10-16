@@ -48,6 +48,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: insertion-poc-evidence
-          path: insertion-evidence/
+          path: |
+            insertion-evidence/
+            experiments/insertion-poc/dist/index.html
           if-no-files-found: ignore
           retention-days: 7
