@@ -179,6 +179,10 @@ def main():
         else:
             assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         if a.multiple:
+            # The original soundtrack must also survive BETWEEN the two inserts.
+            middle_original=tone_amplitude(pcm,4.35,440)
+            middle_narration=tone_amplitude(pcm,4.35,800)
+            assert middle_original>.03 and middle_narration<.025, ('Middle source audio lost',middle_original,middle_narration)
             second_voice=tone_amplitude(pcm,5.2,800)
             second_original=tone_amplitude(pcm,5.2,440)
             assert second_voice>.04 and second_original<.025,('Second inserted segment incorrect',second_voice,second_original)
@@ -204,6 +208,9 @@ def main():
         if not a.source_audio:
             assert rms_of(before)<.03 and rms_of(after)<.03, 'Silent original intervals contain unexpected audio'
         # For sources with sound the 440/800 Hz assertions above distinguish tracks.
+        page.set_viewport_size({'width':320,'height':568})
+        overflow=page.evaluate('document.documentElement.scrollWidth>innerWidth+1')
+        assert not overflow, '320px phone layout has horizontal overflow'
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
