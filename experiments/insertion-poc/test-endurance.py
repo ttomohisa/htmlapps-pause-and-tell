@@ -36,17 +36,23 @@ def main():
     ap.add_argument('--chromium', default='/usr/bin/chromium')
     ap.add_argument('--out', type=Path, default=Path('endurance-evidence'))
     ap.add_argument('--source-seconds', type=int, choices=(30, 60, 180), default=30)
+    ap.add_argument('--source-format', choices=('webm', 'mp4'), default='webm')
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    source = args.out / f'original-{args.source_seconds}s.webm'
+    source = args.out / f'original-{args.source_seconds}s.{args.source_format}'
     start = time.monotonic()
-    command(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i',
-             f'testsrc2=size=320x180:rate=15:duration={args.source_seconds}',
-             '-f', 'lavfi', '-i',
-             f'sine=frequency=440:sample_rate=48000:duration={args.source_seconds}',
-             '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'libvpx',
-             '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '350k',
-             '-c:a', 'libopus', '-b:a', '48k', '-shortest', str(source)])
+    argv=['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i',
+          f'testsrc2=size=320x180:rate=15:duration={args.source_seconds}',
+          '-f', 'lavfi', '-i',
+          f'sine=frequency=440:sample_rate=48000:duration={args.source_seconds}',
+          '-map', '0:v:0', '-map', '1:a:0']
+    if args.source_format=='mp4':
+        argv+=['-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',
+               '-b:v','400k','-c:a','aac','-b:a','64k','-movflags','+faststart']
+    else:
+        argv+=['-c:v','libvpx','-deadline','realtime','-cpu-used','8',
+               '-b:v','350k','-c:a','libopus','-b:a','48k']
+    command(argv+['-shortest',str(source)])
     insertion_at = min(10, args.source_seconds / 3)
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=args.chromium, headless=True,
@@ -75,7 +81,16 @@ def main():
         })()""")
         page.goto(args.url, wait_until='domcontentloaded')
         page.locator('#sourceFile').set_input_files(str(source))
-        page.locator('#editor').wait_for(state='visible', timeout=35000)
+        try:
+            page.locator('#editor').wait_for(state='visible', timeout=35000)
+        except Exception as error:
+            diagnostic={'message':page.locator('#error').inner_text(),
+                'pageErrors':errors,'format':args.source_format,
+                'sourceInfo':page.locator('#sourceInfo').inner_text()}
+            (args.out/'input-failure.json').write_text(
+                json.dumps(diagnostic,indent=2,ensure_ascii=False),encoding='utf-8')
+            page.screenshot(path=str(args.out/'input-failure.png'),full_page=True)
+            raise AssertionError('Video source could not be prepared: '+json.dumps(diagnostic)) from error
         page.locator('#seek').evaluate("""(node, value)=>{
           node.value=String(Math.round(value * 1000));
           node.dispatchEvent(new Event('input',{bubbles:true}));
@@ -131,7 +146,7 @@ def main():
         assert mode=='temporary-file',('Expected OPFS streaming on Chromium',mode)
         assert page.evaluate("()=>window.__enduranceTracks?.every(t=>t.readyState==='ended')") is True
         assert not external and not errors,{'external':external,'errors':errors}
-        result={'status':'PASS','sourceSeconds':args.source_seconds,
+        result={'status':'PASS','sourceSeconds':args.source_seconds, 'sourceFormat':args.source_format,
                 'outputSeconds':duration,'insertedSeconds':inserted,
                 'outputBytes':output.stat().st_size,'sourceBytes':source.stat().st_size,
                 'durationRunSeconds':round(time.monotonic()-start,2),

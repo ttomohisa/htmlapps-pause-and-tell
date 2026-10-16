@@ -10,15 +10,23 @@ on:
           - "60"
           - "180"
         default: "30"
+      source_format:
+        description: "Source container/codec fixture"
+        type: choice
+        options:
+          - "webm"
+          - "mp4"
+        default: "webm"
   pull_request:
     types: [edited]
 permissions:
   contents: read
 jobs:
   endurance:
-    # On draft PRs, edit its title to include [run-endurance] to opt in.
+    # Explicit draft PR title tag [run-endurance-60] runs a 60s test.
+    # [run-endurance-mp4] runs the 30s MP4 fixture; no normal PR commits trigger this.
     # Normal PR pushes and unrelated PR edits never run the expensive job.
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-endurance]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-endurance-60]') || contains(github.event.pull_request.title, '[run-endurance-mp4]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -43,7 +51,7 @@ jobs:
       - name: Verify a real saved longer WebM
         run: |
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-endurance.log 2>&1 &
-          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "${{ github.event.inputs.source_seconds || '30' }}"
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "${{ github.event.inputs.source_format || (contains(github.event.pull_request.title, '[run-endurance-mp4]') && 'mp4' || 'webm') }}"
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v7
