@@ -229,6 +229,26 @@ import {
     let mic=null;
     try {
       const position=Math.max(0, Math.min(state.duration, sourceVideo.currentTime));
+      // A seek sets currentTime immediately but the destination frame may still
+      // be decoding. Never capture an earlier/stale frame as the insertion base.
+      if (sourceVideo.seeking || sourceVideo.readyState < 2) {
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>{cleanup();reject(new Error('Destination frame not ready'));},10000);
+          function cleanup(){
+            clearTimeout(timeout);
+            sourceVideo.removeEventListener('seeked',check);
+            sourceVideo.removeEventListener('loadeddata',check);
+            sourceVideo.removeEventListener('canplay',check);
+          }
+          function check(){
+            if(!sourceVideo.seeking && sourceVideo.readyState>=2){cleanup();resolve();}
+          }
+          sourceVideo.addEventListener('seeked',check);
+          sourceVideo.addEventListener('loadeddata',check);
+          sourceVideo.addEventListener('canplay',check);
+          check();
+        });
+      }
       const freeze=document.createElement('canvas');
       freeze.width=canvas.width;freeze.height=canvas.height;
       const freezeCtx=freeze.getContext('2d',{alpha:false});

@@ -72,7 +72,19 @@ def main():
         }""")
         wait_for(lambda: abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-2)<.1)
         page.locator('#startNote').click()
-        page.locator('#finishNote').wait_for(state='visible',timeout=25000)
+        try:
+            page.locator('#finishNote').wait_for(state='visible',timeout=25000)
+        except Exception as error:
+            diagnostic={
+                'message':page.locator('#error').inner_text(),
+                'capture':page.locator('#captureStatus').inner_text(),
+                'pageErrors':errors,
+                'sourceTime':page.locator('#sourceVideo').evaluate('(v)=>v.currentTime'),
+                'readyState':page.locator('#sourceVideo').evaluate('(v)=>v.readyState'),
+                'seeking':page.locator('#sourceVideo').evaluate('(v)=>v.seeking')
+            }
+            page.screenshot(path=str(a.out/'failure-capture.png'),full_page=True)
+            raise AssertionError('Failed to start isolated explanation: '+json.dumps(diagnostic)) from error
         canvas=page.locator('#drawCanvas').bounding_box()
         page.mouse.move(canvas['x']+canvas['width']*.35,canvas['y']+canvas['height']*.4)
         page.mouse.down()
