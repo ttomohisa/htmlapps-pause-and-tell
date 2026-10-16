@@ -14,12 +14,12 @@
 
 | Case | Steps | Required evidence | Status |
 | --- | --- | --- | --- |
-| T-01 / AC-01 | 20s source, play 8s → pause 20s → finish remaining 12s | ~40s real output, no frame/audio drop during pause | Pending fresh v0.9 automatic and physical tests |
-| T-02 | Narrate 10s at first frame before play | Output contains still first frame + voice at start | Pending |
-| T-03 / AC-04 | Source ends, narrate 10s more | Last frame and voice preserved until stop | Prior v0.6 90s automated sample; verify RC |
-| T-04 / AC-02 | Circle, arrow, pen on playing source | Source only pauses; coordinates recorded into output | Prior v0.3 automated; verify RC |
-| T-05 / AC-03 | Undo/Clear/Play after marker | Prior captured marks remain; subsequent frames clear | Prior v0.3 automated; verify RC |
-| T-06 / AC-05 | 16:9, 9:16, square, rotated metadata, variable CSS scale | Correct orientation, picture frame, positions | Rotation physical required |
+| T-01 / AC-01 | 20s source, play 8s → pause 20s → finish remaining 12s | ~40s real output, no frame/audio drop during pause | **v0.9 Chromium automated PASS** (40.159s video / 40.176s audio); physical PENDING |
+| T-02 | Narrate 10s at first frame before play | Output contains still first frame + voice at start | **Partial automated PASS**: initial 2s silent-source pause with voice; exact 10s physical PENDING |
+| T-03 / AC-04 | Source ends, narrate 10s more | Last frame and voice preserved until stop | **Partial automated PASS**: v0.9 extra ~2s after end; prior v0.6 90s; 10s/device test PENDING |
+| T-04 / AC-02 | Circle, arrow, pen on playing source | Source only pauses; coordinates recorded into output | **v0.9 Chromium automated PASS** on UI gestures, saved frames; physical PENDING |
+| T-05 / AC-03 | Undo/Clear/Play after marker | Prior captured marks remain; subsequent frames clear | **Partial v0.9 PASS** on playback clearing; prior G3 undo/clear; physical PENDING |
+| T-06 / AC-05 | 16:9, 9:16, square, rotated metadata, variable CSS scale | Correct orientation, picture frame, positions | **v0.9 Chromium PASS**: 480×270 / 270×480 / 360×360 / 90° rotation → 270×480; physical PENDING |
 | T-07 / AC-06 | Deny microphone permission then retry | No broken or silent success | Prior G6 simulated; physical required |
 | T-08 | Unsupported codec/invalid/zero-second input | Explicit localized errors | Prior G6 simulated; verify RC |
 | T-09 | Source audio present/absent, Voice only | No unintended source audio | Prior G5 simulated; verify RC |
@@ -28,7 +28,7 @@
 | T-12 / AC-09 | Cancel save, retry with edited filename | Output kept, actual MIME/extension correct | Prior G7 simulated; real OS pending |
 | T-13 | Smartphone native Save / Share | Saved file opens in file app / recipient | **BLOCKER: iOS + Android untested** |
 | T-14 / AC-11 | HTTPS and direct file:// readable + self-extract | Real mic/save/CSP without hidden network | **BLOCKER: file:// untested** |
-| T-15 / AC-12 | JA/EN, 320px, long name, landscape, help and error | No clipping/scroll trap/collisions | Prior G8 simulated; verify RC |
+| T-15 / AC-12 | JA/EN, 320px, long name, landscape, help and error | No clipping/scroll trap/collisions | Prior G8 Chromium PASS; v0.9 JA/EN screenshots acquired (not yet in repo); physical PENDING |
 | T-16 | Progressively increase input/output size after device profiling | Determine 60s/250MiB/180s feasibility | **BLOCKER for increasing limits** |
 
 ## AC acceptance and release blockers
@@ -57,6 +57,62 @@ For fixed time stamps in WebM with indefinite container duration, use `ffprobe` 
 ## Physical-device execution (required; not automatable from this environment)
 
 **Run the following on every required target** (Windows Chrome/Edge, Android Chrome physical, iPhone Safari physical): open HTTPS Preview and direct standalone `file://` (where OS permits). Grant real microphone, load 16:9 and portrait short clips, record a pause of at least 10–20s while speaking, annotate during source playback, finish recording, save, locate in Files/Downloads, reopen in a native file viewer and listen to the full output. Repeat denial, background interruption, rotate viewport, Help, Share Cancel/unsupported and 90s cap as appropriate. Record actual OS and browser version, input codec, export MIME, native player result and screen/video evidence. Do not substitute user-agent emulation or fake microphone for this evidence.
+
+## Fresh automated G9 evidence — 2026-10-16
+
+**Exact production artifact used:** GitHub Actions-built single HTML from \`e170086a3c0f95ee9b44622c116473b02f79894c\` (v0.9.0). Playback/recording tests used headless **Linux Chromium 144**, with an **880 Hz simulated WebAudio microphone**. The HTML was loaded into an \`about:blank\` Playwright context; **this is not a direct \`file://\` or HTTPS test**. All measurements below are from locally exported WebM files, not just UI state.
+
+### T-01 / AC-01: 8s play → 20s frozen → remaining source → save
+
+- Input: **20.000s** H.264 test video, source 480×270.
+- After first play, the source paused at **8.043858s** and remained at **exactly 8.043858s** after **20 seconds** of wall-clock waiting.
+- Output file: **4,206,891 bytes**, WebM **VP8 video + Opus audio**. Source finished, then the user-like stop action finalized successfully.
+- \`ffprobe\` last packet end: **video 40.159s**, **audio 40.176s**.
+- Decoded frames at output **12s and 20s** were pixel-identical (RGB mean absolute error **0.0**); at output 26s the difference from 12s was **0.00114** (only compression noise); at output 37s the source had resumed (difference **19.807**).
+- Decoded audio RMS in 0.8s windows at output 12, 20, 26, 37s: **0.12997 / 0.12974 / 0.12975 / 0.12993**. Synthetic microphone continued through freeze and resumed playback.
+- No page JavaScript exceptions, unexpected CSP violations or external HTTP(S) requests were detected.
+- **Result:** fresh G9 Chromium automated **PASS**. Physical device G1 / G9 remains **PENDING**.
+
+### Stop-count, orientation and repeated-take matrix
+
+Seven independently saved and decoded recordings passed:
+
+| Source | Pause count | Source → encoded Canvas size | Recorded bytes | Video/Audio | Simulated mic tracks live after result |
+| --- | ---: | --- | ---: | --- | ---: |
+| 16:9 | 0 | 480×270 → 480×270 | 866,663 | VP8/Opus | 0 |
+| 16:9 | 1 | 480×270 → 480×270 | 852,157 | VP8/Opus | 0 |
+| 16:9 | 3 | 480×270 → 480×270 | 864,810 | VP8/Opus | 0 |
+| 16:9 | 10 | 480×270 → 480×270 | 905,756 | VP8/Opus | 0 |
+| Portrait | 3 | 270×480 → 270×480 | 977,748 | VP8/Opus | 0 |
+| Square | 1 | 360×360 → 360×360 | 831,173 | VP8/Opus | 0 |
+| 90° display-matrix rotation | 1 | 270×480 → 270×480 | 868,819 | VP8/Opus | 0 |
+
+All seven cases reported **zero page exceptions** and **zero external HTTP requests**. The rotated test source was regenerated with *actual* \`display_rotation=90\` metadata; an initial file merely labeled "rotated" lacked rotation metadata, so its earlier result was **not counted** as a rotation pass.
+
+### T-02/T-03/T-04/T-05: first/last still frame, drawings, output
+
+One additional saved **1,136,289-byte WebM** contained VP8 video and Opus audio until **11.740s / 11.797s** packet endings. Started with ~2 seconds of source paused and synthetic microphone recording; decoded first-frame windows at 0.5s/1.3s had pixel MAE **0.006**, and audio RMS **0.12969 / 0.12973**. Then Circle/Arrow/Pen mouse gestures each auto-paused a playing source (at source positions 0.760s, 1.591s, 2.404s). Decoded frames show drawn outlines during their associated paused segments and clearing after playback resumes. The source reached its 5s end; output continued ~2s with microphone (audio RMS at 10.5s **0.12951**). This is shorter than the 10s-specific planned T-02/T-03 physical acceptance tests.
+
+### Audio–visual sync target (±250ms)
+
+Using a separate dark 480×270 source video, the **same pointerdown** both placed a yellow Point ring into the captured Canvas and triggered a short 1400 Hz test pulse in the *simulated* microphone MediaStream. The decoded exported video first contained the ring and the decoded PCM first exceeded an RMS threshold in these three independent takes:
+
+| Run | First ring frame PTS | First mic pulse | Ring minus pulse |
+| --- | ---: | ---: | ---: |
+| 1 | 2.067s | 2.090s | **−23ms** |
+| 2 | 2.069s | 2.080s | **−11ms** |
+| 3 | 2.033s | 2.060s | **−27ms** |
+
+The analysis uses pass-through video frame decoding (no FFmpeg synthetic duplicate frames), source-level yellow-pixel threshold and 10ms audio RMS windows. Timestamp uncertainty is approximately one output-video frame plus one audio window; this is a **headless Chromium laboratory result**, not a physical audio/video synchronization guarantee. All three measured offsets fall within the ±250ms RC target.
+
+### What this does NOT prove
+
+- iPhone Safari, Android Chrome and Windows desktop with actual microphone/OS file saving and separate player are **UNTESTED**.
+- Real \`file://\` navigation remains **blocked by this browser test environment** (\`ERR_BLOCKED_BY_ADMINISTRATOR\`), not diagnosed as an app defect. HTTPS Preview also needs a real-device full flow.
+- Native Web Share, actual screen-reader announcements, low-memory mobile performance, phone lock/call recovery, and proposed 60s/250MiB/180s increased limits remain **UNTESTED**.
+- Japanese/English 1360×950 screenshots were captured from the actual v0.9.0 recording workspace; **the PNGs are evidence artifacts, not yet committed to \`assets/screenshot.png\` / README as release screenshots**.
+- **G9 decision: NO-GO / keep Draft PR unmerged.** Automated regression success must not be conflated with physical AC-10 acceptance.
+
 
 ## Status and decision
 
