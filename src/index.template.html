@@ -615,6 +615,7 @@
     #ptStudioPanel .pt-clocks > div { font-size:12px; }
     #ptStudioPanel .pt-seek { margin:5px 0 0; }
     .pt-seek-note { margin:4px 0 8px; color:var(--muted); font-size:12px; line-height:1.6; }
+    #ptSeek { min-height:44px; }
     .pt-start-mode { display:flex; align-items:center; gap:9px; margin:5px 0 0;
       color:var(--muted); font-size:12px; min-height:38px; cursor:pointer; }
     .pt-start-mode input { width:18px; height:18px; accent-color:var(--accent); }
@@ -2880,6 +2881,8 @@
       const finishSeekDrag=()=>{ state.seekDragging=false; updateClock(); };
       seekControl.addEventListener('pointerup',finishSeekDrag);
       seekControl.addEventListener('pointercancel',finishSeekDrag);
+      window.addEventListener('pointerup',finishSeekDrag);
+      window.addEventListener('pointercancel',finishSeekDrag);
       seekControl.addEventListener('blur',finishSeekDrag);
       seekControl.addEventListener('change',finishSeekDrag);
       seekControl.addEventListener('input',event=>{
@@ -2891,7 +2894,7 @@
           // Continuous capture: moving the source skips/repeats frames in the output;
           // it does not insert independent segments into the original file.
           sourceVideo.pause();
-          if (drawing.strokes.length || drawing.active) clearDrawing();
+          if (drawing.strokes.length || drawing.active || drawing.undoStack.length || drawing.redoStack.length) clearDrawing();
           logDetail('Recording source seek to '+destination.toFixed(2)+'s; mic capture continues');
         }
         sourceVideo.currentTime=Math.max(0,Math.min(sourceVideo.duration,destination));

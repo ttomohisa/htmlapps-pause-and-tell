@@ -138,9 +138,9 @@ def main():
                 assert page.locator("#ptSeek").is_enabled()
                 # Scrubbing in a live capture pauses only source playback.
                 page.locator("#ptSeek").evaluate("""el=>{
-                  el.value='750'; el.dispatchEvent(new Event('input',{bubbles:true}));
+                  el.value='400'; el.dispatchEvent(new Event('input',{bubbles:true}));
                 }""")
-                until(lambda:abs(page.locator("#ptVideo").evaluate("(v)=>v.currentTime")-3.75)<.18)
+                until(lambda:abs(page.locator("#ptVideo").evaluate("(v)=>v.currentTime")-2.0)<.18)
                 assert page.locator("#ptVideo").evaluate("(v)=>v.paused")
                 assert page.locator("#ptSeekNote").is_visible()
                 assert page.locator("#ptStop").is_enabled()

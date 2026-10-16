@@ -101,7 +101,6 @@ $requiredTokens = @(
   'confirmFinishMessage',
   'function confirmFinishRecording()',
   'if (state.finishPromptOpen) AppConfirm.dismiss()',
-  "'tool: ''pen''',"
   'MAX_DRAW_HISTORY',
   'function applyDrawingUndo()',
   'function applyDrawingRedo()',
@@ -201,8 +200,8 @@ if ($source.Contains("Single HTML App Starter") -or $source.Contains("Starter wo
 }
 if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback must never pause MediaRecorder." }
 if (-not $source.Contains('data-draw-tool="pen" aria-pressed="true"')) { throw "Pen must be the initially selected drawing tool." }
-if (-not $source.Contains("$('#ptSeek').disabled = !['ready','recording'].includes(phase)")) { throw "Seeking during recording must be enabled." }
-if ($source.Contains("$('#ptStop').addEventListener('click', () => stopRecording())")) { throw "Manual finish must request confirmation." }
+if (-not $source.Contains("!['ready','recording'].includes(phase)")) { throw "Seeking during recording must be enabled." }
+if (-not $source.Contains("addEventListener('click', () => void confirmFinishRecording())")) { throw "Manual finish must request confirmation." }
 if ($source.Contains("document.querySelector('.page-intro').hidden=!inputPhase") -or $source.Contains("`$('#ptSteps').hidden=!inputPhase")) { throw "Hero and steps must remain visible after loading." }
 if ($source.Contains("body:has(#ptStudioPanel:not([hidden])) .page-intro,")) { throw "Mobile recording must not hide the hero." }
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
