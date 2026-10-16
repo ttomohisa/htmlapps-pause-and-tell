@@ -253,6 +253,23 @@ def main():
         suffix_diff=mean_abs(rgb_at(source,last_source_sample),rgb_at(result,last_source_sample+shift))
         assert prefix_diff<35, f'Original opening frames altered too much: {prefix_diff}'
         assert suffix_diff<35, f'Original trailing frames missing or wrong: {suffix_diff}'
+        if a.portrait:
+            # The central part of the pointer-drawn diagonal must be visible
+            # in the *encoded inserted frame*. Aspect alone is not sufficient.
+            still=rgb_at(source,2.0)
+            inserted_frame=rgb_at(result,2.8)
+            def patch_pixels(data):
+                cx,cy=int(width*.53),int(height*.53)
+                values=[]
+                for y in range(cy-5,cy+6):
+                    for x in range(cx-5,cx+6):
+                        idx=(y*width+x)*3
+                        values.extend(data[idx:idx+3])
+                return values
+            original_patch,marked_patch=patch_pixels(still),patch_pixels(inserted_frame)
+            drawn_delta=sum(abs(x-y) for x,y in zip(original_patch,marked_patch))/len(marked_patch)
+            assert drawn_delta>12, ('Recorded portrait Pen line did not appear at tap position',drawn_delta)
+
         # The original source was silent: there must not be narration outside
         # of the explicitly inserted interval.
         before=pcm[int(.35*48000):int(.85*48000)]
