@@ -94,6 +94,7 @@ def main():
             page.screenshot(path=str(a.out/'failure-input.png'),full_page=True)
             raise AssertionError('Could not open source: '+json.dumps(diagnostic)) from error
         assert not page.locator('#startNote').is_disabled()
+        assert page.locator('#sourceVideo').evaluate('(v)=>v.muted') is False
         page.locator('#seek').evaluate("""element => {
             element.value='500';element.dispatchEvent(new Event('input',{bubbles:true}));
         }""")

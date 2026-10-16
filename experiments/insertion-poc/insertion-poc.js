@@ -213,7 +213,8 @@ import { buildTimeline } from './timeline.js';
       $('position').textContent = fmt(0);
       $('sourceInfo').textContent = file.name + ' · ' + fmt(duration) + ' · ' + width + '×' + height
         + ' · ' + (audio ? l('元音声あり','Original audio present') : l('無音動画','Silent source'));
-      info(l('任意の位置へ移動し、「この位置に説明を追加」を押します。','Seek and select Record explanation here.'));
+      info(l('元動画の再生では音声も聞けます。説明の録音を始めると元動画は停止します。',
+        'Playing the original also plays its soundtrack. Starting narration pauses the source.'));
     } catch (e) {
       if(changedPreview) {
         sourceVideo.pause();
