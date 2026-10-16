@@ -2,12 +2,17 @@
 
 ## [Unreleased]
 
+### v0.10.1 — preserve original soundtrack around explanations (PoC only)
+
+- Permit silent or sound-bearing short source clips; decode and reschedule original audio before and after the inserted narration segment. Original sound is absent during the explanation, and narration does not extend into source intervals.
+- Confirmed both source types in Chromium with generated saved WebMs and independent 440/800 Hz signal measurements; main application remains unchanged. [CI evidence](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38863341916).
+
 ### v0.10.0 — isolated explanation-insertion PoC (not released)
 
 - Record explanation audio and timestamped Pen strokes independently at one source timestamp, without recording the original video throughout the narration.
 - At export, decode and re-encode original source frames offline, insert the explanation, and mux one WebM/VP8/Opus output. The default v0.9.3 recording application is unchanged.
 - Synthetic Chromium CI produced a 5.94-second file from four seconds of silent source plus ~1.94 seconds of narration, with measured video frames before/after insertion and audible voice.
-- Source audio, multiple inserted clips, long or mobile media, and production compatibility remain deliberately unimplemented/untested.
+- Original soundtrack handling was added in the v0.10.1 PoC extension (synthetic Chromium/ffprobe PASS). Multiple inserted clips, long/mobile media and production compatibility remain unimplemented/untested.
 
 ### v0.9.3 — In-recording source seek, default Pen and confirmation (2026-10-16)
 

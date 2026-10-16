@@ -1,4 +1,4 @@
-# Pause & Tell v0.10.0 — Insertion PoC verification
+# Pause & Tell insertion PoC — v0.10.0–v0.10.1 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.
 
@@ -15,10 +15,10 @@
 
 ## Important limits
 
-- One insertion, one Pen tool, silent source only. Source with any audio track is explicitly rejected (never silently discarded).
+- Historical v0.10.0 test: one insertion, one Pen tool, silent source only. v0.10.1 adds support for original soundtrack before and after one insertion, validated separately below.
 - Experiment uses a maximum 15-second source and 30 MiB input; insertion maximum 15 seconds, output under 32 seconds. This is NOT equivalent to the current v0.9.3 trial limits.
 - Encoding uses Mediabunny 1.61.5, WebCodecs and memory-only OfflineAudioContext/BufferTarget, generating WebM (VP8/Opus). It re-encodes original video frames; not lossless.
-- No physical iPhone Safari, Android Chrome, native save/share, large-file, phone interruption, original source audio, multiple insertions, VFR/rotation or accessibility acceptance has been completed.
+- No physical iPhone Safari, Android Chrome, native save/share, large-file, phone interruption, multiple insertions, VFR/rotation, diverse original audio formats or accessibility acceptance has been completed.
 - Mediabunny is MPL-2.0; esbuild build pin is 0.25.12. Dependencies are embedded at build time; evaluate distribution license obligations before release.
 
 ## Next gate
@@ -27,3 +27,18 @@
 2. Add ordered multiple independent explanations, per-segment editing, delete/re-record, and robust stop/cancel.
 3. Add streaming output for larger files, audio/video codec and rotation coverage, MP4 options, and physical Android/iPhone testing.
 4. Only after acceptance, integrate the insertion mode into the normal app while preserving the tested one-take recorder as a fallback.
+
+## v0.10.1 original-soundtrack proof — 2026-10-16
+
+The isolated PoC now preserves the original audio outside a narrated insert, using Mediabunny AudioBufferSink and an OfflineAudioContext timeline. Each original sample chunk is clipped to the pre-insert or post-insert interval and scheduled at the corresponding output timestamp; the narration track occupies the insert only. This is source *audio content preservation through decode/re-encode*, **not bit-exact stream-copy**.
+
+**Verified artifact**: [Chromium/ffprobe CI run 38863341916](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38863341916) · [standalone HTML, silent and audio-bearing WebMs, JSON measurement reports](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38863341916/artifacts/12030545189).
+
+| Source fixture | Output | Original 440 Hz before / during / after insert | Narration 800 Hz during insert | Result |
+| --- | --- | --- | --- | --- |
+| 4s silent VP8 source | 5.88s VP8/Opus WebM | 0 / ~0 / 0 | ~0.302 | PASS |
+| 4s VP8/Opus source with 440 Hz tone | 5.94s VP8/Opus WebM | **0.12491 / 0.000005 / 0.12497** | **0.30182** | **PASS** |
+
+Both pass actual opening/closing source frame comparisons (mean RGB absolute channel error ~2.02 / 2.01), show zero JavaScript exceptions and no external HTTP requests. The artificial microphone signal does not occur in original intervals. Source audio does not leak into the explanation interval. The test also verifies microphone tracks are released.
+
+**Still missing**: multiple explanation segments, native saved-file playback on iPhone/Android, source audio sample-rate/channel variation and drift, variable frame rates/rotation, interruption recovery, streaming output and full release compatibility. Historical v0.10.0 limitations above apply to the original silent-only run; **v0.10.1 supports one inserted explanation with or without source sound**.

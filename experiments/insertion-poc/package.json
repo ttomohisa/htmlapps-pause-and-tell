@@ -1,7 +1,7 @@
 {
   "name": "pause-and-tell-insertion-poc",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "scripts": {
     "build": "node build.mjs"
