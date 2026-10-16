@@ -636,6 +636,15 @@
       #ptStudioPanel .pt-annotation-action { width:42px; min-width:42px; min-height:44px; }
     }
 
+
+    #ptStudioPanel .pt-control-head { justify-content:flex-start; }
+    #ptStudioPanel .pt-source-change-row { margin:0 0 0 auto; }
+    #ptStudioPanel .pt-current-file { margin:2px 0 6px; }
+    #ptStudioPanel .pt-keyboard-hint {
+      position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+      overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
+    }
+    #ptStudioPanel .pt-draw-bottom { flex-wrap:nowrap; }
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
@@ -751,11 +760,12 @@
       <div class="pt-control-head">
         <h2 id="ptStudioTitle" tabindex="-1" data-i18n="studioTitle">動画を見ながら説明する</h2>
         <span class="pt-status-pill" id="ptRecordBadge" data-i18n="notRecording">録画前</span>
+        <div class="pt-source-change-row">
+                <label class="pt-file-label"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
+              </div>
+        
       </div>
       <p id="ptCurrentFile" class="pt-current-file" hidden></p>
-      <div class="pt-source-change-row">
-        <label class="pt-file-label"><span data-i18n="changeVideo">動画を変更</span><input class="pt-change-input" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" data-i18n-aria-label="changeVideo" aria-label="動画を変更"></label>
-      </div>
       <section class="pt-draw-panel" aria-labelledby="ptDrawTitle">
         <div class="pt-draw-header">
           <h3 id="ptDrawTitle" class="pt-draw-heading" data-i18n="drawTitle">動画に描く</h3>
@@ -1218,7 +1228,8 @@
           "autoPlayBlocked": "録画は始まっています。元動画の再生には「元動画を再生」を押してください。",
           "stagePlaying": "録画中・動画再生",
           "stageFrozen": "録画中・動画停止",
-          "drawRedo": "やり直す"
+          "drawRedo": "やり直す",
+          "previewPlay": "録画せず再生"
         },
         "en": {
           "brandMeta": "Pause the source · Record the explanation",
@@ -1390,7 +1401,8 @@
           "autoPlayBlocked": "Recording is running. Press Play source to start the original video.",
           "stagePlaying": "Recording · playing",
           "stageFrozen": "Recording · paused",
-          "drawRedo": "Redo"
+          "drawRedo": "Redo",
+          "previewPlay": "Preview video"
         }
       };
 
@@ -1643,28 +1655,32 @@
       function isCompactVideoLayout() {
         return window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 600px)').matches;
       }
+      function showDrawableStage() {
+        if(!isCompactVideoLayout()) return;
+        const tools=$('#ptStudioPanel .pt-draw-panel').getBoundingClientRect();
+        const canvas=stageCanvas.getBoundingClientRect();
+        const actions=$('#ptTransport').getBoundingClientRect();
+        const top=document.querySelector('.app-header').getBoundingClientRect().bottom+8;
+        const available=innerHeight-top-10;
+        // Keep tools + video + playback controls together when they fit.
+        // On short landscape screens prefer video and transport over the tool row.
+        const target=actions.bottom-tools.top<=available ? tools.top : canvas.top;
+        const needsScroll=target<top-3 || actions.bottom>innerHeight-10;
+        if(needsScroll) {
+          window.scrollBy({top:target-top,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+        }
+      }
       function focusWorkflowSection(selector) {
-        if (!isCompactVideoLayout()) return;
-        requestAnimationFrame(() => {
+        if(!isCompactVideoLayout()) return;
+        requestAnimationFrame(()=>{
           if(selector==='.pt-draw-panel') {
-            stageCanvas.scrollIntoView({block:'start',behavior:'instant'});
             showDrawableStage();
           } else {
             const target=$(selector);
-            if(target?.getClientRects().length) target.scrollIntoView({block:'start',behavior:'instant'});
+            if(target?.getClientRects().length)
+              target.scrollIntoView({block:'start',behavior:'instant'});
           }
         });
-      }
-      function showDrawableStage() {
-        if(!isCompactVideoLayout()) return;
-        const rect=stageCanvas.getBoundingClientRect();
-        const bar=$('#ptTransport').getBoundingClientRect();
-        const header=document.querySelector('.app-header').getBoundingClientRect().bottom+8;
-        if(!(rect.height>0)) return;
-        if(rect.top<header-2 || bar.bottom>innerHeight-10) {
-          const delta=rect.top-header;
-          window.scrollBy({top:delta,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
-        }
       }
       function pointerToVideo(event, allowOutside = false) {
         const rect = stageCanvas.getBoundingClientRect();
@@ -2049,7 +2065,7 @@
         share.disabled=!shareAvailable || state.shareInProgress;
       }
       function updateTransport() {
-        $('#ptPlayPause').textContent=translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
+        $('#ptPlayPause').textContent=translate(sourceVideo.paused || sourceVideo.ended ? (state.phase==='ready'?'previewPlay':'play') : 'pause');
         $('#ptStart').textContent=translate($('#ptStartPaused').checked ? 'startRecordStill' : 'startRecordAndPlay');
       }
       function applyLanguage() {
