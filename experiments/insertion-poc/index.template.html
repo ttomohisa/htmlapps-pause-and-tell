@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16624F">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src 'none'; worker-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Pause &amp; Tell — Insertion PoC</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;color:#202723;background:#f5f6f3}
+*{box-sizing:border-box}body{margin:0}header{background:#fff;border-bottom:1px solid #d9ddd9;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}h1{font-size:18px;margin:0}header small{font-size:11px;color:#666}
+button,input{font:inherit}button{cursor:pointer;min-height:44px;padding:10px 14px;border-radius:10px;border:1px solid #bcc5bf;background:white;color:#18362e;font-weight:650}button.primary{background:#16624F;color:#fff;border-color:#16624F}button:disabled{cursor:default;opacity:.45}button:focus-visible,input:focus-visible{outline:3px solid #539f85;outline-offset:2px}
+main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;border:1px solid #d9ddd9;border-radius:14px;padding:16px;margin:0 0 14px}.panel h2{font-size:17px;margin:0 0 10px}.muted{font-size:13px;color:#5f6861;line-height:1.6;margin:6px 0 12px}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.fill{flex:1}.stage{position:relative;background:#111;border-radius:12px;overflow:hidden;display:grid;place-items:center;max-height:55dvh}.stage video,.stage canvas{display:block;width:100%;height:auto;max-height:55dvh;object-fit:contain}.stage canvas{touch-action:none}.stage [hidden]{display:none!important}.seek{display:flex;align-items:center;gap:9px;font-size:13px;margin:12px 0}.seek input{flex:1;min-width:0;min-height:36px;accent-color:#16624F}.panel[hidden],[hidden]{display:none!important}.result video{width:100%;max-height:48dvh;background:#111;border-radius:10px}.output{display:grid;gap:8px}.alert{color:#8d2923}.note{padding:10px;background:#f1f6f2;border-radius:9px;font-size:13px;line-height:1.6}output{font-variant-numeric:tabular-nums}.narrow{font-size:12px}.counter{font-variant-numeric:tabular-nums;font-weight:750}
+@media(max-width:380px){header{padding:10px}main{padding:10px}.panel{padding:12px}.row button{flex:1 1 130px}}
+</style>
+</head>
+<body>
+<header><div><h1>Pause &amp; Tell <small>v0.10.0 insertion PoC</small></h1></div><button id="language" aria-label="Switch language">EN</button></header>
+<main>
+<section class="panel" id="sourcePanel">
+<h2 data-ja="1. 元動画を選ぶ" data-en="1. Choose a source video">1. 元動画を選ぶ</h2>
+<p class="muted" data-ja="この技術検証では15秒・30MiB以内の無音動画だけを扱います。元動画に音声がある場合は読み込み時に停止します。" data-en="This experiment supports only silent source videos up to 15 seconds and 30 MiB; files with original audio are rejected.">この技術検証では15秒・30MiB以内の無音動画だけを扱います。元動画に音声がある場合は読み込み時に停止します。</p>
+<input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="Select source video">
+</section>
+<section class="panel" id="editor" hidden>
+<h2 data-ja="2. 説明する位置を決める" data-en="2. Select the insertion position">2. 説明する位置を決める</h2>
+<p class="muted" id="sourceInfo"></p>
+<div class="stage"><video id="sourceVideo" playsinline muted preload="auto"></video><canvas id="drawCanvas" hidden aria-label="Draw a pen annotation"></canvas></div>
+<label class="seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+<div class="row">
+<button id="playSource" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
+<button id="startNote" class="primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
+<button id="finishNote" hidden data-ja="説明の録音を終了" data-en="Finish explanation">説明の録音を終了</button>
+</div>
+<p class="muted" id="captureStatus" aria-live="polite"></p>
+</section>
+<section class="panel" id="notePanel" hidden>
+<h2 data-ja="3. 説明区間を確認して書き出す" data-en="3. Review and export">3. 説明区間を確認して書き出す</h2>
+<p id="noteSummary" class="note"></p>
+<audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
+<div class="row" style="margin-top:12px">
+<button id="discard" data-ja="説明を削除して録り直す" data-en="Discard and rerecord">説明を削除して録り直す</button>
+<button class="primary" id="export" data-ja="説明を差し込んで動画を作成" data-en="Compose video with insertion">説明を差し込んで動画を作成</button>
+</div>
+<p class="muted" id="exportStatus" aria-live="polite"></p>
+</section>
+<section class="panel result" id="result" hidden>
+<h2 data-ja="4. 完成動画を確認する" data-en="4. Verify output">4. 完成動画を確認する</h2>
+<video id="resultVideo" controls playsinline></video>
+<div class="row" style="margin-top:12px"><button id="save" class="primary" data-ja="WebMを保存" data-en="Save WebM">WebMを保存</button></div>
+<p class="muted" id="resultInfo"></p>
+</section>
+<section class="panel"><p class="muted" data-ja="技術検証専用です。元動画は変更しません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内だけで処理します。外部送信はありません。" data-en="Experimental only. Your source file is unchanged. Only narration and pen events are captured, not the whole source. Export decodes and re-encodes source frames (not lossless). Data remains in the browser and is never uploaded.">技術検証専用です。元動画は変更しません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内だけで処理します。外部送信はありません。</p>
+<p id="error" class="alert" role="alert" aria-live="assertive"></p></section>
+</main>
+<script>/*__INSERTION_POC_BUNDLE__*/</script>
+</body></html>
