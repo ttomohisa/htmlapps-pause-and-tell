@@ -40,6 +40,6 @@ Updated 2026-10-17. [PoC validation measurements](INSERTION_POC_VALIDATION.md) Â
 
 ## 2026-10-17 opt-in longer-media milestone
 
-[30-second full export PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686), including independently decoded output video tail/source audio/narration and local temporary-file writing. The companion endurance workflow is now **`workflow_dispatch` only**, selectable 30/60/180 seconds. The existing shorter CI remains required. Increasing an experimental input-size ceiling alone never qualifies as an endurance pass; only an actually encoded, played-back file counts.
+[30-second full export PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686), including independently decoded output video tail/source audio/narration and local temporary-file writing. The companion endurance workflow is **opt-in only**: `workflow_dispatch` or a Draft PR title edit containing `[run-endurance]` for a 30-second pre-merge run. Ordinary PR pushes do not run it. The existing shorter CI remains required. Increasing an experimental input-size ceiling alone never qualifies as an endurance pass; only an actually encoded, played-back file counts.
 
 Source replacement after recording independent explanation clips is destructive and therefore must request confirmation; a rejected source file or cancelled replacement must preserve prior recordings. The source soundtrack should be audible during manual preview but must pause before microphone narration is recorded.

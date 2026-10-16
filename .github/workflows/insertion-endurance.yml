@@ -10,10 +10,15 @@ on:
           - "60"
           - "180"
         default: "30"
+  pull_request:
+    types: [edited]
 permissions:
   contents: read
 jobs:
   endurance:
+    # On draft PRs, edit its title to include [run-endurance] to opt in.
+    # Normal PR pushes and unrelated PR edits never run the expensive job.
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-endurance]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
