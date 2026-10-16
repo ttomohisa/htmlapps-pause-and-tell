@@ -210,7 +210,16 @@ def main():
         # For sources with sound the 440/800 Hz assertions above distinguish tracks.
         page.set_viewport_size({'width':320,'height':568})
         overflow=page.evaluate('document.documentElement.scrollWidth>innerWidth+1')
-        assert not overflow, '320px phone layout has horizontal overflow'
+        if overflow:
+            offenders=page.evaluate("""() => Array.from(document.querySelectorAll('*'))
+              .filter(el => el.getBoundingClientRect().right > innerWidth + 1)
+              .slice(0,8).map(el => ({
+                tag:el.tagName,id:el.id,cls:el.className,
+                width:Math.round(el.getBoundingClientRect().width),
+                right:Math.round(el.getBoundingClientRect().right)
+              }))""")
+            page.screenshot(path=str(a.out/'320px-overflow.png'),full_page=True)
+            raise AssertionError('320px phone layout has horizontal overflow: '+json.dumps(offenders))
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
