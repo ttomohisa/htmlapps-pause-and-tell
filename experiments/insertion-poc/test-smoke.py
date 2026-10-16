@@ -176,12 +176,12 @@ def main():
         assert lead_narration<.025 and tail_narration<.025, ('Narration leaked into source',lead_narration,tail_narration)
         if a.source_audio:
             assert lead_original>.03 and tail_original>.03, ('Original soundtrack missing',lead_original,tail_original)
+        else:
+            assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         if a.multiple:
             second_voice=tone_amplitude(pcm,5.2,800)
             second_original=tone_amplitude(pcm,5.2,440)
             assert second_voice>.04 and second_original<.025,('Second inserted segment incorrect',second_voice,second_original)
-        else:
-            assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         # Verify original frames survive both before AND after insertion.
         def rgb_at(file, seconds):
             return command(['ffmpeg','-v','error','-ss',f'{seconds:.3f}','-i',
