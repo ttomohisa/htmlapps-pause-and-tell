@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### v0.11.0 — timestamped multiple explanation clips (isolated PoC)
+
+- Extend the separate Mediabunny/WebCodecs experiment to accept multiple independently recorded narration-and-Pen clips, ordered by source timestamp, with clip selection, deletion and rerecording.
+- Add a pure deterministic timeline planner and Node unit tests, plus Chromium output validation for two inserts and a delete/rerecord cycle with original soundtrack retained before, between and after explanations.
+- [Saved WebM media regression PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38864515775): 4s original + 2 narration clips = 6.74s; video VP8, audio Opus. Main v0.9.3 app remains unchanged.
+
 ### v0.10.1 — preserve original soundtrack around explanations (PoC only)
 
 - Permit silent or sound-bearing short source clips; decode and reschedule original audio before and after the inserted narration segment. Original sound is absent during the explanation, and narration does not extend into source intervals.

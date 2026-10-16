@@ -2,7 +2,7 @@
 
 > 詳細な実現性調査・採用方式・受け入れ条件は後半の「2026-10-16 実現性調査・設計判断」を参照。
 
-> Design proposal only (2026-10-16), not implemented in v0.9.3. Not proof of mobile performance.
+> Original design proposal (2026-10-16). An isolated v0.11.0 implementation now passes short-file Chromium synthetic tests for multiple timestamped inserts with source sound. Not integrated into the v0.9.3 user-facing app; not proof of physical mobile performance. See [PoC validation](INSERTION_POC_VALIDATION.md).
 
 ## User goal
 

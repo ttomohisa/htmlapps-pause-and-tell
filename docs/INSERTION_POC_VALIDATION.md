@@ -1,4 +1,4 @@
-# Pause & Tell insertion PoC — v0.10.0–v0.10.1 verification
+# Pause & Tell insertion PoC — v0.10.0–v0.11.0 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.
 
@@ -41,4 +41,25 @@ The isolated PoC now preserves the original audio outside a narrated insert, usi
 
 Both pass actual opening/closing source frame comparisons (mean RGB absolute channel error ~2.02 / 2.01), show zero JavaScript exceptions and no external HTTP requests. The artificial microphone signal does not occur in original intervals. Source audio does not leak into the explanation interval. The test also verifies microphone tracks are released.
 
-**Still missing**: multiple explanation segments, native saved-file playback on iPhone/Android, source audio sample-rate/channel variation and drift, variable frame rates/rotation, interruption recovery, streaming output and full release compatibility. Historical v0.10.0 limitations above apply to the original silent-only run; **v0.10.1 supports one inserted explanation with or without source sound**.
+**As of v0.10.1**, multiple explanation segments were still missing. v0.11.0 now covers basic multi-clip insertion in a separate validation below. Still missing for production: native saved-file playback on iPhone/Android, varied source audio sample rate/channels and drift, VFR/rotation, interruption recovery, streaming output and broad codec support.
+
+## v0.11.0 multi-insertion PoC — 2026-10-16
+
+**Automated Chromium/ffprobe PASS**: [run 38864515775](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38864515775) · [generated HTML, source/output files, screenshots, JSON measurements](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38864515775/artifacts/12030473749).
+
+The time-axis builder (`timeline.js`) passes Node unit tests for empty/single/multiple inserts, identical source timestamps, source-start/end insertions and invalid input. The browser test adds a voice-and-pen segment at source 2.0s, adds another at 3.0s, **deletes the second and rerecords it**, then exports and decodes the complete original footage with two insertions.
+
+| Measured result | Value |
+| --- | --- |
+| Original VP8/Opus audio-bearing source | 4.00s |
+| Finished WebM with 2 independent explanations | **6.74s** |
+| Output video / audio codec | VP8 / Opus |
+| Source 440 Hz tone before/after insertion | 0.12491 / 0.12502 amplitude |
+| Original 440 Hz tone inside first insertion | 0.000005 amplitude |
+| Narration 800 Hz inside first insertion | 0.30182 amplitude |
+| Decoded RGB frame difference opening / final source segment | 2.02 / 2.04 (mean absolute per channel) |
+| Uncaught page errors / external HTTP requests | 0 / 0 |
+
+Tests also check that original sound remains between the two explanation segments, that the second narration is present and the source sound absent inside it, and that the microphone tracks are released. Same-source-timestamp insertion ordering and 0s/end positions have **unit coverage**, not yet decoded-video acceptance. The 320px responsive assertion is under test separately; release is still **NO-GO**.
+
+**Known limitations:** audio and frames are decoded and re-encoded; no lossless stream copy; video 15 FPS, VP8/Opus WebM only; ≤15s source, ≤30MiB input, ≤15s per explanation and ≤32s final output. Entire output is held by an in-memory BufferTarget, and an OfflineAudioContext covers the final timeline. Physical iOS Safari/Android Chrome, rotated/VFR inputs and unrelated source audio codecs remain unverified.
