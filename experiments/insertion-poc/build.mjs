@@ -11,7 +11,7 @@ const source = await readFile(resolve(base,'index.template.html'),'utf8');
 const marker = '/*__INSERTION_POC_BUNDLE__*/';
 if (!source.includes(marker)) throw new Error('HTML bundle marker missing');
 const code = js.outputFiles[0].text.replace(/<\/script/gi, String.raw`\x3c/script`);
-const output = source.replace(marker, code);
+const output = source.replace(marker, () => code);
 // The document must preserve the complete inline bundle. HTML terminates a
 // script at a literal </script> even if it appears inside a JS string.
 const start = output.indexOf('<script>') + '<script>'.length;
