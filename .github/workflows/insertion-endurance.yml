@@ -10,11 +10,6 @@ on:
           - "60"
           - "180"
         default: "30"
-  pull_request:
-    branches: [main]
-    paths:
-      - 'experiments/insertion-poc/test-endurance.py'
-      - '.github/workflows/insertion-endurance.yml'
 permissions:
   contents: read
 jobs:
