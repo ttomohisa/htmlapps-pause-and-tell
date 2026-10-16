@@ -72,7 +72,6 @@ import {
     clearResult();
     releaseUrl('noteUrl');
     $('notePlayer').removeAttribute('src');
-    $('note').hidden = true;
     state.note = null;
     state.events = [];
     state.strokes = [];
@@ -319,7 +318,6 @@ import {
     errorNode.textContent='';clearResult();setBusy(true);
     const note=state.note;
     let videoInput=null,audioInput=null,output=null;
-    const stop=()=>{};
     try {
       if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined')
         throw new Error(l('このブラウザの動画・音声書き出し機能には未対応です。','WebCodecs video/audio encoding is unavailable.'));
@@ -374,7 +372,7 @@ import {
           }
           renderCtx.drawImage(note.freeze,0,0,renderCanvas.width,renderCanvas.height);
           renderCtx.save();
-          const old=canvas, oldctx=ctx; // Drawing is reproduced in the export canvas directly.
+          // Drawing is reproduced in the export canvas directly.
           renderCtx.lineCap='round';renderCtx.lineJoin='round';
           for(const stroke of shownStrokes){
             if(!stroke.length)continue;
