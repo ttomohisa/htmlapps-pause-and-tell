@@ -129,3 +129,38 @@ Requires `ffmpeg` and `ffprobe` on PATH. The script creates local H.264 test fix
 ## Status and decision
 
 G9 **NO-GO** until iOS and Android pass AC-10 and the full-flow tests, the synchronization target is measured in actual saved output, and hard errors are resolved. All G1–G8 real-device gates remain open even if automated headless tests pass. Keep existing Draft PR #1 unmerged, and do not modify Browser Kitty main.
+
+
+## v0.9.1 usability and recording-insertion regression — 2026-10-16
+
+**User-reported issues targeted:** recording appears not to be inserted into source playback; controls too distant from the preview; lack of Ctrl+Z/Ctrl+Y; developer-only UI clutter; arbitrary-looking size/duration caps.
+
+### Code/UX changes
+
+- The main recording workspace is ordered **Point/Circle/Arrow/Pen → video Canvas → Record & play / Preview or Pause / Finish → two clocks → optional settings**. The transport is no longer a distant fixed mobile footer. A long filename is truncated instead of pushing actions away. 320px action groups are balanced; minimum button targets remain about 44px.
+- **Record & play** is the default: capture starts with a live mic/Canvas, then playback of the original source is requested. A separate opt-in checkbox starts on a *paused* first frame, preserving that explanation workflow. If browser playback is blocked, recording continues with a warning and an explicit Play action.
+- Undo / Redo of **currently visible** strokes is available through **Ctrl/Cmd+Z**, **Ctrl+Y**, **Ctrl+Shift+Z**, **Cmd+Shift+Z** and nearby icon buttons. Clear itself is undoable while paused. When playback resumes, the current drawing and its history clear, but already captured video is unchanged.
+- Development-only Diagnostics and Build Info are hidden from the everyday page, available with `?debug=1`. Product copy and both README files no longer show version-by-version prototype status as the main user guide.
+- Source ≤30s, input ≤100 MiB, output ≤90s remain **conservative temporary memory-safety test caps**, not fixed browser API limits. An additional 96 MiB recording chunk budget and recovery-state handling remain; expand caps only after actual phone memory/audio testing. The limits are clearly explained in the product README.
+
+### Recorded-file proof of source pause insertion
+
+**Chromium headless synthetic microphone test; NOT real iOS/Android.** On v0.9.1-generated standalone, a dynamic H.264 source started automatically and was paused after 1.462s of source playback. It was held for **2.2 seconds** of real recording, then resumed and recorded further, saved as a locally decoded **WebM VP8 + Opus**:
+
+- Source position at pause **1.461676s**, after 2.2s pause **1.461676s** (no progression), after resumed playback **2.721319s**.
+- Exported video last packet **5.056s**, audio last packet **5.074s**, total **505,709 bytes**.
+- Decoded output at 2.0s vs 3.1s inside frozen segment RGB MAE **0.0012**; decoded 3.1s frozen vs 4.4s resumed RGB MAE **16.207**.
+- Audio RMS of the 880 Hz simulated microphone tone around output 2.1s/3.2s/4.4s **0.22089 / 0.22074 / 0.22068**, proving continuing simulated audio during source pause and after resume.
+- **0 page JavaScript exceptions**, **0 app HTTP(S) requests**.
+
+The above shows recording *duration is inserted while the source is paused* in Chromium's final saved result. It does **not** establish that the exact reported behavior is fixed on an unknown physical device. If a user's browser still fails to record, collect the OS/browser, loaded file codec, explicit error and video output, and reproduce on hardware before claiming resolved.
+
+### Responsive and Undo/Redo checks (synthetic browser)
+
+The UI was checked at desktop **1280×800**, touch **320×568**, **360×740**, **390×844** and touch landscape **844×390**. In all checked sizes, the video-to-transport vertical gap was **under 27px**, no horizontal overflow was detected, and the transport was **position: static**, not fixed. Diagnostics, Build Info and the obsolete progress steps were hidden during editing.
+
+In desktop and 320px cases the exported result had video+audio, with Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Undo Clear, playback clearing and no remaining live synthetic mic tracks. A separate still-first-frame opt-in test preserved the paused source until Play was selected. The saved autoplay output at **0.6s vs 1.8s** changed visibly (frame RGB MAE **16.21**) and included both video and audio streams.
+
+### Gate decision
+
+**v0.9.1 Chromium smoke PASS**, but **G9 / release remains NO-GO**. The source duration/file size caps have *not* been raised, physical iPhone Safari and Android Chrome real recording/save/decoded replay remain missing, and direct `file://` operation remains untested in the current browser harness. No PR merge or Browser Kitty site deployment is authorized by these results.
