@@ -394,28 +394,36 @@ import { buildTimeline } from './timeline.js';
     if(!(video.videoWidth>0 && video.videoHeight>0))throw new Error('Output has no video frames');
   }
   async function exportVideo() {
-    if(!state.note||state.busy||state.recorder||!state.file)return;
-    errorNode.textContent='';clearResult();setBusy(true);
-    const note=state.note;
-    let videoInput=null,audioInput=null,output=null;
+    if(!state.notes.length||state.busy||state.recorder||!state.file)return;
+    errorNode.textContent='';
+    clearResult();
+    setBusy(true);
+    let videoInput=null,output=null;
+    const audioInputs=[];
     try {
-      if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined')
+      if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined') {
         throw new Error(l('このブラウザの動画・音声書き出し機能には未対応です。','WebCodecs video/audio encoding is unavailable.'));
+      }
       videoInput=new Input({source:new BlobSource(state.file),formats:ALL_FORMATS});
-      audioInput=new Input({source:new BlobSource(note.blob),formats:ALL_FORMATS});
       const vt=await videoInput.getPrimaryVideoTrack();
-      const at=await audioInput.getPrimaryAudioTrack();
-      if(!vt||!at) throw new Error(l('映像または説明音声を読み込めません。','Missing video or narration track.'));
       const originalAudio=await videoInput.getPrimaryAudioTrack();
+      if(!vt)throw new Error(l('元動画の映像を読み込めません。','Source video track is unavailable.'));
       const duration=await vt.computeDuration();
-      const voiceDuration=await at.computeDuration();
-      const cutFrame=Math.max(0,Math.min(Math.round(duration*FPS),Math.round(note.position*FPS)));
-      const sourceFrames=Math.max(1,Math.round(duration*FPS));
-      const voiceFrames=Math.max(1,Math.round(voiceDuration*FPS));
-      const cutSeconds=cutFrame/FPS;
-      const fullFrames=sourceFrames+voiceFrames;
-      const fullDuration=fullFrames/FPS;
-      if(fullDuration>32)throw new Error('PoC output must be under 32 seconds');
+      const ordered=state.notes.slice().sort((a,b)=>a.position-b.position || a.id-b.id);
+      for(const note of ordered) {
+        const input=new Input({source:new BlobSource(note.blob),formats:ALL_FORMATS});
+        audioInputs.push(input);
+        const track=await input.getPrimaryAudioTrack();
+        if(!track)throw new Error(l('説明音声を読み込めません。','An explanation has no decoded audio.'));
+        const actual=await track.computeDuration();
+        if(!(actual>.15&&actual<=MAX_NOTE_SECONDS+1))throw new Error('Invalid explanation duration');
+        // Keep note id and video/pen events but honor the actual decoded audio duration.
+        note.duration=actual;
+        audioInputs[audioInputs.length-1]={input,note,track};
+      }
+      const timeline=buildTimeline(duration,ordered,FPS);
+      const fullDuration=timeline.duration;
+      if(fullDuration>32)throw new Error(l('このPoCでは完成動画を32秒以内にしてください。','Experimental export must be under 32 seconds.'));
       const renderCanvas=document.createElement('canvas');
       renderCanvas.width=canvas.width;renderCanvas.height=canvas.height;
       const renderCtx=renderCanvas.getContext('2d',{alpha:false});
@@ -424,10 +432,9 @@ import { buildTimeline } from './timeline.js';
       const audioSource=new AudioBufferSource({codec:'opus',quality:new Quality({bitrate:96000})});
       output.addVideoTrack(videoSource,{frameRate:FPS});
       output.addAudioTrack(audioSource);
-      $('exportStatus').textContent=l('音声を合成しています…','Composing narration audio…');
+      $('exportStatus').textContent=l('元音声と説明音声を合成しています…','Composing source audio and explanations…');
       await output.start();
-      // Compose source sound and narration on a shared output clock.
-      // Source sound plays only before and after the insertion, never over it.
+
       const sampleRate=48000;
       const channels=originalAudio ? Math.min(2,Math.max(1,await originalAudio.getNumberOfChannels())) : 1;
       const offline=new OfflineAudioContext(channels,Math.ceil(fullDuration*sampleRate),sampleRate);
@@ -438,82 +445,109 @@ import { buildTimeline } from './timeline.js';
         const node=offline.createBufferSource();
         node.buffer=buffer;
         node.connect(offline.destination);
-        node.start(Math.max(0,outputStart+(left-start)),
-          Math.max(0,left-chunkTimestamp),right-left);
+        node.start(Math.max(0,outputStart+(left-start)),Math.max(0,left-chunkTimestamp),right-left);
       }
-      let seenOriginal=false;
+
       if(originalAudio) {
         const sourceSink=new AudioBufferSink(originalAudio);
+        let sawAudio=false;
+        const originalSegments=timeline.segments.filter(seg=>seg.kind==='original');
         for await(const {buffer,timestamp} of sourceSink.buffers()){
-          scheduleRange(buffer,timestamp,0,cutSeconds,0);
-          scheduleRange(buffer,timestamp,cutSeconds,duration,cutSeconds+voiceFrames/FPS);
-          seenOriginal=true;
+          for(const seg of originalSegments) {
+            scheduleRange(buffer,timestamp,seg.sourceStart/FPS,
+              (seg.sourceStart+seg.length)/FPS,seg.outputStart/FPS);
+          }
+          sawAudio=true;
         }
-        if(!seenOriginal)throw new Error(l('元動画の音声を読み取れません。','Original audio could not be decoded.'));
+        if(!sawAudio)throw new Error(l('元動画の音声を読み取れません。','Could not decode source audio.'));
       }
-      let seenVoice=false;
-      const voiceSink=new AudioBufferSink(at);
-      for await(const {buffer,timestamp} of voiceSink.buffers()){
-        scheduleRange(buffer,timestamp,0,voiceDuration,cutSeconds);
-        seenVoice=true;
+      for(const seg of timeline.segments) {
+        if(seg.kind!=='explanation')continue;
+        const item=audioInputs.find(x=>x.note.id===seg.note.id);
+        if(!item)throw new Error('Explanation audio track was lost');
+        let sawVoice=false;
+        const voiceSink=new AudioBufferSink(item.track);
+        for await(const {buffer,timestamp} of voiceSink.buffers()){
+          scheduleRange(buffer,timestamp,0,item.note.duration,seg.outputStart/FPS);
+          sawVoice=true;
+        }
+        if(!sawVoice)throw new Error('No decodable audio in explanation '+seg.note.id);
       }
-      if(!seenVoice)throw new Error('No decodable recorded audio');
       const renderedAudio=await offline.startRendering();
       await audioSource.add(renderedAudio);
-      $('exportStatus').textContent=l('元動画と説明区間を結合しています…','Composing original frames and inserted explanation…');
+      $('exportStatus').textContent=l('元動画と説明を結合しています…','Composing original frames and explanations…');
+
       const sink=new VideoSampleSink(vt);
-      let eventIndex=0,shownStrokes=[];
-      for(let frame=0;frame<fullFrames;frame++){
-        if(frame>=cutFrame&&frame<cutFrame+voiceFrames){
-          const rel=(frame-cutFrame)/FPS;
-          while(eventIndex<note.events.length&&note.events[eventIndex].at<=rel){
-            shownStrokes=note.events[eventIndex].strokes;eventIndex++;
+      let segIndex=0;
+      const clipEvents=new Map();
+      const clipDrawings=new Map();
+      for(let frame=0;frame<timeline.frames;frame++) {
+        while(frame>=timeline.segments[segIndex].outputStart+timeline.segments[segIndex].length)segIndex++;
+        const seg=timeline.segments[segIndex];
+        if(!seg)throw new Error('Timeline segment not found at output frame '+frame);
+        if(seg.kind==='explanation') {
+          const rel=(frame-seg.outputStart)/FPS;
+          let index=clipEvents.get(seg.note.id)||0;
+          let strokes=clipDrawings.get(seg.note.id)||[];
+          while(index<seg.note.events.length&&seg.note.events[index].at<=rel) {
+            strokes=seg.note.events[index].strokes;
+            index++;
           }
-          renderCtx.drawImage(note.freeze,0,0,renderCanvas.width,renderCanvas.height);
+          clipEvents.set(seg.note.id,index);
+          clipDrawings.set(seg.note.id,strokes);
+          renderCtx.drawImage(seg.note.freeze,0,0,renderCanvas.width,renderCanvas.height);
           renderCtx.save();
-          // Drawing is reproduced in the export canvas directly.
           renderCtx.lineCap='round';renderCtx.lineJoin='round';
-          for(const stroke of shownStrokes){
+          for(const stroke of strokes) {
             if(!stroke.length)continue;
             renderCtx.beginPath();
             renderCtx.moveTo(stroke[0].x*renderCanvas.width,stroke[0].y*renderCanvas.height);
             for(const p of stroke.slice(1))renderCtx.lineTo(p.x*renderCanvas.width,p.y*renderCanvas.height);
-            renderCtx.lineWidth=Math.max(3,renderCanvas.width/120);renderCtx.strokeStyle='#141414';renderCtx.stroke();
-            renderCtx.lineWidth=Math.max(2,renderCanvas.width/170);renderCtx.strokeStyle='#ffe36b';renderCtx.stroke();
+            renderCtx.lineWidth=Math.max(3,renderCanvas.width/120);
+            renderCtx.strokeStyle='#141414';
+            renderCtx.stroke();
+            renderCtx.lineWidth=Math.max(2,renderCanvas.width/170);
+            renderCtx.strokeStyle='#ffe36b';
+            renderCtx.stroke();
           }
           renderCtx.restore();
         }else{
-          const sourceFrame=frame<cutFrame?frame:frame-voiceFrames;
-          const sourceTime=Math.min(Math.max(0,duration-.001),sourceFrame/FPS);
+          const originalFrame=seg.sourceStart+(frame-seg.outputStart);
+          const sourceTime=Math.min(Math.max(0,duration-.001),originalFrame/FPS);
           const sample=await sink.getSample(sourceTime);
-          if(!sample)throw new Error(l('元動画のフレームを読み出せません。','Could not decode a source frame.'));
+          if(!sample)throw new Error(l('元動画のフレームを読み出せません。','Could not decode an original frame.'));
           try {sample.draw(renderCtx,0,0,renderCanvas.width,renderCanvas.height);}
           finally {sample.close();}
         }
-        await videoSource.add(frame/FPS,1/FPS,{keyFrame:frame===0||frame===cutFrame||frame===cutFrame+voiceFrames});
+        await videoSource.add(frame/FPS,1/FPS,{keyFrame:frame===seg.outputStart});
         if(frame%15===0){
-          $('exportStatus').textContent=l('書き出し中 ','Encoding ') + Math.round((frame+1)/fullFrames*100)+'%';
+          $('exportStatus').textContent=l('書き出し中 ','Encoding ')+Math.round((frame+1)/timeline.frames*100)+'%';
           await new Promise(resolve=>setTimeout(resolve,0));
         }
       }
       await output.finalize();
       const bytes=output.target.buffer;
-      if(!bytes || bytes.byteLength<2048)throw new Error('Encoded output is empty');
+      if(!bytes||bytes.byteLength<2048)throw new Error('Encoded output is empty');
       state.resultUrl=URL.createObjectURL(new Blob([bytes],{type:'video/webm'}));
       await checkResultPlayable(state.resultUrl);
       $('result').hidden=false;
-      $('resultInfo').textContent=l('完成動画 ', 'Output ') + fmt(fullDuration) + ' · WebM VP8/Opus · '+Math.round(bytes.byteLength/1024)+' KiB'
-        + ' · ' + (originalAudio ? l('元音声を保持','Original audio retained') : l('元動画は無音','Silent original'));
-      $('exportStatus').textContent=l('動画を作成しました。最後まで再生して確認してください。','Composition complete. Play the full video to check it.');
+      $('resultInfo').textContent=l('完成動画 ','Output ')+fmt(fullDuration)
+        +' · WebM VP8/Opus · '+Math.round(bytes.byteLength/1024)+' KiB'
+        +' · '+ordered.length+l('件の説明',' inserted explanation(s)');
+      $('exportStatus').textContent=l('完成動画を生成しました。最後まで再生して確認してください。',
+        'Composition complete. Play the entire output to check it.');
     }catch(error){
       showError(error);
-      $('exportStatus').textContent=l('書き出しできませんでした。説明区間は保持しています。','Export failed. The separate explanation is still available.');
+      $('exportStatus').textContent=l('書き出しできませんでした。説明区間は保持しています。',
+        'Export failed. Your separate explanations are still available.');
       clearResult();
-      if(output && output.state!=='finalized'&&output.state!=='canceled') {
+      if(output && output.state!=='finalized' && output.state!=='canceled'){
         try {await output.cancel();}catch{}
       }
     }finally{
-      videoInput?.dispose();audioInput?.dispose();setBusy(false);
+      videoInput?.dispose();
+      for(const item of audioInputs) item.input?.dispose();
+      setBusy(false);
     }
   }
   $('export').addEventListener('click',()=>void exportVideo());
