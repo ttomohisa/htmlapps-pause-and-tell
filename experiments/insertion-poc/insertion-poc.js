@@ -143,11 +143,17 @@ import { buildTimeline } from './timeline.js';
   }
   async function loadSource(file) {
     if (!file || state.recorder || state.busy) return;
+    if (state.notes.length && !window.confirm(l(
+      '元動画を変更すると、現在の説明区間はすべて削除されます。変更しますか？',
+      'Changing the source video will discard all recorded explanations. Continue?'
+    ))) return;
     errorNode.textContent = '';
     const token = ++uploadGeneration;
     setBusy(true);
     let input = null;
     let url = null;
+    let changedPreview = false;
+    const oldTime=sourceVideo.currentTime;
     try {
       if (file.size === 0 || file.size > MAX_SOURCE_BYTES) throw new Error(l('動画は250MiB以内を選んでください。','Choose a video up to 250 MiB.'));
       input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
@@ -167,11 +173,28 @@ import { buildTimeline } from './timeline.js';
       canvas.height = Math.max(2, Math.floor(height * factor / 2) * 2);
       url = URL.createObjectURL(file);
       const loaded = new Promise((resolve,reject) => {
-        const timer = setTimeout(() => reject(new Error('Video loading timed out')),15000);
-        sourceVideo.addEventListener('loadeddata',()=>{clearTimeout(timer);resolve();},{once:true});
-        sourceVideo.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Video could not play'));},{once:true});
+        let settled=false;
+        const cleanup=()=>{
+          clearTimeout(timer);
+          sourceVideo.removeEventListener('loadeddata',ready);
+          sourceVideo.removeEventListener('error',failed);
+        };
+        const finish=(error)=>{
+          if(settled)return;
+          settled=true;
+          cleanup();
+          if(error)reject(error);
+          else resolve();
+        };
+        const ready=()=>finish();
+        const failed=()=>finish(new Error('Video could not play'));
+        const timer=setTimeout(()=>finish(new Error('Video loading timed out')),15000);
+        sourceVideo.addEventListener('loadeddata',ready);
+        sourceVideo.addEventListener('error',failed);
       });
+      sourceVideo.pause();
       sourceVideo.src = url;
+      changedPreview=true;
       sourceVideo.load();
       await loaded;
       if (token !== uploadGeneration) { input.dispose(); URL.revokeObjectURL(url); return; }
@@ -192,6 +215,19 @@ import { buildTimeline } from './timeline.js';
         + ' · ' + (audio ? l('元音声あり','Original audio present') : l('無音動画','Silent source'));
       info(l('任意の位置へ移動し、「この位置に説明を追加」を押します。','Seek and select Record explanation here.'));
     } catch (e) {
+      if(changedPreview) {
+        sourceVideo.pause();
+        if(state.sourceUrl) {
+          sourceVideo.src=state.sourceUrl;
+          sourceVideo.load();
+          sourceVideo.addEventListener('loadeddata',()=>{
+            sourceVideo.currentTime=Math.min(Math.max(0,oldTime),Math.max(0,state.duration-.01));
+          },{once:true});
+        }else{
+          sourceVideo.removeAttribute('src');
+          sourceVideo.load();
+        }
+      }
       input?.dispose();
       if (url) URL.revokeObjectURL(url);
       showError(e);
