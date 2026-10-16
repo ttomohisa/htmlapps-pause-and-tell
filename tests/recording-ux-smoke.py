@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manual v0.9.1 browser regression: video-first capture and drawing undo/redo.
+"""Manual v0.9.2 browser regression: video-first capture and drawing undo/redo.
 
 Install playwright and FFmpeg/ffprobe for DEVELOPMENT ONLY. No runtime app deps.
 python tests/recording-ux-smoke.py --html dist/index.html --output ./ux-test --chromium /usr/bin/chromium
@@ -67,6 +67,7 @@ def main():
     parser.add_argument("--html",type=Path,required=True)
     parser.add_argument("--output",type=Path,required=True)
     parser.add_argument("--chromium",default="/usr/bin/chromium")
+    parser.add_argument("--long-recording",action="store_true",help="Also record and decode over 90 seconds in real time")
     options=parser.parse_args()
     options.output.mkdir(parents=True,exist_ok=True)
     source=options.output/"dynamic-5s.mp4"
@@ -95,12 +96,18 @@ def main():
               return {gap:bar.top-canvas.bottom, width:document.documentElement.scrollWidth,
                 transport:getComputedStyle(document.querySelector('#ptTransport')).position,
                 diagnosticsHidden:document.querySelector('#ptDiagnosticsSection').hidden,
-                buildHidden:document.querySelector('#ptBuildInfoSection').hidden};
+                buildHidden:document.querySelector('#ptBuildInfoSection').hidden,
+                heroVisible:!!document.querySelector('.page-intro').getClientRects().length,
+                stepsVisible:!!document.querySelector('#ptSteps').getClientRects().length,
+                currentStep:document.querySelector('#ptSteps [aria-current="step"]').dataset.step,
+                recordLimit:document.querySelector('#ptRecordClock').textContent};
             }""")
             assert layout["gap"] >= 0 and layout["gap"] < 28,layout
             assert layout["width"] <= width+1,layout
             assert layout["transport"] == "static",layout
             assert layout["diagnosticsHidden"] and layout["buildHidden"],layout
+            assert layout["heroVisible"] and layout["stepsVisible"],layout
+            assert layout["currentStep"]=="2" and layout["recordLimit"].endswith("10:00"),layout
             if width in (320,1280):
                 page.locator("#ptStart").click()
                 until(lambda:not page.locator("#ptStop").is_disabled())
@@ -128,6 +135,7 @@ def main():
                 page.wait_for_timeout(450)
                 page.locator("#ptStop").click()
                 page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
+                assert page.locator('#ptSteps [aria-current="step"]').get_attribute("data-step")=="3"
                 with page.expect_download() as dl:
                     page.locator("#ptDownload").click()
                 download=dl.value
@@ -167,6 +175,30 @@ def main():
         page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
         results["pausedFirstFrame"]=True
         context.close()
+        if options.long_recording:
+            context=browser.new_context(accept_downloads=True)
+            page=context.new_page()
+            page.set_content(html)
+            microphone(page)
+            page.locator("#ptFile").set_input_files(str(source))
+            page.locator("#ptStartPaused").check()
+            page.locator("#ptStart").click()
+            until(lambda:not page.locator("#ptStop").is_disabled())
+            page.wait_for_timeout(95_000)
+            assert page.locator("#ptStop").is_visible() and page.locator("#ptStop").is_enabled(), "Stopped before 95 seconds"
+            assert page.locator("#ptRecordClock").inner_text().endswith("10:00")
+            page.locator("#ptStop").click()
+            page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
+            with page.expect_download() as dl:
+                page.locator("#ptDownload").click()
+            output=options.output/"long-95s-result.webm"
+            dl.value.save_as(output)
+            metadata=ffprobe(output)
+            duration=float(metadata["format"].get("duration") or 0)
+            assert duration>=92, f"Output truncated before 90s: {duration}"
+            assert {"video","audio"} <= {t["codec_type"] for t in metadata["streams"]}
+            results["longRecording"]={"outputSeconds":duration,"bytes":output.stat().st_size}
+            context.close()
         browser.close()
     output=options.output/"ux-smoke-report.json"
     output.write_text(json.dumps(results,indent=2,ensure_ascii=False),encoding="utf-8")

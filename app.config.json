@@ -3,9 +3,9 @@
   "name": "Pause & Tell",
   "nameJa": "Pause & Tell｜動画解説レコーダー",
   "slug": "pause-and-tell",
-  "version": "0.9.1",
-  "description": "Video-first local narration recorder with nearby transport, instant source playback and drawing undo/redo.",
-  "descriptionJa": "動画のすぐ下で再生・録画を操作。録画と同時に元動画を再生し、描画は元に戻す・やり直しに対応。",
+  "version": "0.9.2",
+  "description": "Local narration recorder with 5-minute source, 10-minute capture, nearby controls and drawing Undo/Redo.",
+  "descriptionJa": "元動画は最大5分、録画は最大10分。ヒーローと手順を表示し、動画のそばで録画や描画を操作。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",

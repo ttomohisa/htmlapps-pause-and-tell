@@ -492,8 +492,8 @@
     /* v0.4.0 mobile: contextual transport, ample safe area and tap marker. */
     .pt-source-change-row { display:flex; justify-content:flex-end; margin:7px 0 2px; }
     @media (max-width:767px), (pointer:coarse) and (max-height:600px) {
-      body:has(#ptStudioPanel:not([hidden])) .page-intro,
-      body:has(#ptResultPanel:not([hidden])) .page-intro { display:none; }
+      .page-intro { padding-bottom:10px; gap:8px; }
+      .page-intro h2 { font-size:clamp(19px,5vw,22px); }
       .pt-steps { margin-bottom:12px; }
     }
     .pt-source-change-row .pt-file-label { min-height:44px; padding:7px 14px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-size:13px; }
@@ -722,7 +722,7 @@
           <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
         </div>
         <div class="brand-copy">
-          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.9.1</span></p>
+          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.9.2</span></p>
           <p class="brand-meta" data-i18n="brandMeta">動画を止めて話す · 端末内で録画</p>
         </div>
       </div>
@@ -761,7 +761,7 @@
       <p class="pt-loading" id="ptLoading" role="status" aria-live="polite" data-i18n="loadingVideo" hidden>動画を読み込んでいます…</p>
       <div class="pt-drop" id="ptDropZone">
         <label class="pt-file-label"><span data-i18n="chooseVideo">動画を選ぶ</span><input id="ptFile" type="file" accept="video/*,.mp4,.webm,.mov,.m4v" aria-label="動画を選ぶ" data-i18n-aria-label="chooseVideo"></label>
-        <p class="pt-file-hint" data-i18n="dropHint">PCではここへドラッグ＆ドロップできます。動画は最大30秒・100MiBまで。</p>
+        <p class="pt-file-hint" data-i18n="dropHint">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
       </div>
       <p class="pt-file-details" id="ptFileDetails" hidden></p>
       <p class="pt-error" id="ptInputError" role="alert" hidden></p>
@@ -825,7 +825,7 @@
       </label>
       <div class="pt-clocks">
         <div><span data-i18n="sourceClock">元動画の時間</span><strong id="ptSourceClock">00:00 / 00:00</strong></div>
-        <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 01:30</strong></div>
+        <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 10:00</strong></div>
       </div>
       <label class="pt-seek" id="ptSeekWrap"><span data-i18n="seek">位置</span><input id="ptSeek" type="range" min="0" max="1000" value="0" aria-label="再生位置" data-i18n-aria-label="seekPosition"></label>
       <details id="ptAudioOptions" class="pt-audio-options">
@@ -935,7 +935,7 @@
       <!-- APP:HELP:BEGIN -->
       <h3 data-i18n="helpBasicsTitle">使い方</h3>
       <ol>
-        <li data-i18n="helpStep1">30秒以内・100MiB以内の再生できる動画を選びます。</li>
+        <li data-i18n="helpStep1">5分以内・250MiB以内の再生できる動画を選びます。</li>
         <li data-i18n="helpStep2">マイクを許可して録画を開始します。録画開始時、元動画は停止しています。</li>
         <li data-i18n="helpStep3">元動画を再生・一時停止しながら説明します。元動画の停止中もマイクと完成動画の録画は続きます。</li>
         <li data-i18n="helpStep4">丸・矢印・ペンで注目箇所を描きます。描画開始で元動画だけ停止します。線は再生時に消えます。</li>
@@ -951,7 +951,7 @@
         <li data-i18n="helpNote3">ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。</li>
         <li data-i18n="helpNote4">ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。</li>
         <li data-i18n="helpNoteRecovery">録画が途中で止まった場合は、正常な完成動画とは区別して回収データを表示します。破損や音声欠落の可能性があるため、必要なら録り直してください。</li>
-        <li data-i18n="helpNoteLimits">読み込める動画は30秒・100MiBまで、録画は90秒までです。録画データが大きくなりすぎた場合も途中で停止します。</li>
+        <li data-i18n="helpNoteLimits">読み込める動画は5分・250MiBまで、録画は10分までです。録画データが大きくなりすぎた場合も途中で停止します。</li>
         <li data-i18n="helpNoteExport">保存ボタンはダウンロードを開始するだけで完了を保証しません。ブラウザの保存先で再生を確認してください。共有は選択した相手へOSがファイルを渡す操作です。非対応端末では表示されません。</li>
         <li data-i18n="helpKeyboard">キーボードでも動画の再生・録画・保存を操作できます。指差しは矢印キーで位置を調整してEnterで配置できます。丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。</li>
       </ul>
@@ -1074,7 +1074,7 @@
           "helpTitle": "使い方と注意事項",
           "close": "閉じる",
           "helpBasicsTitle": "使い方",
-          "helpStep1": "30秒以内・100MiB以内の再生できる動画を選びます。",
+          "helpStep1": "5分以内・250MiB以内の再生できる動画を選びます。",
           "helpStep2": "「録画して再生」でマイクを許可すると動画も再生します。最初の画面で説明したいときだけ停止開始を選んでください。",
           "helpStep3": "元動画を一時停止して説明した時間も、新しい完成動画に入ります。元ファイルは書き換えません。停止中もマイクと録画は続きます。",
           "helpStep4": "指差しを選んで画面をタップするとリングが付きます。丸・矢印・ペンは指でなぞります。描き始めると元動画だけが止まり、再生で現在の図形は消えます。",
@@ -1084,7 +1084,7 @@
           "helpNote1": "Ctrl+Zで戻す、Ctrl+Yでやり直せます。現在表示中の描画だけが対象です。録画済みの部分は変更できません。再生で現在の線は消えます。",
           "helpNote2": "既定ではマイクだけを録音します。元動画音声との合成はPC版Chromiumの試験機能で、端末ごとの再生互換性は未検証です。",
           "helpNote3": "ブラウザによって出力はMP4またはWebMです。録画中の画面ロック・タブ移動・着信では失敗する可能性があります。",
-          "helpNote4": "ファイルはメモリ上に保持され、ページを閉じると未保存の録画は失われます。結果を最後まで再生して確認してください。",
+          "helpNote4": "録画データは端末のメモリを使います。長い録画は上限前でも端末によって中断することがあります。ページを閉じると未保存データは失われます。",
           "helpOffline": "動画とマイク音声はブラウザ内で処理します。明示的に共有先を選ぶ場合は、その先へ完成動画が送られることがあります。",
           "introTitle": "動画を止めて、声で説明する",
           "lead": "再生を止めている間も録音は続きます。短い動画に説明音声を追加して保存できます。",
@@ -1093,7 +1093,7 @@
           "selectBody": "短い動画を読み込み、再生を止めながら声を録音します。",
           "chooseVideo": "動画を選ぶ",
           "changeVideo": "動画を変更",
-          "dropHint": "PCではここへドラッグ＆ドロップできます。動画は最大30秒・100MiBまで。",
+          "dropHint": "PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。",
           "studioTitle": "動画を見ながら説明する",
           "notRecording": "録画前",
           "recording": "録画中",
@@ -1117,10 +1117,10 @@
           "recordAgain": "もう一度録る",
           "diagnostics": "技術検証ログ（端末内のみ）",
           "diagIntro": "端末・ブラウザでの録画動作を確認するための情報です。自動送信は行いません。",
-          "fileTooLarge": "動画のサイズが100MiBを超えています。短い動画を選んでください。",
+          "fileTooLarge": "動画のサイズが250MiBを超えています。より小さい動画を選んでください。",
           "invalidVideo": "この動画は再生できません。対応形式・ファイルの破損を確認してください。",
           "invalidLength": "動画の長さが0秒か、不明です。通常の短い動画を選んでください。",
-          "tooLong": "動画が30秒を超えています。30秒以内を選んでください。",
+          "tooLong": "動画が5分を超えています。5分以内を選んでください。",
           "sourceReady": "動画の準備ができました。「録画して再生」で説明を始められます。",
           "sourcePaused": "元動画は停止中です。録画と声の収録は続いています。",
           "sourcePlaying": "元動画を再生中。録画と声の収録は続いています。",
@@ -1155,7 +1155,7 @@
           "loadingVideo": "動画を読み込んでいます…",
           "micNote": "マイクは録画開始時に使用します。入力動画と録音内容は端末内で処理します。",
           "resultInterrupted": "録画が中断されました。音声と映像が最後まであるか、保存前に確認してください。",
-          "resultLimit": "90秒の録画上限に達したため終了しました。保存前に結果を確認してください。",
+          "resultLimit": "10分の録画上限に達したため終了しました。保存前に結果を確認してください。",
           "drawTitle": "動画に描く",
           "drawAutoPause": "指で触れると元動画が止まります",
           "drawToolsAria": "描画ツール",
@@ -1207,7 +1207,7 @@
           "recordingStopTimeout": "録画終了の確認が取れませんでした。回収したデータを確認してください。",
           "captureErrorDetail": "録画を確認できません。再生可能な部分がある場合だけ保存してください。",
           "helpNoteRecovery": "録画が途中で止まった場合は、通常の完成動画とは区別して回収データを表示します。破損・音声欠落の可能性があるため、必要なら録り直してください。",
-          "helpNoteLimits": "読み込める動画は30秒・100MiBまで、録画は90秒までです。録画データが大きくなりすぎた場合も途中で停止します。",
+          "helpNoteLimits": "読み込める動画は5分・250MiBまで、録画は10分までです。録画データが大きくなりすぎた場合も途中で停止します。",
           "downloadRecoveredStarted": "回収できたデータの保存を開始しました。破損している可能性があるため、保存後に確認してください。",
           "shareVideo": "動画を共有",
           "shareUnavailable": "この端末では動画ファイルを直接共有できません。「動画を保存」を使ってください。",
@@ -1247,7 +1247,7 @@
           "helpTitle": "How to use & limitations",
           "close": "Close",
           "helpBasicsTitle": "How to use",
-          "helpStep1": "Choose a playable video up to 30 seconds and 100 MiB.",
+          "helpStep1": "Choose a playable video up to 5 minutes and 250 MiB.",
           "helpStep2": "Select Record & play and allow the microphone. The source plays too. Choose the paused-start option when you want to explain the first frame.",
           "helpStep3": "Time spent explaining a paused frame is included in a NEW output video. The source file is unchanged. Voice and output recording continue while source playback is paused.",
           "helpStep4": "Select Point and tap to place a ring, or drag with Circle, Arrow or Pen. Drawing pauses only the source. Resuming clears visible marks.",
@@ -1257,7 +1257,7 @@
           "helpNote1": "Ctrl+Z undoes and Ctrl+Y redoes only the current visible drawing. Previously recorded footage cannot be changed. Resuming playback clears marks.",
           "helpNote2": "Microphone-only recording is the default. Mixing original video sound is an unverified desktop Chromium experiment; device compatibility is not guaranteed.",
           "helpNote3": "Output is MP4 or WebM depending on the browser. Backgrounding, screen lock or interruptions can break a recording.",
-          "helpNote4": "Recordings stay in memory and are lost when the page closes. Please play the result through before using it.",
+          "helpNote4": "Recording uses device memory. Long sessions can fail before the limit on some devices, and unsaved results are lost when you close the page.",
           "helpOffline": "Your video and microphone are processed in this browser. Explicitly sharing the finished file to a chosen recipient can transfer it outside your device.",
           "introTitle": "Pause a video, explain with your voice",
           "lead": "Recording continues when the source video is paused. Add a spoken explanation to a short video and save it.",
@@ -1266,7 +1266,7 @@
           "selectBody": "Load a short video, pause its playback and record your voice.",
           "chooseVideo": "Choose video",
           "changeVideo": "Change video",
-          "dropHint": "On desktop, you can drag and drop a video here. Up to 30 seconds and 100 MiB.",
+          "dropHint": "On desktop, you can drag and drop a video here. Up to 5 minutes and 250 MiB.",
           "studioTitle": "Explain while watching",
           "notRecording": "Not recording",
           "recording": "Recording",
@@ -1290,10 +1290,10 @@
           "recordAgain": "Record again",
           "diagnostics": "Local technical diagnostics",
           "diagIntro": "Use these details to verify the device and browser. Nothing is automatically sent.",
-          "fileTooLarge": "Video exceeds 100 MiB. Choose a shorter file.",
+          "fileTooLarge": "Video exceeds 250 MiB. Choose a smaller file.",
           "invalidVideo": "This video could not be decoded. Check the codec or file integrity.",
           "invalidLength": "This video has an invalid or unknown duration.",
-          "tooLong": "Video exceeds 30 seconds. Please use a shorter file.",
+          "tooLong": "Video exceeds 5 minutes. Please use a shorter file.",
           "sourceReady": "Video ready. Select Record & play to narrate it.",
           "sourcePaused": "Source paused. Output recording and microphone are still running.",
           "sourcePlaying": "Source playing. Output recording and microphone are still running.",
@@ -1328,7 +1328,7 @@
           "loadingVideo": "Loading video…",
           "micNote": "The microphone is requested when recording begins. The video and voice stay on this device.",
           "resultInterrupted": "Recording was interrupted. Check that both video and audio run to the end before saving.",
-          "resultLimit": "The 90-second recording limit was reached. Review the result before saving.",
+          "resultLimit": "The 10-minute recording limit was reached. Review the result before saving.",
           "drawTitle": "Draw on video",
           "drawAutoPause": "Touching the video pauses the source",
           "drawToolsAria": "Drawing tools",
@@ -1380,7 +1380,7 @@
           "recordingStopTimeout": "Could not confirm recording completion. Review the recovered data.",
           "captureErrorDetail": "Recording was not verified. Save only if you want to attempt recovery.",
           "helpNoteRecovery": "If recording is interrupted, recovered data is shown separately from successful videos. It may be broken or missing sound; record again if needed.",
-          "helpNoteLimits": "Source videos can be up to 30 seconds or 100 MiB; recording runs for up to 90 seconds. A recording may stop sooner if its data grows too large.",
+          "helpNoteLimits": "Source videos can be up to 5 minutes or 250 MiB; recording runs for up to 10 minutes. A recording may stop sooner if its data grows too large.",
           "downloadRecoveredStarted": "Recovered data download requested. The file may be damaged; check it after saving.",
           "shareVideo": "Share video",
           "shareUnavailable": "File sharing is unavailable here. Use Download video instead.",
@@ -1524,10 +1524,10 @@
       const stageContext = stageCanvas.getContext('2d', { alpha: false });
       const resultVideo = $('#ptResultVideo');
       const outputFilename = $('#outputFilename');
-      const MAX_SOURCE_SECONDS = 30;
-      const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
-      const MAX_RECORD_MS = 90000;
-      const MAX_STORED_CHUNK_BYTES = 96 * 1024 * 1024;
+      const MAX_SOURCE_SECONDS = 5 * 60;
+      const MAX_SOURCE_BYTES = 250 * 1024 * 1024;
+      const MAX_RECORD_MS = 10 * 60 * 1000;
+      const MAX_STORED_CHUNK_BYTES = 256 * 1024 * 1024;
       const STOP_FINALIZE_TIMEOUT_MS = 9000;
       const MIC_MUTE_GRACE_MS = 3200;
       const VIDEO_FPS = 30;
@@ -2021,8 +2021,7 @@
         updateAudioControls();
         updateDrawingControls();
         const inputPhase=['empty','loading','error'].includes(phase);
-        $('#ptSteps').hidden=!inputPhase;
-        document.querySelector('.page-intro').hidden=!inputPhase;
+        // Keep hero and progress visible during recording and export.
         $('#ptStartPausedRow').hidden=phase!=='ready';
         $('#ptStartPaused').disabled=phase!=='ready';
         $('#ptInputPanel').hidden = !inputPhase;
@@ -2535,7 +2534,7 @@
         const chunks=state.chunks.slice();
         const chunkBytes=state.chunkBytes;
         const reason=state.stopReason;
-        // A planned 90-second duration limit is a controlled stop, not an error.
+        // A planned 10-minute duration limit is a controlled stop, not an error.
         const interrupted=state.stopTimeoutHit || !['manual','limit'].includes(reason);
         const recorder=state.recorder;
         if (recorder) {

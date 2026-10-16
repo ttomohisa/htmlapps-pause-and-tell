@@ -4,7 +4,7 @@
 
 **Explain a video with your voice while pausing, pointing and drawing.** The output includes the original video frames, your drawn marks and narration. Your microphone and output recording continue while source playback is paused.
 
-> **v0.9.1 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
+> **v0.9.2 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
 
 ## How to use
 
@@ -13,6 +13,8 @@
 3. Press **Record & play** directly beneath the video and allow microphone access. The original video starts playing as recording begins. Select **Explain the first frame before playback** if you want to begin on a still frame.
 4. **Pause the source** to talk and annotate. Playback resumes with the current drawing cleared; previously recorded marks and narration remain in the output.
 5. Press **Finish recording**, preview the result, then download it.
+
+The hero and three-step progress remain visible during recording and preview. Video controls remain directly beneath the video.
 
 Use **Ctrl+Z / Cmd+Z** to undo and **Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z** to redo current drawings, including Clear within a paused segment. Text-entry fields retain their normal editing shortcuts.
 
@@ -26,11 +28,11 @@ Exports use the **actual MP4 or WebM** produced by your browser. A browser downl
 
 | Item | Trial limit |
 | --- | --- |
-| Source video | 30 seconds |
-| Source file | 100 MiB |
-| Output recording | 90 seconds |
+| Source video | Up to 5 minutes |
+| Source file | Up to 250 MiB |
+| Output recording | Up to 10 minutes |
 
-These are **conservative test caps for decoder/recording memory use**, not fundamental browser limitations. They will be reconsidered after hardware measurements, especially on mobile devices. The recording buffer also has a memory-safety threshold.
+These are **experimental expanded caps**, not guaranteed durations or browser-defined limits. The in-memory recording-chunk budget is 256 MiB; recording stops earlier if it is reached. Large sessions may run out of device memory sooner, especially on phones. Physical Android/iPhone long-session recording remains unverified. Check saved output before use.
 
 Microphone-only output is the default. Source-audio mixing is an **unverified opt-in experiment on desktop Chromium**. Microphone permission, screen lock and tab switching can interrupt recording.
 
