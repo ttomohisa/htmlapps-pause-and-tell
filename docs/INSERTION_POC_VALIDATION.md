@@ -1,4 +1,4 @@
-# Pause & Tell insertion PoC — v0.10.0–v0.11.2 verification
+# Pause & Tell insertion PoC — v0.10.0–v0.11.3 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.
 
@@ -100,3 +100,18 @@ The browser test independently decodes the output and checks the 440 Hz source s
 Added source-switch guard: after clips have been recorded, replacing the source prompts the user; cancel keeps the original and recordings. Invalid replacement inputs do not erase the explanation list. Failure of the candidate preview should restore the prior video. The source's original sound is audible on user-triggered playback, and the player pauses before microphone recording.
 
 **Test split**: short correctness regression stays on PR; [extended endurance workflow](../.github/workflows/insertion-endurance.yml) is opt-in only (manual dispatch, or an explicit `[run-endurance]` Draft PR title edit before merge). A single 30s passing test does not validate 60s/180s/300s, nonstandard codecs, abrupt interruption, storage quota failure, long-form memory use or real mobile devices.
+
+## v0.11.3 — longer source and MP4 input evidence (2026-10-17)
+
+**Two opt-in independently verified output files** (synthetic microphone, Ubuntu GitHub Actions):
+
+| Original fixture | Browser | Saved WebM | Verified media | Evidence |
+| --- | --- | --- | --- | --- |
+| 60.00s VP8/Opus WebM | Chromium | **61.22s**, 5,379,665 bytes | original tail RGB error 2.188; original 440 Hz sound before/after, 800 Hz explanation inside; no app HTTP/errors | [Run 38943079843](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38943079843) · [files](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38943079843/artifacts/12063569028) |
+| 30.00s H.264/AAC MP4 | **Google Chrome** | **31.22s**, 3,145,773 bytes | original tail RGB error 11.361; original soundtrack and narration before/inside/after; no app HTTP/errors | [Run 38943039604](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38943039604) · [files](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38943039604/artifacts/12063813211) |
+
+**Limits of these results:** The runner's ordinary Chromium did not play H.264 MP4 (input stage returned unsupported); Google Chrome on the same runner succeeded. This is a browser codec/packaging difference. Do not extrapolate Chrome success to all browsers, MOV/HEVC, all MP4 profiles, phone hardware or MP4 *output*. The output remains WebM (VP8/Opus). Both original sources were 320×180 at 15 FPS. Longer/more complex files remain unverified.
+
+**60s regression investigation:** An earlier test failed extracting a tail frame with fast `ffmpeg -ss ... -i output.webm`. The test was changed to decode sequentially `-i ... -ss` with bounded FFmpeg threads and preserve actual stderr on any failure. The updated 60s regression passed; no supported conclusion about universal indexed seeking follows from this test.
+
+**Accepted next tests:** At milestones, check 180-second original in a desktop browser with actual saved file, then portrait/rotation and audio channel/sample-rate variations. Physical Android Chrome and iPhone Safari microphone/export/playback and storage interruption remain mandatory before release. See [test policy](INSERTION_TEST_POLICY.md).

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.11.3 — 60-second export and H.264/AAC MP4 source validation (PoC only)
+
+- An opt-in 60-second moving WebM source with original Opus audio produced a decodable 61.22-second VP8/Opus WebM, with appended 800 Hz synthetic narration and correct original audio/video before/after insertion.
+- A 30-second H.264/AAC MP4 was successfully imported and exported as 31.22-second VP8/Opus WebM on desktop Google Chrome. Plain CI Chromium could not load the MP4 because of codec packaging; display a localized unsupported-format message instead of silently dropping content.
+- Improve long-WebM test accuracy by sequentially decoding late frames with bounded FFmpeg threads and surfacing command stderr.
+- Keep endorsement limited to the measured browser/file cases; no full 5-minute performance or physical iOS/Android claims.
+
 ### v0.11.2 — optional 30-second endurance test and safe source replacement (PoC only)
 
 - Added manual-only 30/60/180-second longer-video validation. A real 30-second VP8/Opus source successfully exported as a 31.22-second video after inserting roughly 1.22 seconds of separately captured narration. ffprobe/ffmpeg confirmed audio interval switching and video tail preservation; [run and media artifact](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686). The opt-in endurance workflow never runs on ordinary PR pushes. Before merge it can be triggered by an explicit `[run-endurance]` Draft PR title edit; manual dispatch is also supported where available.
