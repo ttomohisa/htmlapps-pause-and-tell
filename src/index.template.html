@@ -774,8 +774,9 @@
             <button type="button" class="pt-draw-color" data-draw-color="red" aria-pressed="false" data-i18n-aria-label="drawRed" aria-label="赤"><span class="pt-color-swatch" style="background:#ff6262"></span></button>
           </div>
           <div class="pt-annotation-actions">
-            <button type="button" id="ptDrawUndo" class="pt-annotation-action" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 0 14"/></svg><span data-i18n="drawUndo">1つ戻す</span></button>
-            <button type="button" id="ptDrawClear" class="pt-annotation-action" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg><span data-i18n="drawClear">線を消す</span></button>
+            <button type="button" id="ptDrawUndo" class="pt-annotation-action" data-i18n-aria-label="drawUndo" aria-keyshortcuts="Control+Z Meta+Z" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 0 14"/></svg><span data-i18n="drawUndo">1つ戻す</span></button>
+            <button type="button" id="ptDrawRedo" class="pt-annotation-action" data-i18n-aria-label="drawRedo" aria-keyshortcuts="Control+Y Meta+Shift+Z" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a7 7 0 0 0 0 14"/></svg><span data-i18n="drawRedo">やり直す</span></button>
+            <button type="button" id="ptDrawClear" class="pt-annotation-action" data-i18n-aria-label="drawClear" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg><span data-i18n="drawClear">線を消す</span></button>
           </div>
         </div>
         <p class="pt-draw-help" data-i18n="drawNote">表示中の線だけを消せます。すでに録画された映像は元に戻りません。録画開始時と動画の再生時にも線は消えます。</p>
@@ -1618,8 +1619,9 @@
       const drawSurface = $('#ptDrawSurface');
       const PAINT_COLORS = Object.freeze({ yellow: '#ffe36b', white: '#ffffff', red: '#ff6262' });
       const MAX_VISIBLE_STROKES = 120;
+      const MAX_DRAW_HISTORY = 48;
       const MAX_PEN_POINTS = 2500;
-      const drawing = { tool: 'point', color: 'yellow', strokes: [], active: null };
+      const drawing = { tool: 'point', color: 'yellow', strokes: [], active: null, undoStack: [], redoStack: [] };
       const keyboardPoint = { u: .5, v: .5 };
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
@@ -1758,8 +1760,37 @@
           button.disabled=!available;
           button.setAttribute('aria-pressed',String(button.dataset.drawColor===drawing.color));
         });
-        $('#ptDrawUndo').disabled=!available || (!drawing.active && drawing.strokes.length===0);
+        $('#ptDrawUndo').disabled=!available || (!drawing.active && !drawing.undoStack.length);
+        $('#ptDrawRedo').disabled=!available || !drawing.redoStack.length;
         $('#ptDrawClear').disabled=!available || (!drawing.active && drawing.strokes.length===0);
+      }
+      function rememberDrawingState() {
+        // Committed strokes are immutable. Snapshot arrays, not huge pen point buffers.
+        drawing.undoStack.push(drawing.strokes.slice());
+        if(drawing.undoStack.length>MAX_DRAW_HISTORY) drawing.undoStack.shift();
+        drawing.redoStack.length=0;
+      }
+      function applyDrawingUndo() {
+        if(!isDrawPhase()) return;
+        if(drawing.active) { finishStroke(false); return; }
+        if(!drawing.undoStack.length) return;
+        drawing.redoStack.push(drawing.strokes.slice());
+        drawing.strokes=drawing.undoStack.pop();
+        updateDrawingControls();
+        renderFrame();
+      }
+      function applyDrawingRedo() {
+        if(!isDrawPhase() || drawing.active || !drawing.redoStack.length) return;
+        drawing.undoStack.push(drawing.strokes.slice());
+        drawing.strokes=drawing.redoStack.pop();
+        updateDrawingControls();
+        renderFrame();
+      }
+      function commitDrawingStroke(stroke) {
+        rememberDrawingState();
+        drawing.strokes.push(stroke);
+        updateDrawingControls();
+        renderFrame();
       }
       function finishStroke(commit=true) {
         const active=drawing.active;
@@ -1768,13 +1799,14 @@
         if (drawSurface.hasPointerCapture && drawSurface.hasPointerCapture(active.id)) {
           try { drawSurface.releasePointerCapture(active.id); } catch { /* pointer was cancelled */ }
         }
-        if (commit) drawing.strokes.push(active.stroke);
-        updateDrawingControls();
-        renderFrame();
+        if (commit) commitDrawingStroke(active.stroke);
+        else { updateDrawingControls(); renderFrame(); }
       }
-      function clearDrawing() {
+      function clearDrawing({undoable=false}={}) {
         finishStroke(false);
-        if (drawing.strokes.length) drawing.strokes.length=0;
+        if(undoable && drawing.strokes.length) rememberDrawingState();
+        if(!undoable) { drawing.undoStack.length=0; drawing.redoStack.length=0; }
+        if(drawing.strokes.length) drawing.strokes=[];
         updateDrawingControls();
         renderFrame();
       }
@@ -1819,9 +1851,7 @@
         }
         if(!sourceVideo.paused && !sourceVideo.ended) sourceVideo.pause();
         const point={u:keyboardPoint.u,v:keyboardPoint.v};
-        drawing.strokes.push({tool:'point',color:drawing.color,from:point,to:point});
-        updateDrawingControls();
-        renderFrame();
+        commitDrawingStroke({tool:'point',color:drawing.color,from:point,to:point});
         announceKeyboardPoint('keyboardPointPlaced');
       });
       drawSurface.addEventListener('pointerdown',event=>{
@@ -1836,9 +1866,7 @@
         const stroke={tool:drawing.tool,color:drawing.color,from:point,to:point};
         if (drawing.tool==='point') {
           // Point mode is a single tap; ignore subsequent drags and duplicate pointerup.
-          drawing.strokes.push(stroke);
-          updateDrawingControls();
-          renderFrame();
+          commitDrawingStroke(stroke);
           return;
         }
         if (drawing.tool==='pen') stroke.points=[point];
@@ -1883,15 +1911,10 @@
           showDrawableStage();
         });
       });
-      $('#ptDrawUndo').addEventListener('click',()=>{
-        if (!isDrawPhase()) return;
-        if (drawing.active) finishStroke(false);
-        else drawing.strokes.pop();
-        updateDrawingControls();
-        renderFrame();
-      });
+      $('#ptDrawUndo').addEventListener('click',applyDrawingUndo);
+      $('#ptDrawRedo').addEventListener('click',applyDrawingRedo);
       $('#ptDrawClear').addEventListener('click',()=>{
-        if (isDrawPhase()) clearDrawing();
+        if (isDrawPhase()) clearDrawing({undoable:true});
       });
 
       const formatTime = milliseconds => {
