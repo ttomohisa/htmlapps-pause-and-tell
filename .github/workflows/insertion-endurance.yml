@@ -43,7 +43,7 @@ jobs:
       - name: Verify a real saved longer WebM
         run: |
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-endurance.log 2>&1 &
-          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "\${{ github.event.inputs.source_seconds || '30' }}"
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "${{ github.event.inputs.source_seconds || '30' }}"
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v7
