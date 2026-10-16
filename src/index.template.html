@@ -1956,11 +1956,7 @@
       function refreshStageStatus() {
         const notice=$('#ptStageStatus');
         notice.hidden=state.phase!=='recording';
-        if (!notice.hidden) {
-          const detail=state.statusKey && ['sourcePaused','sourcePlaying','sourceEnded'].includes(state.statusKey)
-            ? translate(state.statusKey) : translate('recording');
-          notice.textContent=detail;
-        }
+        if (!notice.hidden) notice.textContent=translate(!sourceVideo.paused && !sourceVideo.ended?'stagePlaying':'stageFrozen');
       }
       function setStatus(key) {
         state.statusKey = key;
@@ -1987,7 +1983,12 @@
         $('#ptMicNote').hidden = phase !== 'ready';
         updateAudioControls();
         updateDrawingControls();
-        $('#ptInputPanel').hidden = !['empty','loading','error'].includes(phase);
+        const inputPhase=['empty','loading','error'].includes(phase);
+        $('#ptSteps').hidden=!inputPhase;
+        document.querySelector('.page-intro').hidden=!inputPhase;
+        $('#ptStartPausedRow').hidden=phase!=='ready';
+        $('#ptStartPaused').disabled=phase!=='ready';
+        $('#ptInputPanel').hidden = !inputPhase;
         $('#ptStudioPanel').hidden = !['ready','preparing','recording','finalizing'].includes(phase);
         $('#ptResultPanel').hidden = !['result','recovery'].includes(phase);
         const busy = phase === 'preparing' || phase === 'finalizing';
@@ -2038,7 +2039,8 @@
         share.disabled=!shareAvailable || state.shareInProgress;
       }
       function updateTransport() {
-        $('#ptPlayPause').textContent = translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
+        $('#ptPlayPause').textContent=translate(sourceVideo.paused || sourceVideo.ended ? 'play' : 'pause');
+        $('#ptStart').textContent=translate($('#ptStartPaused').checked ? 'startRecordStill' : 'startRecordAndPlay');
       }
       function applyLanguage() {
         document.documentElement.lang = language;
@@ -2264,6 +2266,7 @@
         }
         const token = state.generation;
         const requestedMode = selectedAudioMode();
+        const startWithPause = $('#ptStartPaused').checked;
         setPhase('preparing');
         clearDrawing();
         setStatus('recordingStarting');
@@ -2375,6 +2378,20 @@
           setPhase('recording');
           setStatus('sourcePaused');
           $('#ptPlayPause').focus({preventScroll:true});
+          // User expects a moving video as soon as Record starts. The checkbox
+          // explicitly retains narration over a stationary first frame.
+          if(!startWithPause) {
+            try {
+              await sourceVideo.play();
+              if(withinSession(token) && state.phase==='recording') setStatus('sourcePlaying');
+            } catch(error) {
+              logDetail('Autoplay after Record: '+error.name+' '+error.message);
+              if(withinSession(token) && state.phase==='recording') {
+                setStatus('sourcePaused');
+                showToast(translate('autoPlayBlocked'),{tone:'warning',duration:6500});
+              }
+            }
+          }
           logDetail('Record start: '+state.outputMime+', mode='+state.recordedAudioMode
             +', sourceGain='+state.recordedSourceGain
             +', videoTrack='+videoTrack.readyState+', audioTrack='+capturedAudioTrack.readyState);
@@ -2766,6 +2783,7 @@
         if (file) void chooseFile(file);
       });
       $('#ptStart').addEventListener('click', () => void startRecording());
+      $('#ptStartPaused').addEventListener('change',updateTransport);
       $('#ptStop').addEventListener('click', () => stopRecording());
       $('#ptPlayPause').addEventListener('click', () => void togglePlayback());
       $('#ptSeek').addEventListener('input',event => {
@@ -2834,6 +2852,16 @@
         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) helpDialog.close();
       });
       window.addEventListener('keydown',event => {
+        if((event.ctrlKey||event.metaKey) && !event.altKey && !event.repeat
+          && !helpDialog.open && !$('#appConfirmDialog').open && isDrawPhase()
+          && !(event.target instanceof HTMLElement
+            && event.target.closest('input,textarea,select,[contenteditable]'))) {
+          const key=event.key.toLowerCase();
+          if(key==='z' && !event.shiftKey) { event.preventDefault(); applyDrawingUndo(); return; }
+          if(key==='y' || (key==='z' && event.shiftKey)) {
+            event.preventDefault(); applyDrawingRedo(); return;
+          }
+        }
         if (event.defaultPrevented || event.code !== 'Space' || event.repeat
           || helpDialog.open || $('#appConfirmDialog').open) return;
         if (event.target instanceof HTMLElement && event.target.closest('button,input,textarea,select,[contenteditable]')) return;
@@ -2851,6 +2879,11 @@
           event.preventDefault(); event.returnValue = '';
         }
       });
+      // Diagnostics and internal build details are off by default. ?debug=1
+      // opts in while preserving the useful local troubleshooting logs.
+      const debugMode=new URLSearchParams(location.search).get('debug')==='1';
+      $('#ptDiagnosticsSection').hidden=!debugMode;
+      $('#ptBuildInfoSection').hidden=!debugMode;
       $('#versionBadge').textContent = 'v' + APP_CONFIG.version;
       $('#buildVersion').textContent = APP_CONFIG.version;
       $('#builtAt').textContent = BUILD_MANIFEST.generatedAtUtc || '—';
