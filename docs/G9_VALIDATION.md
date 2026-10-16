@@ -164,3 +164,18 @@ In desktop and 320px cases the exported result had video+audio, with Ctrl+Z, Ctr
 ### Gate decision
 
 **v0.9.1 Chromium smoke PASS**, but **G9 / release remains NO-GO**. The source duration/file size caps have *not* been raised, physical iPhone Safari and Android Chrome real recording/save/decoded replay remain missing, and direct `file://` operation remains untested in the current browser harness. No PR merge or Browser Kitty site deployment is authorized by these results.
+
+
+### Final v0.9.1 exact-artifact reproduction (2026-10-16)
+
+**CI HTML tested:** `5c0c7be684022bf25940cc062be1aa8295b9e5cd` (v0.9.1), using Playwright/headless Linux Chromium and a synthetic 880 Hz mic track. The production source and build checks passed. This is **not** a real microphone/device test.
+
+- **Viewport/layout:** Desktop 1280×800, smartphone-size 320×568, 360×740, 390×844, and short landscape 844×390 all avoided horizontal overflow. Tools, video and transport were adjacent; measured gap from Canvas to recording controls **14–15px**, with `position: static` (no distant/fixed buttons). The two recording smoke cases saved actual playable files with video **VP8 + Opus audio**, no remaining live synthetic mic tracks, and no application HTTP or JS errors.
+- **Drawing history:** Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, Undo Clear and playback-clears-history passed in both desktop and 320px Chromium contexts. First-frame paused-start option also passed.
+- **Ordinary default Record & play:** Original video advances after recording begins, without the user having to locate a second Play button. Saved output frames at 0.6s and 1.8s differed visibly in a separate dynamic-content regression.
+- **2.2s paused narration segment, actual saved WebM:** Source time was **1.447564s** before and after 2.2s pause, then **2.708551s** after resuming. Output last packets were **video 5.043s / audio 5.075s**, file **515,484 bytes**. Pixel MAE paused frames **0.00035**, paused vs resumed frame **16.22**. Synthetic microphone RMS around output 2.1/3.2/4.4s was **0.22089 / 0.22074 / 0.22068**. Output includes both the paused explanation interval and resumed source motion.
+- **20s paused narration segment, actual saved WebM:** Source time stayed **1.045225s** for the entire 20s hold. Exported **1,393,928-byte** video has packet end times **video 25.140s / audio 25.178s**. Output frames at 5s vs 17s in the freeze region have RGB MAE **0.38** from lossy VP8 compression, versus **17.32** between frozen 17s and resumed 24s. Synthetic audio RMS at 5/17/24s **0.17980 / 0.18053 / 0.18016**. The first overly tight test threshold (MAE below 0.2) was a **test threshold issue**, not missing video; independent decoded output and source position show the freeze correctly. No JS exceptions or external HTTP requests.
+- **Developer UI:** Diagnostics and build information were hidden by default, with `?debug=1` opt-in only. User README, Help and transport controls now describe actual behavior rather than successive technical prototype stages.
+- **Automation:** The existing optional `tests/g9-browser-regression.py` was updated to match Record & play autoplay semantics, and `tests/recording-ux-smoke.py` added for browser/filename, Undo/Redo and pause continuity. These developer-only harnesses are **not** runtime app dependencies or real-device certification.
+
+**Gate:** automated v0.9.1 usability + output-media subset PASS. **Overall G9 NO-GO** continues because actual iOS/Android microphone, pause/replay, native file save/playback, device rotation and `file://` testing remain unverified. Source 30s/100 MiB and output 90s remain trial limits; the observed Chromium successes do not justify raising them for all smartphones yet.
