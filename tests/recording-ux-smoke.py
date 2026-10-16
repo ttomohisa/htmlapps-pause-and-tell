@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manual v0.9.2 browser regression: video-first capture and drawing undo/redo.
+"""Manual v0.9.3 browser regression: video-first capture and drawing undo/redo.
 
 Install playwright and FFmpeg/ffprobe for DEVELOPMENT ONLY. No runtime app deps.
 python tests/recording-ux-smoke.py --html dist/index.html --output ./ux-test --chromium /usr/bin/chromium
@@ -90,6 +90,8 @@ def main():
             microphone(page)
             page.locator("#ptFile").set_input_files(str(source))
             page.locator("#ptStart").wait_for(state="visible")
+            assert page.locator('[data-draw-tool="pen"]').get_attribute("aria-pressed")=="true"
+            assert page.locator('[data-draw-tool="point"]').get_attribute("aria-pressed")=="false"
             layout=page.evaluate("""() => {
               const canvas=document.querySelector('#ptCanvas').getBoundingClientRect(),
                 bar=document.querySelector('#ptTransport').getBoundingClientRect();
@@ -115,6 +117,7 @@ def main():
                 # Pause source; voice + recorder continue. Point click adds a ring.
                 page.locator("#ptPlayPause").click()
                 source_time=page.locator("#ptVideo").evaluate("(v)=>v.currentTime")
+                page.locator('[data-draw-tool="point"]').click()
                 canvas=page.locator("#ptCanvas").bounding_box()
                 page.mouse.click(canvas["x"]+canvas["width"]*.45,
                                  canvas["y"]+canvas["height"]*.48)
@@ -132,8 +135,31 @@ def main():
                 page.locator("#ptPlayPause").click()
                 until(lambda:page.locator("#ptVideo").evaluate("(v)=>v.currentTime")>source_time+.45)
                 assert page.locator("#ptDrawUndo").is_disabled()
-                page.wait_for_timeout(450)
+                assert page.locator("#ptSeek").is_enabled()
+                # Scrubbing in a live capture pauses only source playback.
+                page.locator("#ptSeek").evaluate("""el=>{
+                  el.value='750'; el.dispatchEvent(new Event('input',{bubbles:true}));
+                }""")
+                until(lambda:abs(page.locator("#ptVideo").evaluate("(v)=>v.currentTime")-3.75)<.18)
+                assert page.locator("#ptVideo").evaluate("(v)=>v.paused")
+                assert page.locator("#ptSeekNote").is_visible()
+                assert page.locator("#ptStop").is_enabled()
+                # Cancel while paused: recording must stay active.
                 page.locator("#ptStop").click()
+                page.locator("#appConfirmDialog").wait_for(state="visible")
+                assert page.locator("#appConfirmTitle").inner_text() in ("録画を終了しますか？","Finish recording?")
+                page.locator("#appConfirmCancel").click()
+                assert page.locator("#ptStop").is_enabled()
+                page.locator("#ptPlayPause").click()
+                until(lambda:not page.locator("#ptVideo").evaluate("(v)=>v.paused"))
+                # Finish while playing: dialog pauses the source; cancel resumes it.
+                page.locator("#ptStop").click()
+                page.locator("#appConfirmDialog").wait_for(state="visible")
+                assert page.locator("#ptVideo").evaluate("(v)=>v.paused")
+                page.locator("#appConfirmCancel").click()
+                until(lambda:not page.locator("#ptVideo").evaluate("(v)=>v.paused"))
+                page.locator("#ptStop").click()
+                page.locator("#appConfirmOk").click()
                 page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
                 assert page.locator('#ptSteps [aria-current="step"]').get_attribute("data-step")=="3"
                 with page.expect_download() as dl:
@@ -172,6 +198,7 @@ def main():
         page.wait_for_timeout(500)
         assert page.locator("#ptVideo").evaluate("(v)=>v.paused && v.currentTime < .1")
         page.locator("#ptStop").click()
+        page.locator("#appConfirmOk").click()
         page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
         results["pausedFirstFrame"]=True
         context.close()
@@ -188,6 +215,7 @@ def main():
             assert page.locator("#ptStop").is_visible() and page.locator("#ptStop").is_enabled(), "Stopped before 95 seconds"
             assert page.locator("#ptRecordClock").inner_text().endswith("10:00")
             page.locator("#ptStop").click()
+            page.locator("#appConfirmOk").click()
             page.locator("#ptResultPanel").wait_for(state="visible",timeout=25000)
             with page.expect_download() as dl:
                 page.locator("#ptDownload").click()

@@ -11,7 +11,7 @@ $readmeJa = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "README.ja.md")
 
 if ([string]$config.name -ne "Pause & Tell") { throw "Pause & Tell name mismatch." }
 if ([string]$config.slug -ne "pause-and-tell") { throw "Pause & Tell slug mismatch." }
-if ([string]$config.version -ne "0.9.2") { throw "Unexpected Pause & Tell POC version." }
+if ([string]$config.version -ne "0.9.3") { throw "Unexpected Pause & Tell POC version." }
 if ([string]$config.repository.owner -ne "ttomohisa" -or [string]$config.repository.name -ne "htmlapps-pause-and-tell") {
   throw "Pause & Tell repository metadata mismatch."
 }
@@ -95,6 +95,13 @@ $requiredTokens = @(
   'sourceVideo.muted=false',
   'selectedAudioMode()',
   'id="ptDrawRedo"',
+  'id="ptSeekNote"',
+  'seekRecordNote',
+  'confirmFinishTitle',
+  'confirmFinishMessage',
+  'function confirmFinishRecording()',
+  'if (state.finishPromptOpen) AppConfirm.dismiss()',
+  "'tool: ''pen''',"
   'MAX_DRAW_HISTORY',
   'function applyDrawingUndo()',
   'function applyDrawingRedo()',
@@ -193,13 +200,16 @@ if ($source.Contains("Single HTML App Starter") -or $source.Contains("Starter wo
   throw "A starter-specific page has leaked into Pause & Tell."
 }
 if ($source.Contains("state.recorder.pause(")) { throw "Pausing source playback must never pause MediaRecorder." }
+if (-not $source.Contains('data-draw-tool="pen" aria-pressed="true"')) { throw "Pen must be the initially selected drawing tool." }
+if (-not $source.Contains("$('#ptSeek').disabled = !['ready','recording'].includes(phase)")) { throw "Seeking during recording must be enabled." }
+if ($source.Contains("$('#ptStop').addEventListener('click', () => stopRecording())")) { throw "Manual finish must request confirmation." }
 if ($source.Contains("document.querySelector('.page-intro').hidden=!inputPhase") -or $source.Contains("`$('#ptSteps').hidden=!inputPhase")) { throw "Hero and steps must remain visible after loading." }
 if ($source.Contains("body:has(#ptStudioPanel:not([hidden])) .page-intro,")) { throw "Mobile recording must not hide the hero." }
 if (-not $spec.Contains("FR-010") -or -not $plan.Contains("G1")) {
   throw "Specification and development gates are missing."
 }
-if (-not $readme.Contains("v0.9.2") -or -not $readmeJa.Contains("v0.9.2")) {
-  throw "README must describe the experimental v0.9.2 stage."
+if (-not $readme.Contains("v0.9.3") -or -not $readmeJa.Contains("v0.9.3")) {
+  throw "README must describe the experimental v0.9.3 stage."
 }
 if (-not (Test-Path (Join-Path $Root "docs\G1_VALIDATION.md"))) { throw "Missing G1 validation protocol." }
 if (-not (Test-Path (Join-Path $Root "docs\G2_VALIDATION.md"))) { throw "Missing G2 validation protocol." }
@@ -218,4 +228,4 @@ if (-not $icon.Contains('<rect width="64" height="64" rx="16" fill="#16624f"/>')
   throw "The canonical favicon must be the supplied Pause & Tell SVG."
 }
 
-Write-Host "[OK] Pause & Tell v0.9.2 contract markers passed." -ForegroundColor Green
+Write-Host "[OK] Pause & Tell v0.9.3 contract markers passed." -ForegroundColor Green

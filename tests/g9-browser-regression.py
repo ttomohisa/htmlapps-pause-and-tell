@@ -112,6 +112,8 @@ def run_case(browser, html, source, target, name, pauses):
     poll(lambda: page.locator("#ptVideo").evaluate("(v)=>v.ended || v.currentTime>=v.duration-.03"),
          duration + 25)
     page.locator("#ptStop").click()
+    page.locator("#appConfirmDialog").wait_for(state="visible")
+    page.locator("#appConfirmOk").click()
     page.locator("#ptResultPanel").wait_for(state="visible", timeout=35000)
     with page.expect_download(timeout=20000) as download:
         page.locator("#ptDownload").click()

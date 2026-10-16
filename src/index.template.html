@@ -614,6 +614,7 @@
     #ptStudioPanel .pt-clocks { margin:6px 0 2px; gap:12px; flex-wrap:wrap; }
     #ptStudioPanel .pt-clocks > div { font-size:12px; }
     #ptStudioPanel .pt-seek { margin:5px 0 0; }
+    .pt-seek-note { margin:4px 0 8px; color:var(--muted); font-size:12px; line-height:1.6; }
     .pt-start-mode { display:flex; align-items:center; gap:9px; margin:5px 0 0;
       color:var(--muted); font-size:12px; min-height:38px; cursor:pointer; }
     .pt-start-mode input { width:18px; height:18px; accent-color:var(--accent); }
@@ -722,7 +723,7 @@
           <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
         </div>
         <div class="brand-copy">
-          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.9.2</span></p>
+          <p class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.9.3</span></p>
           <p class="brand-meta" data-i18n="brandMeta">動画を止めて話す · 端末内で録画</p>
         </div>
       </div>
@@ -783,10 +784,10 @@
           <span class="pt-muted" data-i18n="drawAutoPause">描き始めると元動画が止まります</span>
         </div>
         <div class="pt-draw-tools" role="group" data-i18n-aria-label="drawToolsAria" aria-label="描画ツール">
-          <button type="button" class="pt-draw-tool" data-draw-tool="point" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg><span data-i18n="toolPoint">指差し</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="point" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg><span data-i18n="toolPoint">指差し</span></button>
           <button type="button" class="pt-draw-tool" data-draw-tool="ellipse" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><ellipse cx="12" cy="12" rx="8.2" ry="6.7"/></svg><span data-i18n="toolCircle">丸</span></button>
           <button type="button" class="pt-draw-tool" data-draw-tool="arrow" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 19 5M10 5h9v9"/></svg><span data-i18n="toolArrow">矢印</span></button>
-          <button type="button" class="pt-draw-tool" data-draw-tool="pen" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 5-.9L20.1 7a2.1 2.1 0 0 0-3-3L5 16zM14 6l4 4"/></svg><span data-i18n="toolPen">ペン</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="pen" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 5-.9L20.1 7a2.1 2.1 0 0 0-3-3L5 16zM14 6l4 4"/></svg><span data-i18n="toolPen">ペン</span></button>
         </div>
         <div class="pt-draw-bottom">
           <div class="pt-draw-colors" role="group" data-i18n-aria-label="drawColorsAria" aria-label="描画色">
@@ -828,6 +829,7 @@
         <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 10:00</strong></div>
       </div>
       <label class="pt-seek" id="ptSeekWrap"><span data-i18n="seek">位置</span><input id="ptSeek" type="range" min="0" max="1000" value="0" aria-label="再生位置" data-i18n-aria-label="seekPosition"></label>
+      <p class="pt-seek-note" id="ptSeekNote" data-i18n="seekRecordNote" hidden>録画中も移動できますが、飛ばした元動画の場面は完成動画に入りません。音声の収録は続きます。</p>
       <details id="ptAudioOptions" class="pt-audio-options">
         <summary data-i18n="audioSettings">音声の設定</summary>
         <div class="pt-audio-body">
@@ -1077,7 +1079,7 @@
           "helpStep1": "5分以内・250MiB以内の再生できる動画を選びます。",
           "helpStep2": "「録画して再生」でマイクを許可すると動画も再生します。最初の画面で説明したいときだけ停止開始を選んでください。",
           "helpStep3": "元動画を一時停止して説明した時間も、新しい完成動画に入ります。元ファイルは書き換えません。停止中もマイクと録画は続きます。",
-          "helpStep4": "指差しを選んで画面をタップするとリングが付きます。丸・矢印・ペンは指でなぞります。描き始めると元動画だけが止まり、再生で現在の図形は消えます。",
+          "helpStep4": "最初はペンが選ばれます。指差しはタップでリング、丸・矢印・ペンはなぞって描きます。録画中の位置移動は元動画だけ停止し、飛ばした場面は完成動画に入りません。",
           "helpPrivacyTitle": "プライバシー",
           "helpPrivacyBody": "選択動画とマイク音声は端末のブラウザ内で処理します。外部API・クラウドへアップロードしません。言語設定以外は端末内に永続保存しません。",
           "helpNotesTitle": "注意事項",
@@ -1102,8 +1104,13 @@
           "stageDescription": "元動画のプレビュー",
           "sourceClock": "元動画の時間",
           "recordClock": "完成動画の時間",
-          "seek": "位置",
+          "seek": "再生位置",
           "seekPosition": "再生位置",
+          "seekRecordNote": "録画中も移動できますが、飛ばした元動画の場面は完成動画に入りません。音声の収録は続きます。",
+          "confirmFinishTitle": "録画を終了しますか？",
+          "confirmFinishMessage": "元動画を一時停止しました。確認中も録画とマイクの収録は続きます。終了すると完成動画の確認へ進みます。",
+          "confirmFinishAction": "録画を終了する",
+          "resumeAfterCancel": "録画は続いています。元動画を再生する場合は再生ボタンを押してください。",
           "startRecord": "説明を録画",
           "play": "元動画を再生",
           "pause": "元動画を止める",
@@ -1190,7 +1197,7 @@
           "audioMixInterrupted": "音声合成が中断されました。作成できた動画の声と元音声を確認してください。",
           "audioResultVoice": "音声：説明音声のみ",
           "audioResultMixed": "音声：元動画と説明音声（試験用）",
-          "helpStep6": "「録画を終了」で完成動画を確認し、名前を付けて保存します。ファイル共有に対応する端末では共有ボタンも表示されます。",
+          "helpStep6": "「録画を終了」で確認ダイアログが開きます。確認中も収録は続きます。終了を確定すると完成動画を確認・保存できます。",
           "resultRecovery": "録画の一部を回収しました",
           "resultRecoveryHelp": "中断・破損の可能性があるため、正常に保存できたとは限りません。",
           "recoverPlayable": "録画が途中で終わりました。再生できる部分だけ回収しました。動画と音声を必ず最後まで確認してください。",
@@ -1250,7 +1257,7 @@
           "helpStep1": "Choose a playable video up to 5 minutes and 250 MiB.",
           "helpStep2": "Select Record & play and allow the microphone. The source plays too. Choose the paused-start option when you want to explain the first frame.",
           "helpStep3": "Time spent explaining a paused frame is included in a NEW output video. The source file is unchanged. Voice and output recording continue while source playback is paused.",
-          "helpStep4": "Select Point and tap to place a ring, or drag with Circle, Arrow or Pen. Drawing pauses only the source. Resuming clears visible marks.",
+          "helpStep4": "Pen is selected initially. Tap with Point to place a ring, or drag to use Circle, Arrow or Pen. Seeking during capture pauses the source, and skipped source footage will not appear in the output.",
           "helpPrivacyTitle": "Privacy",
           "helpPrivacyBody": "Your source video and microphone are processed on your device. The app does not upload them to an API or cloud. Only your language preference is stored.",
           "helpNotesTitle": "Notes",
@@ -1275,8 +1282,13 @@
           "stageDescription": "Source video preview",
           "sourceClock": "Source video",
           "recordClock": "Output recording",
-          "seek": "Position",
+          "seek": "Playback position",
           "seekPosition": "Playback position",
+          "seekRecordNote": "You can seek while recording, but skipped source footage will not appear in the output. Audio recording continues.",
+          "confirmFinishTitle": "Finish recording?",
+          "confirmFinishMessage": "The source video was paused. Recording and microphone continue while this dialog is open. Finishing moves to the output review.",
+          "confirmFinishAction": "Finish recording",
+          "resumeAfterCancel": "Recording continues. Use Play source if playback could not resume automatically.",
           "startRecord": "Record explanation",
           "play": "Play source video",
           "pause": "Pause source video",
@@ -1363,7 +1375,7 @@
           "audioMixInterrupted": "Audio mixing was interrupted. Review the output for missing voice or source sound.",
           "audioResultVoice": "Audio: voice only",
           "audioResultMixed": "Audio: source + voice (experimental)",
-          "helpStep6": "Finish recording, review it, edit its filename, and download. Supported devices will also offer a file Share button.",
+          "helpStep6": "Finish recording opens a confirmation dialog. Capture continues while confirming. Confirm to review, name and download the result.",
           "resultRecovery": "Partially recovered recording",
           "resultRecoveryHelp": "Interrupted or damaged recordings may not be playable or complete.",
           "recoverPlayable": "Recording ended unexpectedly. Some video was recovered. Play the entire output and check its video and audio.",
@@ -1468,7 +1480,7 @@
           if (outside) finish(false);
         });
 
-        return Object.freeze({ ask });
+        return Object.freeze({ ask, dismiss: () => finish(false) });
       })();
       window.AppConfirm = AppConfirm;
 
@@ -1538,7 +1550,8 @@
         startedAt: 0, recordedMs: 0, outputDuration: NaN, outputMime: '', outputExt: '',
         outputPlayable: false, recoveryIssue: '', exportStatusKey: '', shareInProgress: false,
         recordedAudioMode: 'mic', recordedSourceGain: 0.3,
-        renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false
+        renderTimer: null, clockTimer: null, statusKey: '', resultStatusKey: '', stopReason: '', saveRequested: false, autoStopped: false,
+        seekDragging: false, finishPromptOpen: false
       };
       const diagnostics = [];
 
@@ -1658,7 +1671,7 @@
       const MAX_VISIBLE_STROKES = 120;
       const MAX_DRAW_HISTORY = 48;
       const MAX_PEN_POINTS = 2500;
-      const drawing = { tool: 'point', color: 'yellow', strokes: [], active: null, undoStack: [], redoStack: [] };
+      const drawing = { tool: 'pen', color: 'yellow', strokes: [], active: null, undoStack: [], redoStack: [] };
       const keyboardPoint = { u: .5, v: .5 };
       const isDrawPhase = () => state.phase === 'ready' || state.phase === 'recording';
       const clamp01 = n => Math.max(0, Math.min(1, n));
@@ -1977,7 +1990,7 @@
         const running = state.phase === 'recording' && state.startedAt;
         const recorded = running ? performance.now() - state.startedAt : state.recordedMs;
         $('#ptRecordClock').textContent = formatTime(recorded) + ' / ' + formatTime(MAX_RECORD_MS);
-        if (duration > 0 && state.phase !== 'recording') {
+        if (duration > 0 && !state.seekDragging && ['ready','recording'].includes(state.phase)) {
           $('#ptSeek').value = String(Math.round(1000 * sourceVideo.currentTime / sourceVideo.duration));
         }
         if (running && state.recorder?.state==='inactive') {
@@ -2036,7 +2049,8 @@
         $('#ptStart').disabled = phase !== 'ready';
         $('#ptPlayPause').disabled = !canTransport;
         $('#ptStop').disabled = phase !== 'recording';
-        $('#ptSeek').disabled = phase !== 'ready';
+        $('#ptSeek').disabled = !['ready','recording'].includes(phase);
+        $('#ptSeekNote').hidden = phase !== 'recording';
         $('#ptFile').disabled = busy;
         document.querySelectorAll('.pt-change-input').forEach(input => { input.disabled = busy || phase === 'recording'; });
         const badge = $('#ptRecordBadge');
@@ -2163,6 +2177,8 @@
         state.finalizeStarted=false;
         state.stopTimeoutHit=false;
         state.startedAt = 0;
+        state.seekDragging = false;
+        state.finishPromptOpen = false;
       }
       function renderFrame() {
         if (!state.input || !stageContext || sourceVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
@@ -2336,6 +2352,7 @@
           state.stopTimeoutHit=false;
           state.recordedMs=0;
           state.autoStopped=false;
+          state.seekDragging=false;
           state.stopReason='';
           state.recordedAudioMode=requestedMode;
           state.recorder.ondataavailable=event=>{
@@ -2454,8 +2471,42 @@
           showToast(translate(key),{tone:'danger',duration:6000});
         }
       }
+      async function confirmFinishRecording() {
+        if (state.phase!=='recording' || state.finishPromptOpen) return;
+        const token=state.generation;
+        // Keep capturing the paused source frame and microphone during confirmation.
+        // When cancelled, resume only if the source was playing before opening.
+        const resumeOnCancel=!sourceVideo.paused && !sourceVideo.ended;
+        state.finishPromptOpen=true;
+        sourceVideo.pause();
+        let confirmed=false;
+        try {
+          confirmed=await AppConfirm.ask({
+            title:translate('confirmFinishTitle'),
+            message:translate('confirmFinishMessage'),
+            confirmLabel:translate('confirmFinishAction'),
+            cancelLabel:translate('cancel')
+          });
+        } finally {
+          state.finishPromptOpen=false;
+        }
+        if (!withinSession(token) || state.phase!=='recording') return;
+        if (confirmed) {
+          stopRecording('manual');
+        } else if (resumeOnCancel) {
+          try { await sourceVideo.play(); }
+          catch(error) {
+            logDetail('Resume after finish cancellation: '+error.message);
+            if (withinSession(token) && state.phase==='recording') {
+              showToast(translate('resumeAfterCancel'),{tone:'warning'});
+            }
+          }
+        }
+      }
       function stopRecording(reason='manual') {
         if (state.phase!=='recording' || !state.recorder) return;
+        // An automatic safety stop must dismiss a pending manual finish dialog.
+        if (state.finishPromptOpen) AppConfirm.dismiss();
         finishStroke(true);
         state.recordedMs=Math.max(0,performance.now()-state.startedAt);
         state.autoStopped=reason!=='manual';
@@ -2820,12 +2871,30 @@
       });
       $('#ptStart').addEventListener('click', () => void startRecording());
       $('#ptStartPaused').addEventListener('change',updateTransport);
-      $('#ptStop').addEventListener('click', () => stopRecording());
+      $('#ptStop').addEventListener('click', () => void confirmFinishRecording());
       $('#ptPlayPause').addEventListener('click', () => void togglePlayback());
-      $('#ptSeek').addEventListener('input',event => {
-        if (state.phase === 'ready' && Number.isFinite(sourceVideo.duration)) {
-          sourceVideo.currentTime = Number(event.target.value) / 1000 * sourceVideo.duration;
+      const seekControl=$('#ptSeek');
+      seekControl.addEventListener('pointerdown',()=>{
+        if (['ready','recording'].includes(state.phase)) state.seekDragging=true;
+      });
+      const finishSeekDrag=()=>{ state.seekDragging=false; updateClock(); };
+      seekControl.addEventListener('pointerup',finishSeekDrag);
+      seekControl.addEventListener('pointercancel',finishSeekDrag);
+      seekControl.addEventListener('blur',finishSeekDrag);
+      seekControl.addEventListener('change',finishSeekDrag);
+      seekControl.addEventListener('input',event=>{
+        if (!['ready','recording'].includes(state.phase)
+          || !Number.isFinite(sourceVideo.duration) || sourceVideo.duration<=0) return;
+        const destination=Number(event.target.value)/1000*sourceVideo.duration;
+        if (!Number.isFinite(destination)) return;
+        if (state.phase==='recording') {
+          // Continuous capture: moving the source skips/repeats frames in the output;
+          // it does not insert independent segments into the original file.
+          sourceVideo.pause();
+          if (drawing.strokes.length || drawing.active) clearDrawing();
+          logDetail('Recording source seek to '+destination.toFixed(2)+'s; mic capture continues');
         }
+        sourceVideo.currentTime=Math.max(0,Math.min(sourceVideo.duration,destination));
       });
       $('#ptDownload').addEventListener('click',downloadResult);
       $('#ptShare').addEventListener('click',() => void shareResult());

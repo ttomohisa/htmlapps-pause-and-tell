@@ -4,17 +4,19 @@
 
 **Explain a video with your voice while pausing, pointing and drawing.** The output includes the original video frames, your drawn marks and narration. Your microphone and output recording continue while source playback is paused.
 
-> **v0.9.2 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
+> **v0.9.3 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
 
 ## How to use
 
 1. Choose a video.
-2. Choose Point, Circle, Arrow or Pen just above the video.
+2. Pen is selected by default. Choose Point, Circle or Arrow if you prefer another drawing tool.
 3. Press **Record & play** directly beneath the video and allow microphone access. The original video starts playing as recording begins. Select **Explain the first frame before playback** if you want to begin on a still frame.
-4. **Pause the source** to talk and annotate. Playback resumes with the current drawing cleared; previously recorded marks and narration remain in the output.
-5. Press **Finish recording**, preview the result, then download it.
+4. **Pause or seek the source** while recording to talk and draw. Seeking pauses source playback automatically but does not pause microphone recording; skipped footage is **omitted** from the live-captured output. Drawings are cleared when playback resumes or you seek.
+5. Press **Finish recording**, then confirm in the dialog. The source pauses during confirmation, but recording and microphone continue. Cancel returns to the recording and resumes source playback if it had been playing. Preview and download the result after confirming.
 
 The hero and three-step progress remain visible during recording and preview. Video controls remain directly beneath the video.
+
+**This is still one continuous canvas recording, not non-destructive insertion into the original video.** A future insertion-oriented workflow would need to record independently timestamped narration segments and compose them with the entire source (and original audio) at export.
 
 Use **Ctrl+Z / Cmd+Z** to undo and **Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z** to redo current drawings, including Clear within a paused segment. Text-entry fields retain their normal editing shortcuts.
 
