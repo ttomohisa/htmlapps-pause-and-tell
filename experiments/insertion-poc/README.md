@@ -1,12 +1,13 @@
-# v0.11.0 — independent multi-insertion PoC
+# v0.11.1 — multi-insertion PoC with larger trial inputs and bounded export
 
 This is an **isolated experimental proof of concept**, not the default Browser Kitty app or a completed release.
 
-- Opens one short source video (≤15s, ≤30MiB), with or without an original soundtrack. Unsupported decoding fails visibly instead of silently dropping an audio track.
+- Accepts source videos up to **5 minutes / 250 MiB** as experimental input limits, with or without an original soundtrack. A high limit is **not a promise** that every input codec, device, or duration will export successfully. Unsupported decoding fails visibly instead of silently dropping an audio track.
 - Pauses at selected source positions; captures each microphone narration as a separate Blob and pen strokes as timestamped drawing events. Multiple explanations can be selected, deleted and rerecorded independently. No full-source recording during narration.
 - Exports a WebM (VP8/Opus) preserving the *entire original video* with multiple inserted explanations in timestamp order (stable at identical timestamps). Original soundtrack plays during original intervals and narration alone during inserted intervals.
 - Uses Mediabunny/WebCodecs offline at export. Source is re-encoded (not lossless); export processing is **not** a real-time recording of the original source.
-- The memory limits protect the prototype's OfflineAudioContext and BufferTarget. Synthetic Chromium/ffprobe tests passed source sound retention, multiple clips, deletion and rerecording. Physical smartphone sound preservation, file://, interruption recovery, varied codecs and multi-minute output remain **unverified or unfinished**.
+- Audio is rendered and encoded in blocks of up to **2 seconds** rather than allocating one movie-length PCM buffer. Where supported, output WebM is written to a temporary file in browser-local OPFS via Mediabunny StreamTarget; when unavailable it falls back to BufferTarget only within a conservative estimated RAM budget. A normal discard or page exit requests deletion; stale app-owned temporary files older than 24 hours are pruned when possible, but a crash may leave a file. Output is never uploaded.
+- Trial maxima: **5-minute source / 250 MiB input; 2 minutes per recorded explanation; 10 minutes total composed video.** Actual large-output export, performance and memory survival are not yet proven. Physical smartphone sound preservation, file://, interruption recovery, varied codecs and multi-minute output remain **unverified or unfinished**.
 
 ## Build
 
@@ -25,3 +26,9 @@ The new [synthetic Chromium test](https://github.com/ttomohisa/htmlapps-pause-an
 ## Multiple explanations acceptance — 2026-10-16
 
 [CI run 38864515775](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38864515775) validated two independent clips at source time 2s and 3s. The second clip was deleted and rerecorded before export, producing a **6.74s VP8/Opus WebM** from a 4s source containing original 440 Hz audio. Measured 440 Hz remained audible before/between/after inserted clips, and the 800 Hz synthetic microphone sounded only inside explanations. The source still appears at the head/tail of the output; a pure Node timeline test also checks two clips, equal timestamps and source boundaries. [Generated HTML, multi-clip WebM, screenshots and reports](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38864515775/artifacts/12030473749). Do not treat these synthetic tests as mobile device acceptance.
+
+## Test conditions and workload
+
+Tests are tiered, not all-or-nothing on every change. See [test policy](../../docs/INSERTION_TEST_POLICY.md). Pull-request smoke uses small video fixtures to catch missing frames/audio, no external data transfers, save failures and memory/temporary-file fallback. The 5-minute/250MiB and 10-minute limits are *user-visible experimental ceilings*, **not mandatory CI fixture lengths** or accepted real-device performance claims.
+
+[First bounded-export + OPFS/fallback regression PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38933128931) tested a 20-second source file loading successfully, in-memory fallback, streamed local temporary-file output, source audio/narration switching and two explanations. Full-length footage and real smartphones remain outstanding.

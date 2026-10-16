@@ -63,3 +63,18 @@ The time-axis builder (`timeline.js`) passes Node unit tests for empty/single/mu
 Tests also check that original sound remains between the two explanation segments, that the second narration is present and the source sound absent inside it, and that the microphone tracks are released. Same-source-timestamp insertion ordering and 0s/end positions have **unit coverage**, not yet decoded-video acceptance. The 320px phone-width horizontal-overflow check also passed in this run. Release remains **NO-GO**.
 
 **Known limitations:** audio and frames are decoded and re-encoded; no lossless stream copy; video 15 FPS, VP8/Opus WebM only; ≤15s source, ≤30MiB input, ≤15s per explanation and ≤32s final output. Entire output is held by an in-memory BufferTarget, and an OfflineAudioContext covers the final timeline. Physical iOS Safari/Android Chrome, rotated/VFR inputs and unrelated source audio codecs remain unverified.
+
+
+## v0.11.1: bounded audio and temporary-file export — 2026-10-17
+
+**Confirmed via Chromium synthetic-media smoke:** [GitHub Actions 38933128931](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38933128931) · [real WebMs, standalone HTML and reports](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38933128931/artifacts/12059274594).
+
+- A source clip **20 seconds long** loads (unlike the obsolete 15-second prototype cap). The test does **not** claim 5-minute output was encoded.
+- Original and narration audio are assembled with at most 2 seconds of decoded output per OfflineAudioContext; MediaSource/AudioBufferSource backpressure is awaited. The former single completed-movie PCM allocation was eliminated.
+- Silent-source output from memory fallback: 5.94s VP8/Opus, source image preserved at start and end, explanation tone confined to its interval, no unexpected network or page errors.
+- Source-with-sound output using OPFS StreamTarget: 5.94s WebM, original 440 Hz tone before and after, microphone 800 Hz tone inside insertion. Output mode explicitly marked as `temporary-file` in the DOM for smoke verification; memory fallback is marked as `memory`.
+- Two narrated inserts with source soundtrack and OPFS: 6.74s WebM, delete/rerecord cycle, original sound before, between and after the inserted sections, 320px layout without horizontal scroll. Image comparisons passed.
+- Runtime ceilings now **source up to 5 minutes/250MiB; each explanation up to 2 minutes; completed video up to 10 minutes**. These *allow attempts* within the limit, not guaranteed successful renders. Memory-only fallback can reject an output if its estimated encoded size exceeds 96MiB, while OPFS depends on quota and browser support.
+- OPFS may preserve temporary data after abrupt termination; normal result discard attempts deletion, and the application prunes its own older-than-24-hour expired temporary output files on startup where available. User-saved media is not deleted.
+
+**Unverified:** actually exporting videos near the new duration/size ceilings; file://; interrupted/low-memory devices; iOS Safari and Android Chrome real audio/save, codec/rotation variation. These belong to explicit extended/device testing, **not mandatory every-commit smoke**. Release stays NO-GO.

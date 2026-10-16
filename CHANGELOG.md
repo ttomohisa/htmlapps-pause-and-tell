@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.11.1 — bounded audio, local temporary-file output and practical test limits (PoC only)
+
+- Expand prototype attempts from 15 seconds / 30MiB input and 32 seconds completed output to 5-minute/250MiB source, 2-minute independent explanation and 10-minute finished video, while retaining a conservative memory fallback budget and explicit unsupported-device errors. These upper limits are experimental, not tested performance claims.
+- Render audio in 2-second chunks, and use Mediabunny StreamTarget writing to browser-local OPFS when supported; memory BufferTarget remains a bounded fallback. Clean up app-owned temporary output on normal discard and attempt stale temporary output pruning.
+- Test 20-second source acceptance, OPFS versus memory output, original soundtrack transitions, encoded video/audio and multi-insert deletion/re-record. Relax exact output-duration expectations to an actual-segment-based tolerance. Retain privacy and valid-file assertions.
+- Split indispensable short PR smoke from longer real-device/performance release tests: see docs/INSERTION_TEST_POLICY.md.
+
 ### v0.11.0 — timestamped multiple explanation clips (isolated PoC)
 
 - Extend the separate Mediabunny/WebCodecs experiment to accept multiple independently recorded narration-and-Pen clips, ordered by source timestamp, with clip selection, deletion and rerecording.
