@@ -91,20 +91,24 @@ def run_case(browser, html, source, target, name, pauses):
     canvas = page.locator("#ptCanvas").evaluate("(v)=>[v.width,v.height]")
     page.locator("#ptStart").click()
     poll(lambda: not page.locator("#ptStop").is_disabled())
+    if page.locator("#ptStartPaused").is_checked():
+        raise AssertionError("Record & play should be the default")
     duration = page.locator("#ptVideo").evaluate("(v)=>v.duration")
+    # v0.9.1 Record & play starts source motion automatically.
+    poll(lambda: page.locator("#ptVideo").evaluate("(v)=>!v.paused && v.currentTime>.05"),
+         duration + 15)
     pause_positions = []
     for i in range(pauses):
-        page.locator("#ptPlayPause").click()
         destination = duration * (i + 1) / (pauses + 1)
         poll(lambda: page.locator("#ptVideo").evaluate("(v)=>v.currentTime") >= destination,
              duration + 15)
-        page.locator("#ptPlayPause").click()
+        page.locator("#ptPlayPause").click()  # pause SOURCE, never MediaRecorder
         value = page.locator("#ptVideo").evaluate("(v)=>v.currentTime")
         time.sleep(.16)
         if abs(page.locator("#ptVideo").evaluate("(v)=>v.currentTime") - value) > .2:
             raise AssertionError("Source advanced during pause")
         pause_positions.append(value)
-    page.locator("#ptPlayPause").click()
+        page.locator("#ptPlayPause").click()  # resume source
     poll(lambda: page.locator("#ptVideo").evaluate("(v)=>v.ended || v.currentTime>=v.duration-.03"),
          duration + 25)
     page.locator("#ptStop").click()
