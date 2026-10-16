@@ -70,11 +70,12 @@ def main():
     parser.add_argument("--long-recording",action="store_true",help="Also record and decode over 90 seconds in real time")
     options=parser.parse_args()
     options.output.mkdir(parents=True,exist_ok=True)
-    source=options.output/"dynamic-5s.mp4"
+    source=options.output/"dynamic-5s.webm"
     if not source.exists():
         execute(["ffmpeg","-v","error","-y","-f","lavfi","-i",
                  "testsrc2=size=480x270:rate=20:duration=5","-an",
-                 "-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p",str(source)])
+                 "-c:v","libvpx","-deadline","realtime","-cpu-used","6",
+                 "-b:v","600k","-pix_fmt","yuv420p",str(source)])
     html=options.html.read_text(encoding="utf-8")
     results={}
     with sync_playwright() as pw:
@@ -89,7 +90,20 @@ def main():
             page.set_content(html,wait_until="domcontentloaded")
             microphone(page)
             page.locator("#ptFile").set_input_files(str(source))
-            page.locator("#ptStart").wait_for(state="visible")
+            try:
+                page.locator("#ptStart").wait_for(state="visible",timeout=15000)
+            except Exception as error:
+                state=page.evaluate("""() => ({
+                  phase: document.querySelector('#ptInputPanel')?.hidden,
+                  inputError: document.querySelector('#ptInputError')?.textContent,
+                  inputErrorHidden: document.querySelector('#ptInputError')?.hidden,
+                  videoError: document.querySelector('#ptVideo')?.error?.code,
+                  readyState: document.querySelector('#ptVideo')?.readyState,
+                  appPhase: document.querySelector('#ptScreenAnnouncement')?.textContent,
+                  diagnostics: document.querySelector('#ptLog')?.textContent
+                })""")
+                page.screenshot(path=str(options.output/f"failed-load-{width}.png"),full_page=True)
+                raise AssertionError(f"Source failed to load in Chromium at {width}: {state}; errors={errors}") from error
             assert page.locator('[data-draw-tool="pen"]').get_attribute("aria-pressed")=="true"
             assert page.locator('[data-draw-tool="point"]').get_attribute("aria-pressed")=="false"
             layout=page.evaluate("""() => {
