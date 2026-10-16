@@ -645,6 +645,17 @@
       overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
     }
     #ptStudioPanel .pt-draw-bottom { flex-wrap:nowrap; }
+
+    /* 320px phones: distribute every action evenly, never orphan Clear on its own line. */
+    @media (max-width:340px) {
+      #ptStudioPanel .pt-draw-bottom { display:grid; grid-template-columns:minmax(0,1fr); gap:5px; }
+      #ptStudioPanel .pt-draw-colors,
+      #ptStudioPanel .pt-annotation-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; gap:5px; }
+      #ptStudioPanel .pt-draw-color { width:44px; height:44px; justify-self:center; }
+      #ptStudioPanel .pt-annotation-action { width:100%; min-width:0; padding:5px; font-size:11px; gap:4px; }
+      #ptStudioPanel .pt-annotation-action span { display:inline; }
+      #ptStudioPanel .pt-annotation-action svg { width:16px; height:16px; }
+    }
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
