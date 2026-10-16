@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.11.2 — optional 30-second endurance test and safe source replacement (PoC only)
+
+- Added manual-only 30/60/180-second longer-video validation. A real 30-second VP8/Opus source successfully exported as a 31.22-second video after inserting roughly 1.22 seconds of separately captured narration. ffprobe/ffmpeg confirmed audio interval switching and video tail preservation; [run and media artifact](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686). The manual workflow never runs on ordinary PR updates.
+- Confirm before replacing a source that has saved explanation clips; cancelled or invalid replacements keep the clips. Restore original preview if a new media preview fails to load.
+- Let users hear source audio while manually previewing it; pause the source before recording an inserted narration clip.
+- The existing v0.9.3 default application is unchanged; physical smartphone and full 5-minute export acceptance remain open.
+
 ### v0.11.1 — bounded audio, local temporary-file output and practical test limits (PoC only)
 
 - Expand prototype attempts from 15 seconds / 30MiB input and 32 seconds completed output to 5-minute/250MiB source, 2-minute independent explanation and 10-minute finished video, while retaining a conservative memory fallback budget and explicit unsupported-device errors. These upper limits are experimental, not tested performance claims.

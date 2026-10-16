@@ -1,4 +1,4 @@
-# Pause & Tell insertion PoC — v0.10.0–v0.11.0 verification
+# Pause & Tell insertion PoC — v0.10.0–v0.11.2 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.
 
@@ -78,3 +78,25 @@ Tests also check that original sound remains between the two explanation segment
 - OPFS may preserve temporary data after abrupt termination; normal result discard attempts deletion, and the application prunes its own older-than-24-hour expired temporary output files on startup where available. User-saved media is not deleted.
 
 **Unverified:** actually exporting videos near the new duration/size ceilings; file://; interrupted/low-memory devices; iOS Safari and Android Chrome real audio/save, codec/rotation variation. These belong to explicit extended/device testing, **not mandatory every-commit smoke**. Release stays NO-GO.
+
+## v0.11.2: longer-video output and safer source replacement — 2026-10-17
+
+**Measured 30-second full export**, not just source-file load: [GitHub Actions run 38936670686](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686) ([actual source and output WebM, JSON report and HTML artifact](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686/artifacts/12061556814)).
+
+| Metric | Measured result |
+| --- | --- |
+| Generated source | 30.00s, 320×180 at 15 FPS, VP8 video + 440 Hz Opus source audio |
+| Captured narration | Approximately 1.22s, 800 Hz synthetic microphone |
+| Final WebM | **31.22s**, VP8 + Opus |
+| Original source bytes | 1,589,521 |
+| Composed output bytes | 2,683,846 |
+| Local output path | OPFS temporary file + verified downloaded WebM |
+| Source-tail frame mean absolute RGB difference | **2.1765** (threshold 35) |
+| Uncaught page errors / external app requests | 0 / 0 |
+| Environment | Linux Chromium on GitHub Actions; **not physical iPhone/Android** |
+
+The browser test independently decodes the output and checks the 440 Hz source sound before and after the insertion, the 800 Hz narration only in the inserted interval, source audio absent during insertion, output duration, and tail-frame preservation. The export was measured at approximately 28.3s elapsed for the whole automated test, including synthetic file generation and voice capture; this is **not an isolated encoding performance metric**.
+
+Added source-switch guard: after clips have been recorded, replacing the source prompts the user; cancel keeps the original and recordings. Invalid replacement inputs do not erase the explanation list. Failure of the candidate preview should restore the prior video. The source's original sound is audible on user-triggered playback, and the player pauses before microphone recording.
+
+**Test split**: short correctness regression stays on PR; [extended endurance workflow](../.github/workflows/insertion-endurance.yml) runs only when explicitly dispatched. A single 30s passing test does not validate 60s/180s/300s, nonstandard codecs, abrupt interruption, storage quota failure, long-form memory use or real mobile devices.

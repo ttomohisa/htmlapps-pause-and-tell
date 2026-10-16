@@ -1,4 +1,4 @@
-# v0.11.1 — multi-insertion PoC with larger trial inputs and bounded export
+# v0.11.2 — multi-insertion PoC with longer-video endurance evidence
 
 This is an **isolated experimental proof of concept**, not the default Browser Kitty app or a completed release.
 
@@ -32,3 +32,10 @@ The new [synthetic Chromium test](https://github.com/ttomohisa/htmlapps-pause-an
 Tests are tiered, not all-or-nothing on every change. See [test policy](../../docs/INSERTION_TEST_POLICY.md). Pull-request smoke uses small video fixtures to catch missing frames/audio, no external data transfers, save failures and memory/temporary-file fallback. The 5-minute/250MiB and 10-minute limits are *user-visible experimental ceilings*, **not mandatory CI fixture lengths** or accepted real-device performance claims.
 
 [First bounded-export + OPFS/fallback regression PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38933128931) tested a 20-second source file loading successfully, in-memory fallback, streamed local temporary-file output, source audio/narration switching and two explanations. Full-length footage and real smartphones remain outstanding.
+
+## v0.11.2 milestone: real 30-second export
+
+- [Opt-in endurance run 38936670686](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686) **PASS**: generated a moving 30.00-second VP8/Opus original and independently recorded about 1.22 seconds of narration and Pen events, then exported **31.22 seconds** VP8/Opus WebM entirely inside Chromium. Original tail video and soundtrack plus narration-only inserted interval were decoded and verified. Output was created through browser-local temporary storage; no external requests or page JavaScript errors.
+- [Download generated original/finished WebMs, screenshot, self-contained HTML and report](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686/artifacts/12061556814). This checks one **30-second** source, NOT the advertised trial ceiling of five-minute source / ten-minute final video, and not physical Safari or Android devices.
+- The [extended workflow](../../.github/workflows/insertion-endurance.yml) is now **manual-only** (`workflow_dispatch`) with a selectable 30 / 60 / 180 second fixture to keep normal PR CI fast. It is not continuously running or scheduled.
+- Replacing the source after narration now asks for confirmation, and cancelling keeps the clips. An invalid replacement file is rejected without erasing the existing clips; if video preview loading fails, the previous preview is restored. When playing the source for editing, the original soundtrack is audible; the source pauses before narration capture starts.

@@ -37,3 +37,9 @@ Run on performance-related milestones and before expanding user-facing support c
 - Treat physical-device and longer-duration checks as **separate release gates**, not a reason for the short PoC/CI to be permanently blocked. Keep Draft unmerged while those release gates remain open. User alone merges PRs.
 
 Updated 2026-10-17. [PoC validation measurements](INSERTION_POC_VALIDATION.md) · [Design](INSERTION_MODE_DESIGN.md).
+
+## 2026-10-17 opt-in longer-media milestone
+
+[30-second full export PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38936670686), including independently decoded output video tail/source audio/narration and local temporary-file writing. The companion endurance workflow is now **`workflow_dispatch` only**, selectable 30/60/180 seconds. The existing shorter CI remains required. Increasing an experimental input-size ceiling alone never qualifies as an endurance pass; only an actually encoded, played-back file counts.
+
+Source replacement after recording independent explanation clips is destructive and therefore must request confirmation; a rejected source file or cancelled replacement must preserve prior recordings. The source soundtrack should be audible during manual preview but must pause before microphone narration is recorded.
