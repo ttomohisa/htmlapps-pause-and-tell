@@ -123,6 +123,18 @@ def main():
         assert page.locator('#noteSummary').inner_text()
         assert page.locator('#noteList .note-item').count()==1
         if a.multiple:
+            # Replacement confirmation must preserve separately recorded clips if
+            # dismissed. An invalid new video must not destroy them either.
+            page.once('dialog',lambda dialog:dialog.dismiss())
+            page.locator('#sourceFile').set_input_files(str(source))
+            assert page.locator('#noteList .note-item').count()==1
+            broken=a.out/'broken-video.mp4'
+            broken.write_bytes(b'not a video')
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#sourceFile').set_input_files(str(broken))
+            wait_for(lambda:bool(page.locator('#error').inner_text()))
+            assert page.locator('#noteList .note-item').count()==1
+            assert page.locator('#sourceVideo').evaluate('(v)=>v.readyState>=2')
             # Add a second explanation near the end without losing the original.
             page.locator('#seek').evaluate("""element => {
                 element.value='750';element.dispatchEvent(new Event('input',{bubbles:true}));
