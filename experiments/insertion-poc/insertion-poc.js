@@ -619,7 +619,7 @@ import { buildTimeline } from './timeline.js';
     try {
       const directory=await navigator.storage.getDirectory();
       for await (const [name,handle] of directory.entries()) {
-        if(handle.kind!=='file' || !/^pause-and-tell-temp-[0-9a-f-]+\\.webm$/.test(name)) continue;
+        if(handle.kind!=='file' || !/^pause-and-tell-temp-[0-9a-f-]+\.webm$/.test(name)) continue;
         try {
           const file=await handle.getFile();
           if(Date.now()-file.lastModified>24*60*60*1000) await directory.removeEntry(name);
