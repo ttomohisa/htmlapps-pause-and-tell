@@ -64,8 +64,10 @@ def main():
         # Rotation is a container display matrix, not a pixel rotation.
         unrotated=args.out/'raw-landscape.mp4'
         command(argv+['-shortest',str(unrotated)])
-        command(['ffmpeg','-v','error','-y','-i',str(unrotated),
-                 '-map','0','-c','copy','-metadata:s:v:0','rotate=90',str(source)])
+        # Set an actual MOV/MP4 display matrix, not a legacy 'rotate'
+        # metadata string. ffmpeg -display_rotation sets stream side-data.
+        command(['ffmpeg','-v','error','-y','-display_rotation','90',
+                 '-i',str(unrotated),'-map','0','-c','copy',str(source)])
         unrotated.unlink()
         metadata=probe(source)
         rotation_values=[abs(float(side.get('rotation',0))) for stream in metadata['streams']
