@@ -95,7 +95,16 @@ def main():
             }
             page.screenshot(path=str(a.out/'failure-input.png'),full_page=True)
             raise AssertionError('Could not open source: '+json.dumps(diagnostic)) from error
-        assert not page.locator('#startNote').is_disabled()
+        # The editor may already be visible while a replacement is loading.
+        # Wait for the *new* source and its controls, not the existing editor.
+        try:
+            wait_for(lambda:'4.0s' in page.locator('#sourceInfo').inner_text()
+                and not page.locator('#startNote').is_disabled(), seconds=30)
+        except Exception as error:
+            data={'sourceInfo':page.locator('#sourceInfo').inner_text(),
+                  'error':page.locator('#error').inner_text(),'pageErrors':errors,
+                  'startDisabled':page.locator('#startNote').is_disabled()}
+            raise AssertionError('Source replacement did not finish: '+json.dumps(data)) from error
         assert page.locator('#sourceVideo').evaluate('(v)=>v.muted') is False
         page.locator('#seek').evaluate("""element => {
             element.value='500';element.dispatchEvent(new Event('input',{bubbles:true}));
