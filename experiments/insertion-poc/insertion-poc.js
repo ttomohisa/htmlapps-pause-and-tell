@@ -187,7 +187,15 @@ import { buildTimeline } from './timeline.js';
           else resolve();
         };
         const ready=()=>finish();
-        const failed=()=>finish(new Error('Video could not play'));
+        const failed=()=>{
+          const code=sourceVideo.error?.code;
+          const reason=code===4
+            ? l('このブラウザは動画の形式またはコーデックに対応していません。別のブラウザか形式で試してください。',
+                'This browser cannot play the video format or codec. Try a different browser or format.')
+            : l('動画を再生できませんでした。ファイルの形式や破損を確認してください。',
+                'Video could not be decoded. Check its format or integrity.');
+          finish(new Error(reason));
+        };
         const timer=setTimeout(()=>finish(new Error('Video loading timed out')),15000);
         sourceVideo.addEventListener('loadeddata',ready);
         sourceVideo.addEventListener('error',failed);

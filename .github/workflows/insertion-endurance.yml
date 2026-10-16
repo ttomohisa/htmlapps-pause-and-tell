@@ -51,7 +51,13 @@ jobs:
       - name: Verify a real saved longer WebM
         run: |
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-endurance.log 2>&1 &
-          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "${{ github.event.inputs.source_format || (contains(github.event.pull_request.title, '[run-endurance-mp4]') && 'mp4' || 'webm') }}"
+          FORMAT="${{ github.event.inputs.source_format || (contains(github.event.pull_request.title, '[run-endurance-mp4]') && 'mp4' || 'webm') }}"
+          BROWSER=/usr/bin/chromium
+          if [ "$FORMAT" = mp4 ] && command -v google-chrome >/dev/null 2>&1; then
+            BROWSER="$(command -v google-chrome)"
+          fi
+          echo "Browser executable: $BROWSER; source container: $FORMAT"
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --chromium "$BROWSER" --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "$FORMAT"
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v7
