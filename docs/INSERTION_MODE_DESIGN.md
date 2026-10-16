@@ -135,4 +135,4 @@ FFmpeg公式のconcat demuxerも入力セグメントが同一ストリーム構
 - Browser Kitty FFmpeg WASM Builder: https://github.com/ttomohisa/htmlapps-ffmpeg-wasm-builder
 - Browser Kitty Video Compressor / existing builder & GPL distribution reference: https://github.com/ttomohisa/htmlapps-video-compressor
 
-**現時点の結論：** 説明区間のみを独立収録し、最終書き出しで元動画と結合する設計は技術的に成立する見込みがある。ただし現時点ではPoC未実施なので、音声保持・端末別保存・任意位置の無劣化挿入を「実現済み」とは扱わない。最初の実装は品質と結果の正しさを優先し、無劣化・高速書き出しは追加ゲートで判断する。
+**2026-10-16更新：** 当初調査で未実施だったPoCは、短いWebMで元動画の映像・音声を保持し、2区間の説明を挿入して保存するところまで実装・Chromium自動検証済み（v0.11.0）。ただし元動画の再エンコードを伴い、iPhone/Android実機、MP4、長時間、大容量、ストリーミング保存、無劣化の可否は引き続き未確認。通常アプリのv0.9.3へはまだ統合しない。

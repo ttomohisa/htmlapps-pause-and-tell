@@ -60,6 +60,6 @@ The time-axis builder (`timeline.js`) passes Node unit tests for empty/single/mu
 | Decoded RGB frame difference opening / final source segment | 2.02 / 2.04 (mean absolute per channel) |
 | Uncaught page errors / external HTTP requests | 0 / 0 |
 
-Tests also check that original sound remains between the two explanation segments, that the second narration is present and the source sound absent inside it, and that the microphone tracks are released. Same-source-timestamp insertion ordering and 0s/end positions have **unit coverage**, not yet decoded-video acceptance. The 320px responsive assertion is under test separately; release is still **NO-GO**.
+Tests also check that original sound remains between the two explanation segments, that the second narration is present and the source sound absent inside it, and that the microphone tracks are released. Same-source-timestamp insertion ordering and 0s/end positions have **unit coverage**, not yet decoded-video acceptance. The 320px phone-width horizontal-overflow check also passed in this run. Release remains **NO-GO**.
 
 **Known limitations:** audio and frames are decoded and re-encoded; no lossless stream copy; video 15 FPS, VP8/Opus WebM only; ≤15s source, ≤30MiB input, ≤15s per explanation and ≤32s final output. Entire output is held by an in-memory BufferTarget, and an OfflineAudioContext covers the final timeline. Physical iOS Safari/Android Chrome, rotated/VFR inputs and unrelated source audio codecs remain unverified.
