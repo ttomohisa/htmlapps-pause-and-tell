@@ -28,12 +28,21 @@ def main():
     ap.add_argument('--url',default='http://127.0.0.1:8765/index.html')
     ap.add_argument('--out',type=Path,default=Path('insertion-evidence'))
     ap.add_argument('--chromium',default='/usr/bin/chromium')
+    ap.add_argument('--source-audio',action='store_true',help='Use a source with 440 Hz original soundtrack')
     a=ap.parse_args()
     a.out.mkdir(parents=True,exist_ok=True)
-    source=a.out/'silent-4s.webm'
-    command(['ffmpeg','-v','error','-y','-f','lavfi','-i',
-        'testsrc2=size=320x180:rate=15:duration=4','-an','-c:v','libvpx',
-        '-deadline','realtime','-cpu-used','8','-b:v','500k',str(source)])
+    source=a.out/('source-audio-4s.webm' if a.source_audio else 'silent-4s.webm')
+    source_command=['ffmpeg','-v','error','-y','-f','lavfi','-i',
+        'testsrc2=size=320x180:rate=15:duration=4']
+    if a.source_audio:
+        source_command+=['-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=4',
+                         '-map','0:v:0','-map','1:a:0']
+    else:
+        source_command+=['-an']
+    source_command+=['-c:v','libvpx','-deadline','realtime','-cpu-used','8','-b:v','500k']
+    if a.source_audio:
+        source_command+=['-c:a','libopus','-b:a','64k','-shortest']
+    command(source_command+[str(source)])
     with sync_playwright() as p:
         browser=p.chromium.launch(executable_path=a.chromium,headless=True,args=[
             '--no-sandbox','--autoplay-policy=no-user-gesture-required'])
@@ -123,6 +132,29 @@ def main():
         signal=pcm[48000*2:48000*3]
         rms=math.sqrt(sum(v*v for v in signal)/len(signal))/32768 if signal else 0
         assert rms>.01,f'No narration samples at the inserted interval, RMS={rms}'
+        # Frequency-specific checks prove that original soundtrack is retained
+        # in original intervals and is silent throughout narration, rather than
+        # merely verifying that the final container has an audio stream.
+        def tone_amplitude(samples, seconds, frequency):
+            start=int((seconds-.15)*48000)
+            window=samples[max(0,start):int((seconds+.15)*48000)]
+            if not window: return 0.
+            cosine=sum(x*math.cos(2*math.pi*frequency*i/48000) for i,x in enumerate(window))
+            sine=sum(x*math.sin(2*math.pi*frequency*i/48000) for i,x in enumerate(window))
+            return 2*math.hypot(cosine,sine)/len(window)/32768
+        lead_original=tone_amplitude(pcm,.7,440)
+        insert_original=tone_amplitude(pcm,2.5,440)
+        insert_narration=tone_amplitude(pcm,2.5,800)
+        tail_original=tone_amplitude(pcm,duration-.5,440)
+        lead_narration=tone_amplitude(pcm,.7,800)
+        tail_narration=tone_amplitude(pcm,duration-.5,800)
+        assert insert_narration>.04, ('Narration missing',insert_narration)
+        assert insert_original<.025, ('Original audio plays during explanation',insert_original)
+        assert lead_narration<.025 and tail_narration<.025, ('Narration leaked into source',lead_narration,tail_narration)
+        if a.source_audio:
+            assert lead_original>.03 and tail_original>.03, ('Original soundtrack missing',lead_original,tail_original)
+        else:
+            assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         # Verify original frames survive both before AND after insertion.
         def rgb_at(file, seconds):
             return command(['ffmpeg','-v','error','-ss',f'{seconds:.3f}','-i',
@@ -149,7 +181,10 @@ def main():
         report={'status':'PASS','input':4,'output':duration,'video':streams['video']['codec_name'],
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
-          'tailFrameError':suffix_diff,'networkRequests':external,'pageErrors':errors}
+          'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,
+          'originalToneBefore':lead_original,'originalToneDuring':insert_original,
+          'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,
+          'networkRequests':external,'pageErrors':errors}
         (a.out/'report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
         print('PASS insertion PoC:',json.dumps(report))
         context.close();browser.close()

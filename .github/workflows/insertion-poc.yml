@@ -42,7 +42,8 @@ jobs:
         shell: bash
         run: |
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/insertion-http.log 2>&1 &
-          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/silent
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/source-audio --source-audio
       - name: Archive PoC output and inspection report
         if: always()
         uses: actions/upload-artifact@v7
