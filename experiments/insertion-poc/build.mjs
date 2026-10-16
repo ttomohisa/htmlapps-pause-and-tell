@@ -17,7 +17,13 @@ const output = source.replace(marker, code);
 const start = output.indexOf('<script>') + '<script>'.length;
 const end = output.lastIndexOf('</script>');
 const embedded = output.slice(start, end);
-if (embedded.length !== code.length) throw new Error('Embedded script was truncated');
+if (embedded.length !== code.length) {
+  console.error('Inline script size mismatch:', {
+    embedded: embedded.length, bundle: code.length, start, end,
+    beginning: output.slice(start-90,start+70), trailing: output.slice(end-70,end+30)
+  });
+  throw new Error('Embedded script was truncated');
+}
 const { Script } = await import('node:vm');
 try { new Script(embedded, { filename: 'insertion-poc-inline.js' }); }
 catch (e) {
