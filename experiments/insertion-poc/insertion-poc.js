@@ -612,6 +612,22 @@ import { buildTimeline } from './timeline.js';
     a.download=(state.file?.name||'video').replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-explained.webm';
     a.click();
   });
+  async function cleanupStaleTemporaryOutput() {
+    // OPFS is persistent across abnormal shutdowns. Remove only this app's own
+    // expired temporary outputs; never touch user-selected/saved video files.
+    if(!navigator.storage?.getDirectory) return;
+    try {
+      const directory=await navigator.storage.getDirectory();
+      for await (const [name,handle] of directory.entries()) {
+        if(handle.kind!=='file' || !/^pause-and-tell-temp-[0-9a-f-]+\\.webm$/.test(name)) continue;
+        try {
+          const file=await handle.getFile();
+          if(Date.now()-file.lastModified>24*60*60*1000) await directory.removeEntry(name);
+        }catch{/* Another tab may be writing; leave it untouched. */}
+      }
+    }catch{/* OPFS can be unavailable under file://, privacy or storage restrictions. */}
+  }
+  void cleanupStaleTemporaryOutput();
   window.addEventListener('pagehide',()=>{
     state.mic?.getTracks().forEach(t=>t.stop());
     if(state.input)state.input.dispose();
