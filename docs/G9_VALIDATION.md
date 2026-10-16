@@ -60,14 +60,14 @@ For fixed time stamps in WebM with indefinite container duration, use `ffprobe` 
 
 ## Fresh automated G9 evidence — 2026-10-16
 
-**Exact production artifact used:** GitHub Actions-built single HTML from \`e170086a3c0f95ee9b44622c116473b02f79894c\` (v0.9.0). Playback/recording tests used headless **Linux Chromium 144**, with an **880 Hz simulated WebAudio microphone**. The HTML was loaded into an \`about:blank\` Playwright context; **this is not a direct \`file://\` or HTTPS test**. All measurements below are from locally exported WebM files, not just UI state.
+**Exact production artifact used:** GitHub Actions-built single HTML from `e170086a3c0f95ee9b44622c116473b02f79894c` (v0.9.0). Playback/recording tests used headless **Linux Chromium 144**, with an **880 Hz simulated WebAudio microphone**. The HTML was loaded into an `about:blank` Playwright context; **this is not a direct `file://` or HTTPS test**. All measurements below are from locally exported WebM files, not just UI state.
 
 ### T-01 / AC-01: 8s play → 20s frozen → remaining source → save
 
 - Input: **20.000s** H.264 test video, source 480×270.
 - After first play, the source paused at **8.043858s** and remained at **exactly 8.043858s** after **20 seconds** of wall-clock waiting.
 - Output file: **4,206,891 bytes**, WebM **VP8 video + Opus audio**. Source finished, then the user-like stop action finalized successfully.
-- \`ffprobe\` last packet end: **video 40.159s**, **audio 40.176s**.
+- `ffprobe` last packet end: **video 40.159s**, **audio 40.176s**.
 - Decoded frames at output **12s and 20s** were pixel-identical (RGB mean absolute error **0.0**); at output 26s the difference from 12s was **0.00114** (only compression noise); at output 37s the source had resumed (difference **19.807**).
 - Decoded audio RMS in 0.8s windows at output 12, 20, 26, 37s: **0.12997 / 0.12974 / 0.12975 / 0.12993**. Synthetic microphone continued through freeze and resumed playback.
 - No page JavaScript exceptions, unexpected CSP violations or external HTTP(S) requests were detected.
@@ -87,7 +87,7 @@ Seven independently saved and decoded recordings passed:
 | Square | 1 | 360×360 → 360×360 | 831,173 | VP8/Opus | 0 |
 | 90° display-matrix rotation | 1 | 270×480 → 270×480 | 868,819 | VP8/Opus | 0 |
 
-All seven cases reported **zero page exceptions** and **zero external HTTP requests**. The rotated test source was regenerated with *actual* \`display_rotation=90\` metadata; an initial file merely labeled "rotated" lacked rotation metadata, so its earlier result was **not counted** as a rotation pass.
+All seven cases reported **zero page exceptions** and **zero external HTTP requests**. The rotated test source was regenerated with *actual* `display_rotation=90` metadata; an initial file merely labeled "rotated" lacked rotation metadata, so its earlier result was **not counted** as a rotation pass.
 
 ### T-02/T-03/T-04/T-05: first/last still frame, drawings, output
 
@@ -108,9 +108,9 @@ The analysis uses pass-through video frame decoding (no FFmpeg synthetic duplica
 ### What this does NOT prove
 
 - iPhone Safari, Android Chrome and Windows desktop with actual microphone/OS file saving and separate player are **UNTESTED**.
-- Real \`file://\` navigation remains **blocked by this browser test environment** (\`ERR_BLOCKED_BY_ADMINISTRATOR\`), not diagnosed as an app defect. HTTPS Preview also needs a real-device full flow.
+- Real `file://` navigation remains **blocked by this browser test environment** (`ERR_BLOCKED_BY_ADMINISTRATOR`), not diagnosed as an app defect. HTTPS Preview also needs a real-device full flow.
 - Native Web Share, actual screen-reader announcements, low-memory mobile performance, phone lock/call recovery, and proposed 60s/250MiB/180s increased limits remain **UNTESTED**.
-- Japanese/English 1360×950 screenshots were captured from the actual v0.9.0 recording workspace; **the PNGs are evidence artifacts, not yet committed to \`assets/screenshot.png\` / README as release screenshots**.
+- Japanese/English 1360×950 screenshots were captured from the actual v0.9.0 recording workspace; **the PNGs are evidence artifacts, not yet committed to `assets/screenshot.png` / README as release screenshots**.
 - **G9 decision: NO-GO / keep Draft PR unmerged.** Automated regression success must not be conflated with physical AC-10 acceptance.
 
 
