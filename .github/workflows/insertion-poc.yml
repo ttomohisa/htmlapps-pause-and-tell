@@ -26,6 +26,7 @@ jobs:
         run: |
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
           npm run build
+          node test-timeline.mjs
           test -f dist/index.html
           # The bundle is embedded directly; no runtime script download is required.
           test "$(wc -c < dist/index.html)" -gt 10000
@@ -44,6 +45,7 @@ jobs:
           python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/insertion-http.log 2>&1 &
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/silent
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/source-audio --source-audio
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/multiple-source-audio --source-audio --multiple
       - name: Archive PoC output and inspection report
         if: always()
         uses: actions/upload-artifact@v7

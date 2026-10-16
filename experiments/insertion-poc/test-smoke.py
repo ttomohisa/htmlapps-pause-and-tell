@@ -29,6 +29,7 @@ def main():
     ap.add_argument('--out',type=Path,default=Path('insertion-evidence'))
     ap.add_argument('--chromium',default='/usr/bin/chromium')
     ap.add_argument('--source-audio',action='store_true',help='Use a source with 440 Hz original soundtrack')
+    ap.add_argument('--multiple',action='store_true',help='Record, delete and rerecord a second explanation')
     a=ap.parse_args()
     a.out.mkdir(parents=True,exist_ok=True)
     source=a.out/('source-audio-4s.webm' if a.source_audio else 'silent-4s.webm')
@@ -103,6 +104,28 @@ def main():
         page.locator('#finishNote').click()
         page.locator('#notePanel').wait_for(state='visible',timeout=25000)
         assert page.locator('#noteSummary').inner_text()
+        assert page.locator('#noteList .note-item').count()==1
+        if a.multiple:
+            # Add a second explanation near the end without losing the original.
+            page.locator('#seek').evaluate("""element => {
+                element.value='750';element.dispatchEvent(new Event('input',{bubbles:true}));
+            }""")
+            wait_for(lambda:abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-3)<.12)
+            page.locator('#startNote').click()
+            page.locator('#finishNote').wait_for(state='visible',timeout=25000)
+            page.wait_for_timeout(850)
+            page.locator('#finishNote').click()
+            wait_for(lambda:page.locator('#noteList .note-item').count()==2)
+            # Delete just the second segment, then independently rerecord it.
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#noteList .note-item').last.locator('button').last.click()
+            wait_for(lambda:page.locator('#noteList .note-item').count()==1)
+            page.locator('#startNote').click()
+            page.locator('#finishNote').wait_for(state='visible',timeout=25000)
+            page.wait_for_timeout(850)
+            page.locator('#finishNote').click()
+            wait_for(lambda:page.locator('#noteList .note-item').count()==2)
+            assert '2' in page.locator('#noteSummary').inner_text()
         page.locator('#export').click()
         try:
             page.locator('#result').wait_for(state='visible',timeout=100000)
@@ -125,7 +148,7 @@ def main():
         assert streams['video']['codec_name']=='vp8',streams
         assert streams['audio']['codec_name']=='opus',streams
         duration=float(probe['format']['duration'])
-        assert 5.15<duration<7.5, f'Expected source 4s plus ~2s narration, got {duration}'
+        assert (6.0<duration<8.0 if a.multiple else 5.15<duration<7.5), f'Unexpected composed duration: {duration}'
         audio=command(['ffmpeg','-v','error','-i',str(result),'-vn','-ar','48000',
             '-ac','1','-f','s16le','-'],binary=True)
         pcm=array('h');pcm.frombytes(audio)
@@ -153,6 +176,10 @@ def main():
         assert lead_narration<.025 and tail_narration<.025, ('Narration leaked into source',lead_narration,tail_narration)
         if a.source_audio:
             assert lead_original>.03 and tail_original>.03, ('Original soundtrack missing',lead_original,tail_original)
+        if a.multiple:
+            second_voice=tone_amplitude(pcm,5.2,800)
+            second_original=tone_amplitude(pcm,5.2,440)
+            assert second_voice>.04 and second_original<.025,('Second inserted segment incorrect',second_voice,second_original)
         else:
             assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         # Verify original frames survive both before AND after insertion.
@@ -164,7 +191,8 @@ def main():
             return sum(abs(x-y) for x,y in zip(a,b))/len(a)
         shift=duration-4.0
         prefix_diff=mean_abs(rgb_at(source,.4),rgb_at(result,.4))
-        suffix_diff=mean_abs(rgb_at(source,3.1),rgb_at(result,3.1+shift))
+        last_source_sample=3.8 if a.multiple else 3.1
+        suffix_diff=mean_abs(rgb_at(source,last_source_sample),rgb_at(result,last_source_sample+shift))
         assert prefix_diff<35, f'Original opening frames altered too much: {prefix_diff}'
         assert suffix_diff<35, f'Original trailing frames missing or wrong: {suffix_diff}'
         # The original source was silent: there must not be narration outside
@@ -183,7 +211,7 @@ def main():
         report={'status':'PASS','input':4,'output':duration,'video':streams['video']['codec_name'],
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
-          'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,
+          'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,'multiple':a.multiple,
           'originalToneBefore':lead_original,'originalToneDuring':insert_original,
           'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,
           'networkRequests':external,'pageErrors':errors}
