@@ -21,6 +21,12 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v6
 
+      - name: Expose Unix tar for the Windows-origin build script
+        shell: bash
+        run: |
+          ln -s "$(command -v tar)" "$RUNNER_TEMP/tar.exe"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
       - name: Build single HTML (no extra runtime dependencies)
         shell: pwsh
         run: ./build-standalone.ps1 -SkipSelfExtract
