@@ -2,6 +2,7 @@ import {
   Input, BlobSource, ALL_FORMATS, VideoSampleSink, AudioBufferSink,
   Output, WebMOutputFormat, BufferTarget, CanvasSource, AudioBufferSource, Quality
 } from 'mediabunny';
+import { buildTimeline } from './timeline.js';
 
 (() => {
   'use strict';
@@ -14,7 +15,7 @@ import {
   const state = {
     file: null, input: null, track: null, duration: 0,
     sourceUrl: null, noteUrl: null, resultUrl: null,
-    note: null, recorder: null, mic: null, chunks: [],
+    note: null, notes: [], nextNoteId: 1, recorder: null, mic: null, chunks: [],
     startedAt: 0, drawing: false, pointerId: null, activeStroke: null,
     events: [], strokes: [], freeze: null, busy: false
   };
@@ -37,10 +38,10 @@ import {
   function setBusy(value) {
     state.busy = value;
     $('sourceFile').disabled = value || Boolean(state.recorder);
-    $('startNote').disabled = value || !state.file || Boolean(state.note) || Boolean(state.recorder);
+    $('startNote').disabled = value || !state.file || Boolean(state.recorder);
     $('playSource').disabled = value || !state.file || Boolean(state.recorder);
     $('seek').disabled = value || Boolean(state.recorder);
-    $('export').disabled = value || !state.note;
+    $('export').disabled = value || !state.notes.length;
     $('discard').disabled = value || !state.note;
   }
   function translate() {
@@ -67,20 +68,72 @@ import {
     $('result').hidden = true;
     $('resultInfo').textContent = '';
   }
-  function discardNote() {
+  function resetNotes() {
     if (state.recorder) return;
     clearResult();
     releaseUrl('noteUrl');
     $('notePlayer').removeAttribute('src');
-    state.note = null;
-    state.events = [];
-    state.strokes = [];
-    state.freeze = null;
-    $('notePanel').hidden = true;
-    canvas.hidden = true;
-    sourceVideo.hidden = false;
+    $('notePlayer').load();
+    state.notes=[];
+    state.note=null;
+    state.nextNoteId=1;
+    state.events=[];
+    state.strokes=[];
+    state.freeze=null;
+    $('notePanel').hidden=true;
+    $('noteList').replaceChildren();
+    canvas.hidden=true;
+    sourceVideo.hidden=false;
     info(l('説明を追加する位置を選べます。', 'Choose a source position for narration.'));
     setBusy(false);
+  }
+  function selectNote(note) {
+    if (!note || state.recorder) return;
+    state.note=note;
+    releaseUrl('noteUrl');
+    state.noteUrl=URL.createObjectURL(note.blob);
+    $('notePlayer').src=state.noteUrl;
+    updateSummary();
+  }
+  function removeNote(id) {
+    if(state.recorder || state.busy) return;
+    const index=state.notes.findIndex(item=>item.id===id);
+    if(index<0)return;
+    clearResult();
+    const wasSelected=state.note?.id===id;
+    state.notes.splice(index,1);
+    if(!state.notes.length) {
+      resetNotes();
+    }else if(wasSelected) {
+      selectNote(state.notes[state.notes.length-1]);
+    }else {
+      updateSummary();
+    }
+    setBusy(false);
+  }
+  function confirmRemoveNote(note) {
+    if (window.confirm(l('この説明区間を削除しますか？', 'Delete this explanation segment?'))) {
+      removeNote(note.id);
+    }
+  }
+  function renderNotes() {
+    const host=$('noteList');
+    host.replaceChildren();
+    for(const note of state.notes.slice().sort((a,b)=>a.position-b.position || a.id-b.id)) {
+      const row=document.createElement('div');
+      row.className='note-item';
+      const choose=document.createElement('button');
+      choose.type='button';
+      choose.textContent=fmt(note.position)+' · '+fmt(note.duration)+' · '+l('説明','Explanation')+' '+note.id;
+      choose.setAttribute('aria-pressed',String(state.note?.id===note.id));
+      choose.addEventListener('click',()=>selectNote(note));
+      const remove=document.createElement('button');
+      remove.type='button';
+      remove.textContent=l('削除','Delete');
+      remove.addEventListener('click',()=>confirmRemoveNote(note));
+      row.append(choose,remove);
+      host.append(row);
+    }
   }
   async function loadSource(file) {
     if (!file || state.recorder || state.busy) return;
@@ -125,7 +178,7 @@ import {
       state.sourceUrl = url;
       url = null;
       input = null;
-      discardNote();
+      resetNotes();
       $('editor').hidden = false;
       $('seek').value = '0';
       $('position').textContent = fmt(0);
@@ -223,7 +276,7 @@ import {
   canvas.addEventListener('pointercancel',finishStroke);
 
   async function beginExplanation() {
-    if(!state.file||state.busy||state.recorder||state.note) return;
+    if(!state.file||state.busy||state.recorder) return;
     errorNode.textContent='';
     sourceVideo.pause();
     setBusy(true);
@@ -277,11 +330,17 @@ import {
     } finally { setBusy(false); }
   }
   function updateSummary() {
-    if (!state.note) return;
-    $('noteSummary').textContent = l(
-      fmt(state.note.position) + '地点に ' + fmt(state.note.duration) + ' の説明。元動画 ' + fmt(state.duration) + '、完成見込み ' + fmt(state.duration+state.note.duration),
-      fmt(state.note.duration) + ' explanation at source ' + fmt(state.note.position) + '. Original ' + fmt(state.duration) + ', estimated output ' + fmt(state.duration+state.note.duration)
+    if (!state.notes.length) {
+      $('notePanel').hidden=true;
+      $('noteList').replaceChildren();
+      return;
+    }
+    const total=state.notes.reduce((n,item)=>n+item.duration,0);
+    $('noteSummary').textContent=l(
+      state.notes.length+'件の説明（合計 '+fmt(total)+'）。元動画 '+fmt(state.duration)+'、完成見込み '+fmt(state.duration+total),
+      state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(state.duration+total)
     );
+    renderNotes();
   }
   async function endExplanation() {
     const recorder=state.recorder;
@@ -303,11 +362,11 @@ import {
         if(!(duration>.15 && duration<=MAX_NOTE_SECONDS+1))
           throw new Error(l('録音時間が不正です。','Narration duration is invalid.'));
         const exactPosition=Math.round(state.insertAt*FPS)/FPS;
-        state.note={position:exactPosition,duration,blob,events:state.events.slice(),freeze:state.freeze};
-        state.noteUrl=URL.createObjectURL(blob);
-        $('notePlayer').src=state.noteUrl;
+        const note={id:state.nextNoteId++,position:exactPosition,duration,blob,
+          events:state.events.slice(),freeze:state.freeze};
+        state.notes.push(note);
         $('notePanel').hidden=false;
-        updateSummary();
+        selectNote(note);
         info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
       } finally { input.dispose(); }
     } catch(e) {
@@ -322,7 +381,7 @@ import {
   }
   $('startNote').addEventListener('click',()=>void beginExplanation());
   $('finishNote').addEventListener('click',()=>void endExplanation());
-  $('discard').addEventListener('click',discardNote);
+  $('discard').addEventListener('click',()=>{if(state.note)confirmRemoveNote(state.note);});
 
   async function checkResultPlayable(url) {
     const video=$('resultVideo');
