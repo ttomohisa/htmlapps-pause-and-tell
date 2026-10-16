@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.9.3 — In-recording source seek, default Pen and confirmation (2026-10-16)
+
+- Allow seeking the source video while recording. Seeking pauses only source playback, resets drawing history and keeps output/microphone recording running. Warn in both languages that skipped original footage is not in the output.
+- Switch initial drawing tool from Point to **Pen**; retain all four tools, Undo/Redo and keyboard point placement.
+- Confirm manual Finish using the existing localized accessible dialog. Pause source behind the dialog, keep recording while waiting, and resume prior playback on Cancel. Automatic duration/capacity/error stops bypass confirmation.
+- Update browser smoke checks and specifications. Separately document a future explanation-insertion architecture; **it is not implemented**.
+
 ### v0.9.2 — Recording extension and restored hero (2026-10-16)
 
 - Raised experimental input caps from 30s / 100MiB to **5min / 250MiB** and output duration from 90s to **10min**. Increased the in-memory chunk guard from 96MiB to **256MiB** while retaining the 2.4Mbps video target; recording can still end early under memory pressure.

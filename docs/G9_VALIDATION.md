@@ -188,3 +188,14 @@ The user requested more recording time and the previous hero / three-step progre
 The hero heading, description, local-processing badge and three-step progress remain in the DOM and visible through ready, recording and result phases. The video-first drawing tools and inline playback/record/finish buttons remain unchanged. Narrow-view hero typography is compact.
 
 **Not yet tested on physical devices:** real-time recording exceeding 90 seconds, sessions of at least 5 minutes, near-10-minute output, 250 MiB inputs, low-memory recovery, independent saved-file playback, and audio synchronization after long pauses. Manual Playwright/Chromium can exercise the 95-second branch with the option --long-recording in tests/recording-ux-smoke.py; this does not replace actual phone testing. Standalone build/contract checks are also not proof of long-session reliability. **G9 NO-GO** remains.
+
+
+## v0.9.3 recording seek / Pen / Finish confirmation — 2026-10-16
+
+Changes under verification: source seek enabled during recording while recording time and voice continue; source pauses during seek and drawing history is cleared. This is continuous one-take Canvas capture: skipped source frames are **not included** in the output. The UI now says so. Pen is selected initially.
+
+Manual Finish opens a localized dialog. Source playback pauses while it is open but recorder and microphone continue; cancel retains recording and attempts to resume previously playing source. Time/memory/interruption safety stops do not wait for a confirmation.
+
+`tests/recording-ux-smoke.py` has added default-Pen, seek-during-recording and confirmation cancel/confirm checks. `tests/g9-browser-regression.py` now confirms Finish. These are test definitions until executed; their presence alone is **not** a passed media regression. A separate insertion-mode design proposal lives in `docs/INSERTION_MODE_DESIGN.md`.
+
+Physical iOS/Android recording, saving, real-time long-session tests, and full original-footage-preserving insertion remain **UNVERIFIED / NOT IMPLEMENTED**. G9 verdict remains **NO-GO**.
