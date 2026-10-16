@@ -8,6 +8,9 @@
 - Preserved v0.1–v0.8 recorder, annotated Canvas, recovery, local privacy constraints, JA/EN, template standalone formats, and optional experimental desktop-only source-audio mixing.
 - Kept cautious prototype limits (30s source, 100 MiB source input, 90s output, 96 MiB accumulated chunks) pending measured physical-device support for the proposed 60s/250MiB/180s.
 - Added G9 test plan for landscape/portrait/square/rotated clips, 0/1/3/10 pauses, encoded-frame/audio onset synchronization, failure paths, device compatibility, and screenshots.
+- Fresh automated v0.9 G9 evidence: 8s play + 20s pause + finish saved a VP8/Opus WebM through 40.159/40.176s; 7 pause/orientation cases passed including actual 90° MP4 display-matrix metadata; first/last frame narration and Circle/Arrow/Pen regressions rechecked.
+- Repeated visual marker / synthetic audio onset measurements were −23ms/−11ms/−27ms. A development-only `tests/g9-browser-regression.py` was committed so the seven-case Chromium test can be rerun without adding browser packages to release HTML or everyday CI.
+- Japanese/English screenshots were captured from actual v0.9 UI and packaged for review; binary screenshot assets are still not committed to `assets/` / README.
 - A CI/Chromium auto-pass alone is insufficient for G9/v1.0.0 release approval.
 
 

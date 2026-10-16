@@ -114,6 +114,18 @@ The analysis uses pass-through video frame decoding (no FFmpeg synthetic duplica
 - **G9 decision: NO-GO / keep Draft PR unmerged.** Automated regression success must not be conflated with physical AC-10 acceptance.
 
 
+### Reproducing the seven-case smoke
+
+An optional, source-controlled test harness is available at `tests/g9-browser-regression.py`. Its dependencies are **development-only** and are not embedded into Pause & Tell:
+
+```bash
+python -m pip install playwright
+# Install Chromium with Playwright or supply an existing binary.
+python tests/g9-browser-regression.py --html dist/index.html --out ./g9-test-output --chromium /path/to/chromium
+```
+
+Requires `ffmpeg` and `ffprobe` on PATH. The script creates local H.264 test fixtures, including an MP4 with a **real display-rotation side data matrix**, runs the seven pause/orientation cases, checks exported video dimensions and the audio/video tracks, and verifies that no synthetic mic tracks remain live. It generates `g9_matrix.json`. Tests use a synthetic WebAudio microphone and an `about:blank` injected page: passing does **not** prove true `file://` loading or physical device support. Full-flow 40s and sync-probe scripts and saved clip evidence are also included in the G9 evidence ZIP delivered in this review.
+
 ## Status and decision
 
 G9 **NO-GO** until iOS and Android pass AC-10 and the full-flow tests, the synchronization target is measured in actual saved output, and hard errors are resolved. All G1–G8 real-device gates remain open even if automated headless tests pass. Keep existing Draft PR #1 unmerged, and do not modify Browser Kitty main.

@@ -8,6 +8,9 @@ Pause a source video while recording your spoken explanation. The output recordi
 
 ## v0.9.0 release-candidate review
 
+**RC automated evidence (2026-10-16):** A fresh exported 40s test (8s play + 20s frozen + resume) ended at **video 40.159s / audio 40.176s** with continuous simulated voice. Seven short videos (0/1/3/10 pauses; 16:9, 9:16, square and 90° metadata-rotation) were decoded successfully. Three independent pulse-to-visual-marker onset measurements gave **−23 / −11 / −27ms**. These are **headless Chromium laboratory results** only, not physical device support. See [G9 test evidence](docs/G9_VALIDATION.md); the generated JA/EN screenshots are available for reviewer inspection but are **not yet committed as repository screenshot assets**.
+
+
 **Release decision: NO-GO.** v0.9.0 is an RC *evaluation build*, not a published or certified release. The headless browser can test output streams, but the required physical iPhone Safari / Android Chrome recording and native saved-file playback have not been completed. The provisional caps remain **30 seconds source / 100 MiB input / 90 seconds output** until mobile memory/performance tests justify raising them. See the [G9 acceptance matrix and release blockers](docs/G9_VALIDATION.md).
 
 ## What works in v0.9.0
