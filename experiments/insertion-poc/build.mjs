@@ -20,6 +20,9 @@ const embedded = output.slice(start, end);
 if (embedded.length !== code.length) {
   console.error('Inline script size mismatch:', {
     embedded: embedded.length, bundle: code.length, start, end,
+    firstDiff: [...embedded].findIndex((c,i)=>code[i]!==c),
+    scriptTags: (output.match(/<script>/g)||[]).length,
+    scriptClosers: (output.match(/<\/script>/g)||[]).length,
     beginning: output.slice(start-90,start+70), trailing: output.slice(end-70,end+30)
   });
   throw new Error('Embedded script was truncated');
