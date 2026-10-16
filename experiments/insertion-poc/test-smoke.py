@@ -31,13 +31,15 @@ def main():
     ap.add_argument('--chromium',default='/usr/bin/chromium')
     ap.add_argument('--source-audio',action='store_true',help='Use a source with 440 Hz original soundtrack')
     ap.add_argument('--multiple',action='store_true',help='Record, delete and rerecord a second explanation')
+    ap.add_argument('--portrait',action='store_true',help='Use a vertical source and verify pen coordinates')
     ap.add_argument('--memory-target',action='store_true',help='Disable OPFS to exercise the memory fallback')
     ap.add_argument('--expanded-input',action='store_true',help='Verify loading an input longer than the old 15-second prototype cap')
     a=ap.parse_args()
     a.out.mkdir(parents=True,exist_ok=True)
     source=a.out/('source-audio-4s.webm' if a.source_audio else 'silent-4s.webm')
+    width,height=(180,320) if a.portrait else (320,180)
     source_command=['ffmpeg','-v','error','-y','-f','lavfi','-i',
-        'testsrc2=size=320x180:rate=15:duration=4']
+        f'testsrc2=size={width}x{height}:rate=15:duration=4']
     if a.source_audio:
         source_command+=['-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=4',
                          '-map','0:v:0','-map','1:a:0']
@@ -114,6 +116,11 @@ def main():
             page.screenshot(path=str(a.out/'failure-capture.png'),full_page=True)
             raise AssertionError('Failed to start isolated explanation: '+json.dumps(diagnostic)) from error
         canvas=page.locator('#drawCanvas').bounding_box()
+        displayed_ratio=canvas['width']/canvas['height']
+        expected_ratio=width/height
+        assert abs(displayed_ratio-expected_ratio)<.04,(
+            'Drawing canvas does not match video aspect ratio',
+            displayed_ratio,expected_ratio)
         page.mouse.move(canvas['x']+canvas['width']*.35,canvas['y']+canvas['height']*.4)
         page.mouse.down()
         page.mouse.move(canvas['x']+canvas['width']*.7,canvas['y']+canvas['height']*.65,steps=9)
@@ -182,6 +189,8 @@ def main():
         assert set(streams)>={'audio','video'},probe
         assert streams['video']['codec_name']=='vp8',streams
         assert streams['audio']['codec_name']=='opus',streams
+        assert int(streams['video']['width'])==width and int(streams['video']['height'])==height,(
+            'Output orientation or dimensions changed',streams['video'])
         duration=float(probe['format']['duration'])
         assert abs(duration-expected_output)<.65, (
             f'Output duration {duration} differs from source + separate clips {expected_output}')
@@ -267,7 +276,8 @@ def main():
         report={'status':'PASS','input':4,'output':duration,'video':streams['video']['codec_name'],
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
-          'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,'multiple':a.multiple,
+          'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,
+          'portrait':a.portrait,'multiple':a.multiple,
           'storage':storage,'expectedOutput':expected_output,
           'originalToneBefore':lead_original,'originalToneDuring':insert_original,
           'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,

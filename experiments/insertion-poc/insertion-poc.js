@@ -171,6 +171,10 @@ import { buildTimeline } from './timeline.js';
       const factor = Math.min(1, 640 / Math.max(width,height));
       canvas.width = Math.max(2, Math.floor(width * factor / 2) * 2);
       canvas.height = Math.max(2, Math.floor(height * factor / 2) * 2);
+      // Keep the interactive canvas at the actual visible video dimensions
+      // even for narrow portrait footage. Avoid the invisible letterbox area
+      // that would misalign normalized pointer coordinates on small screens.
+      canvas.parentElement.style.setProperty('--media-ratio',String(canvas.width/canvas.height));
       url = URL.createObjectURL(file);
       const loaded = new Promise((resolve,reject) => {
         let settled=false;
