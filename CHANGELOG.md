@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.11.4 — portrait canvas alignment and rotation-aware MP4 export tests (isolated PoC)
+
+- Match the Pen drawing canvas's rendered aspect to the actual displayed video area even on a narrow portrait stage, avoiding annotation coordinate drift from invisible letterboxing.
+- Synthetic 180×320 VP8/Opus portrait media passes decoded video dimensions, original/narration audio switching, and a pixel-level check showing the drawn Pen line in the saved inserted clip.
+- Google Chrome successfully imports a 90° display-matrix H.264/AAC MP4 and exports a 180×320 VP8/Opus WebM from a 320×180 coded source; original tail imagery and audio timing remain intact. Test fixtures now assert the actual rotation matrix.
+- Existing v0.9.3 user-facing recorder is unchanged. Safari/iPhone/Android, MOV/HEVC and variable frame-rate release tests remain open.
+
 ### v0.11.3 — 60-second export and H.264/AAC MP4 source validation (PoC only)
 
 - An opt-in 60-second moving WebM source with original Opus audio produced a decodable 61.22-second VP8/Opus WebM, with appended 800 Hz synthetic narration and correct original audio/video before/after insertion.

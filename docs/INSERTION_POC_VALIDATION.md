@@ -1,4 +1,4 @@
-# Pause & Tell insertion PoC — v0.10.0–v0.11.3 verification
+# Pause & Tell insertion PoC — v0.10.0–v0.11.4 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.
 
@@ -115,3 +115,12 @@ Added source-switch guard: after clips have been recorded, replacing the source 
 **60s regression investigation:** An earlier test failed extracting a tail frame with fast `ffmpeg -ss ... -i output.webm`. The test was changed to decode sequentially `-i ... -ss` with bounded FFmpeg threads and preserve actual stderr on any failure. The updated 60s regression passed; no supported conclusion about universal indexed seeking follows from this test.
 
 **Accepted next tests:** At milestones, check 180-second original in a desktop browser with actual saved file, then portrait/rotation and audio channel/sample-rate variations. Physical Android Chrome and iPhone Safari microphone/export/playback and storage interruption remain mandatory before release. See [test policy](INSERTION_TEST_POLICY.md).
+
+## v0.11.4 — aspect-accurate portrait annotations and MP4 display rotation (2026-10-17)
+
+**Portrait WebM proof**: [Chromium CI run 38951138278](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38951138278), [raw fixture/composed WebM, screenshots, report](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38951138278/artifacts/12069241050).
+A 4-second, 180×320 VP8/Opus portrait source received a timestamped Pen and microphone narration and saved a 5.94-second VP8/Opus portrait WebM (180×320). The actual displayed `canvas` aspect ratio matches the source, and the regression asserts that a region crossed by the pointer-drawn line differs from the corresponding original frame **in the encoded explanation interval**. Opening and trailing original frames remain present (mean per-channel RGB errors 1.99 and 1.98); original soundtrack plays only in source intervals and narration only inside the inserted clip; no JavaScript errors or external HTTP requests. Other existing silent, source-audio and multi-insert cases passed in the same run.
+
+**MP4 track rotation proof**: [Google Chrome CI run 38950823277](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277), [input/output media and report](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277/artifacts/12068911322). A 30-second 320×180 H.264/AAC MP4 with an actual 90° display matrix (verified with ffprobe) was imported, annotated, and exported to a 31.14-second **180×320** VP8/Opus WebM. Original tail video remained recognizable (mean absolute RGB difference 11.367) and audio intervals preserved. This is **MP4 input to WebM output**, not MP4 output or lossless passthrough.
+
+**Limitations:** Both desktop tests use 15 FPS synthetic media, supported WebCodecs, and an available microphone signal simulator. They do not establish end-to-end physical smartphone support, rotate metadata correctness for every MOV/HEVC file, VFR timing/accurate timestamp handling, differing aspect ratios or audio channel layouts, or actual 5-minute mobile output acceptance.

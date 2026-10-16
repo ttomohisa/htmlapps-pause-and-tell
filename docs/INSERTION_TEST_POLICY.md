@@ -50,3 +50,9 @@ Source replacement after recording independent explanation clips is destructive 
 - A [30-second H.264/AAC MP4 input](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38943039604) produced a 31.22s VP8/Opus WebM on desktop Google Chrome. CI Chromium could not play that H.264 file. This is explicit browser compatibility evidence, not permission to claim universal MP4 support or MP4 output.
 - The opt-in endurance workflow accepts format and duration input; explicit Draft title edits `[run-endurance-60]` and `[run-endurance-mp4]` are alternate triggers when manually dispatching cannot target an unmerged branch. Ordinary PR pushes do not run endurance.
 - To avoid a false-negative on long WebM indexing, the test now checks actual frame decode sequentially and captures FFmpeg error messages. Actual missing output frames, missing soundtrack, external media transmission and silent failures remain blocking.
+
+## v0.11.4 orientation coverage
+
+- Short PR regression contains **one portrait video case**, asserting width/height, visible canvas aspect and saved-file Pen presence near the expected normalized pointer position. This is a P0 interaction check, but does **not** require every resolution/device per commit.
+- Opt-in extended media regression checks a 90° **MP4 display matrix**, original vs output dimensions, saved-file tail video and audio. Rotation metadata must be asserted on the original fixture; an FFmpeg text-only `rotate` tag is not equivalent to a real display matrix.
+- Keep physically rotated MOV/HEVC footage, front camera, VFR, non-square sample aspect ratios and device-specific captures for release compatibility gates, not short per-PR smoke.

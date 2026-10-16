@@ -1,4 +1,4 @@
-# v0.11.3 — MP4 input and 60-second media verification
+# v0.11.4 — portrait and rotation-aware explanation proof
 
 This is an **isolated experimental proof of concept**, not the default Browser Kitty app or a completed release.
 
@@ -49,3 +49,12 @@ Tests are tiered, not all-or-nothing on every change. See [test policy](../../do
 - The experimental input/file limit of 5m/250MiB remains an **attempt ceiling**, not a validated 5m export. A physical Android Chrome and iPhone Safari device matrix is still pending.
 
 No changes to the default v0.9.3 continuous recording application, and no Browser Kitty main-repository changes. Draft/no merge.
+
+## v0.11.4: vertical and metadata-rotated sources — 2026-10-17
+
+- **[Portrait 180×320 VP8/Opus source, narration and Pen → 180×320 WebM PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38951138278)**. The app now sizes the visible annotation canvas to the source's aspect ratio, eliminating invisible letterbox areas that caused touch position mismatch on narrow phone-shaped stages. The test checks CSS drawing-canvas dimensions, decoded output dimensions, correct before/inside/after audio and a pixel region containing a drawn Pen line **in the saved inserted video**, not only the browser preview.
+- **[90-degree display-matrix H.264/AAC MP4 → portrait 180×320 WebM PASS](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277)** on desktop Google Chrome. Generated a 320×180 pixel MP4 with an actual 90° display matrix; the saved WebM is 180×320, lasting 31.14 seconds from 30 seconds of source plus independent narration. Source-tail frame mean RGB difference 11.367 (lossy encoding), original audio and explanation audio isolated to their sections, no external requests/errors.
+- Rotated-source acceptance requires the **actual MP4 track display matrix**; setting a legacy plain `rotate` metadata tag in an FFmpeg remux did not create it. The test fixture now uses `-display_rotation 90` and independently verifies the matrix before checking output.
+- [Saved 30-second rotated MP4 and output WebM](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277/artifacts/12068911322) · [portrait output WebM and screenshots](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38951138278/artifacts/12069241050).
+
+These are **synthetic desktop browser acceptance tests only**; real iPhone video capture, iOS Safari/Android save, variable frame rate, HEVC, wider media formats, long portrait exports and device behavior remain unverified. No changes to the default v0.9.3 app; Draft remains unmerged.
