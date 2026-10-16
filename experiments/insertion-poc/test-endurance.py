@@ -40,12 +40,17 @@ def main():
     ap.add_argument('--out', type=Path, default=Path('endurance-evidence'))
     ap.add_argument('--source-seconds', type=int, choices=(30, 60, 180), default=30)
     ap.add_argument('--source-format', choices=('webm', 'mp4'), default='webm')
+    ap.add_argument('--orientation', choices=('landscape','portrait','rotated'), default='landscape')
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    if args.orientation=='rotated' and args.source_format!='mp4':
+        raise ValueError('Rotated metadata fixture requires MP4 container')
     source = args.out / f'original-{args.source_seconds}s.{args.source_format}'
+    width,height=(180,320) if args.orientation=='portrait' else (320,180)
+    expected_width,expected_height=(180,320) if args.orientation!='landscape' else (320,180)
     start = time.monotonic()
     argv=['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i',
-          f'testsrc2=size=320x180:rate=15:duration={args.source_seconds}',
+          f'testsrc2=size={width}x{height}:rate=15:duration={args.source_seconds}',
           '-f', 'lavfi', '-i',
           f'sine=frequency=440:sample_rate=48000:duration={args.source_seconds}',
           '-map', '0:v:0', '-map', '1:a:0']
@@ -55,7 +60,21 @@ def main():
     else:
         argv+=['-c:v','libvpx','-deadline','realtime','-cpu-used','8',
                '-b:v','350k','-c:a','libopus','-b:a','48k']
-    command(argv+['-shortest',str(source)])
+    if args.orientation=='rotated':
+        # Rotation is a container display matrix, not a pixel rotation.
+        unrotated=args.out/'raw-landscape.mp4'
+        command(argv+['-shortest',str(unrotated)])
+        command(['ffmpeg','-v','error','-y','-i',str(unrotated),
+                 '-map','0','-c','copy','-metadata:s:v:0','rotate=90',str(source)])
+        unrotated.unlink()
+        metadata=probe(source)
+        rotation_values=[abs(float(side.get('rotation',0))) for stream in metadata['streams']
+                         if stream['codec_type']=='video'
+                         for side in stream.get('side_data_list',[])]
+        assert any(abs(v-90)<1 for v in rotation_values), (
+            'Rotation metadata was not preserved in the test fixture',rotation_values)
+    else:
+        command(argv+['-shortest',str(source)])
     insertion_at = min(10, args.source_seconds / 3)
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=args.chromium, headless=True,
@@ -94,6 +113,11 @@ def main():
                 json.dumps(diagnostic,indent=2,ensure_ascii=False),encoding='utf-8')
             page.screenshot(path=str(args.out/'input-failure.png'),full_page=True)
             raise AssertionError('Video source could not be prepared: '+json.dumps(diagnostic)) from error
+        canvas_aspect=page.locator('#drawCanvas').evaluate(
+            "(c)=>c.width/c.height")
+        assert abs(canvas_aspect-(expected_width/expected_height))<.04,(
+            'Orientation metadata is not honored by canvas',canvas_aspect,
+            expected_width,expected_height)
         page.locator('#seek').evaluate("""(node, value)=>{
           node.value=String(Math.round(value * 1000));
           node.dispatchEvent(new Event('input',{bubbles:true}));
@@ -124,6 +148,9 @@ def main():
         info=probe(output)
         kinds={s['codec_type']:s['codec_name'] for s in info['streams']}
         assert kinds.get('video')=='vp8' and kinds.get('audio')=='opus', kinds
+        video_info=next(s for s in info['streams'] if s['codec_type']=='video')
+        assert (video_info['width'],video_info['height'])==(expected_width,expected_height),(
+            'Exported video dimensions/rotation incorrect',video_info)
         duration=float(info['format']['duration'])
         inserted=duration-args.source_seconds
         assert .5<inserted<4.0,(duration,inserted)
@@ -159,6 +186,7 @@ def main():
                 'outputBytes':output.stat().st_size,'sourceBytes':source.stat().st_size,
                 'durationRunSeconds':round(time.monotonic()-start,2),
                 'storage':mode,'tailFrameMeanError':delta,
+                'orientation':args.orientation,'outputDimensions':[expected_width,expected_height],
                 'pageErrors':errors,'externalRequests':external}
         (args.out/'report.json').write_text(json.dumps(result,indent=2))
         page.screenshot(path=str(args.out/'finished.png'), full_page=True)
