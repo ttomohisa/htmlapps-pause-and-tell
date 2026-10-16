@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### v0.9.1 — Video-first recording, Undo/Redo and UI cleanup (2026-10-16)
+
+- Compact recording workspace: drawing tools above the video, source play/record/finish actions immediately below the video, followed by clocks and optional audio controls. Removed the mobile bottom-fixed recording bar and unnecessary progress panels during editing.
+- Record now starts source playback **after** microphone/recorder startup by default, while offering an explicit first-frame paused start. If muted autoplay is blocked, the recording remains active and the UI explains to press Play.
+- Added drawing Undo/Redo using Ctrl/Cmd+Z, Ctrl+Y and Ctrl/Cmd+Shift+Z, plus an accessible Redo button. The current Clear can be undone; resuming source playback intentionally clears drawing history, without rewriting recorded frames.
+- Consolidated user-facing help and README, removed development-only messages from the ordinary workflow and kept local diagnostics/build internals accessible only through an explicit `?debug=1` query.
+- Explained that source 30s / 100MiB and recording 90s are provisional memory-safety limits rather than browser-defined maximums. Physical iPhone/Android and direct `file://` compatibility remain G9 release blockers.
+
+
+
 ### v0.9.0 — Release-candidate verification (2026-10-15)
 
 - Prepared a G9 full-flow acceptance plan (T-01–T-16 and AC-01–AC-12) with explicit **NO-GO** until actual iPhone Safari and Android Chrome recorded files can be saved and replayed natively.
