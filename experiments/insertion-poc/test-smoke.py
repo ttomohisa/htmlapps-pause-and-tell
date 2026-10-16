@@ -173,7 +173,9 @@ def main():
         after=pcm[int((duration-.7)*48000):int((duration-.2)*48000)]
         def rms_of(data):
             return math.sqrt(sum(v*v for v in data)/max(1,len(data)))/32768
-        assert rms_of(before)<.03 and rms_of(after)<.03, 'Narration leaked into original intervals'
+        if not a.source_audio:
+            assert rms_of(before)<.03 and rms_of(after)<.03, 'Silent original intervals contain unexpected audio'
+        # For sources with sound the 440/800 Hz assertions above distinguish tracks.
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
