@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### v0.10.0 — isolated explanation-insertion PoC (not released)
+
+- Record explanation audio and timestamped Pen strokes independently at one source timestamp, without recording the original video throughout the narration.
+- At export, decode and re-encode original source frames offline, insert the explanation, and mux one WebM/VP8/Opus output. The default v0.9.3 recording application is unchanged.
+- Synthetic Chromium CI produced a 5.94-second file from four seconds of silent source plus ~1.94 seconds of narration, with measured video frames before/after insertion and audible voice.
+- Source audio, multiple inserted clips, long or mobile media, and production compatibility remain deliberately unimplemented/untested.
+
 ### v0.9.3 — In-recording source seek, default Pen and confirmation (2026-10-16)
 
 - Allow seeking the source video while recording. Seeking pauses only source playback, resets drawing history and keeps output/microphone recording running. Warn in both languages that skipped original footage is not in the output.
