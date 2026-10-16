@@ -583,6 +583,59 @@
       .pt-skip-link { transition:none; }
     }
 
+
+    /* Video-first editing. Transport is inline, not a distant fixed footer. */
+    #ptStudioPanel.pt-panel { padding:clamp(12px,2vw,20px); }
+    #ptStudioPanel .pt-control-head h2 { font-size:17px; margin:0; }
+    #ptCurrentFile { margin:6px 0; padding:0; background:transparent; font-size:12px;
+      white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .pt-source-change-row { margin:0 0 6px; }
+    .pt-source-change-row .pt-file-label { min-height:40px; padding:6px 11px; font-size:12px; }
+    #ptStudioPanel .pt-draw-panel { margin:4px 0 8px; padding:8px;
+      border:1px solid var(--line); background:var(--surface); }
+    #ptStudioPanel .pt-draw-header, #ptStudioPanel .pt-draw-help { display:none; }
+    #ptStudioPanel .pt-draw-tools { grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+    #ptStudioPanel .pt-draw-tool { min-height:44px; padding:5px 6px; gap:5px; }
+    #ptStudioPanel .pt-draw-bottom { margin-top:6px; gap:7px; }
+    #ptStudioPanel .pt-draw-colors { gap:7px; }
+    #ptStudioPanel .pt-draw-color { width:42px; height:42px; }
+    #ptStudioPanel .pt-annotation-actions { gap:5px; }
+    #ptStudioPanel .pt-annotation-action { min-height:44px; padding:6px 9px; }
+    #ptStudioPanel .pt-stage-wrap { margin:0; padding:7px; border-radius:12px; }
+    #ptStudioPanel .pt-stage { max-height:min(53dvh,470px); }
+    #ptStudioPanel .pt-stage canvas { max-height:min(52dvh,460px); border-radius:3px; }
+    #ptStudioPanel .pt-transport { position:static; display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch;
+      margin:7px 0 0; padding:0; border:0; background:transparent; box-shadow:none; gap:8px; }
+    #ptStudioPanel .pt-transport .button { width:100%; min-width:0; min-height:50px; font-size:14px; font-weight:730; }
+    #ptStudioPanel .pt-transport #ptStop:not([hidden]) { border-color:var(--danger);
+      background:#fff6f5; color:#99201a; }
+    #ptStudioPanel .pt-inline-state { margin:5px 0; padding:0; font-size:13px; min-height:0; }
+    #ptStudioPanel .pt-clocks { margin:6px 0 2px; gap:12px; flex-wrap:wrap; }
+    #ptStudioPanel .pt-clocks > div { font-size:12px; }
+    #ptStudioPanel .pt-seek { margin:5px 0 0; }
+    .pt-start-mode { display:flex; align-items:center; gap:9px; margin:5px 0 0;
+      color:var(--muted); font-size:12px; min-height:38px; cursor:pointer; }
+    .pt-start-mode input { width:18px; height:18px; accent-color:var(--accent); }
+    #ptStudioPanel .pt-mic-note { margin:5px 0; font-size:12px; }
+    #ptStudioPanel .pt-audio-options { margin:7px 0 0; }
+    @media (max-width:767px), (pointer:coarse) and (max-height:600px) {
+      #ptStudioPanel .pt-draw-tool { min-height:46px; padding:4px 1px; flex-direction:column; gap:2px; }
+      #ptStudioPanel .pt-stage { max-height:48dvh; }
+      #ptStudioPanel .pt-stage canvas { max-height:47dvh; }
+      #ptStudioPanel .pt-transport { position:static; padding:0; box-shadow:none; margin-top:7px; border:0; }
+      #ptStudioPanel .pt-transport .button { min-height:48px; padding:8px 5px; }
+      body:has(#ptStudioPanel:not([hidden])) .main { padding-bottom:18px; }
+      #ptStudioPanel .pt-annotation-action { min-width:44px; width:44px; padding:7px; }
+      #ptStudioPanel .pt-annotation-action span { display:none; }
+    }
+    @media (max-width:360px) {
+      #ptStudioPanel .pt-draw-colors { gap:5px; }
+      #ptStudioPanel .pt-draw-color { width:40px; height:40px; }
+      #ptStudioPanel .pt-annotation-actions { width:auto; display:flex; gap:5px; }
+      #ptStudioPanel .pt-annotation-action { width:42px; min-width:42px; min-height:44px; }
+    }
+
     /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
     [hidden] { display: none !important; }
     .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
@@ -737,6 +790,17 @@
           <div id="ptStageStatus" class="pt-video-status" aria-live="polite" hidden></div>
         </div>
       </div>
+      <div class="pt-controls pt-transport" id="ptTransport">
+        <button type="button" class="button primary" id="ptStart" data-i18n="startRecordAndPlay">録画して再生</button>
+        <button type="button" class="button" id="ptPlayPause" data-i18n="play">元動画を再生</button>
+        <button type="button" class="button pt-record-stop" id="ptStop" data-i18n="stopRecord" hidden disabled>録画を終了</button>
+      </div>
+      <p id="ptMessage" class="pt-message pt-inline-state" aria-live="polite"></p>
+      <p id="ptDrawAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
+      <label class="pt-start-mode" id="ptStartPausedRow">
+        <input id="ptStartPaused" type="checkbox">
+        <span data-i18n="startPausedOption">最初の画面を止めて説明する</span>
+      </label>
       <div class="pt-clocks">
         <div><span data-i18n="sourceClock">元動画の時間</span><strong id="ptSourceClock">00:00 / 00:00</strong></div>
         <div><span data-i18n="recordClock">完成動画の時間</span><strong id="ptRecordClock">00:00 / 01:30</strong></div>
@@ -765,14 +829,6 @@
         </div>
       </details>
       <p class="pt-mic-note" id="ptMicNote" data-i18n="micNote">マイクは「説明を録画」を押したときだけ使用します。動画と音声は端末内で処理します。</p>
-      <div class="pt-controls pt-transport" id="ptTransport">
-        <button type="button" class="button primary" id="ptStart" data-i18n="startRecord">説明を録画</button>
-        <button type="button" class="button" id="ptPlayPause" data-i18n="play">元動画を再生</button>
-        <button type="button" class="button pt-record-stop" id="ptStop" data-i18n="stopRecord" hidden disabled>録画を終了</button>
-      </div>
-      <p id="ptMessage" class="pt-message" aria-live="polite"></p>
-      <p id="ptDrawAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
-      <p class="pt-poc-note" data-i18n="pocNote">録画が中断された場合は、回収したデータを区別して表示します。元音声の合成はPC向けの試験機能です。</p>
     </section>
 
     <section class="shell pt-panel" id="ptResultPanel" aria-labelledby="ptResultTitle" hidden>
@@ -801,7 +857,7 @@
       <p id="ptExportStatus" class="pt-export-status" role="status" aria-live="polite" hidden></p>
     </section>
 
-    <section class="shell section" aria-labelledby="ptDiagnosticsTitle">
+    <section class="shell section" id="ptDiagnosticsSection" aria-labelledby="ptDiagnosticsTitle" hidden>
       <details>
         <summary id="ptDiagnosticsTitle" data-i18n="diagnostics">技術検証ログ（端末内のみ）</summary>
         <p class="pt-muted" data-i18n="diagIntro">端末・ブラウザでの録画動作を確認するための情報です。自動送信は行いません。</p>
@@ -810,7 +866,7 @@
     </section>
     <!-- APP:END -->
 
-    <section class="shell section">
+    <section class="shell section" id="ptBuildInfoSection" hidden>
       <details>
         <summary data-i18n="buildInfo">Build information</summary>
         <div class="build-grid">
