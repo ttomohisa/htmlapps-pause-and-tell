@@ -199,3 +199,12 @@ Manual Finish opens a localized dialog. Source playback pauses while it is open 
 `tests/recording-ux-smoke.py` has added default-Pen, seek-during-recording and confirmation cancel/confirm checks. `tests/g9-browser-regression.py` now confirms Finish. These are test definitions until executed; their presence alone is **not** a passed media regression. A separate insertion-mode design proposal lives in `docs/INSERTION_MODE_DESIGN.md`.
 
 Physical iOS/Android recording, saving, real-time long-session tests, and full original-footage-preserving insertion remain **UNVERIFIED / NOT IMPLEMENTED**. G9 verdict remains **NO-GO**.
+
+
+### v0.9.3 synthetic Chromium recording verification — 2026-10-16
+
+**PASS for the automated synthetic-media subset only.** Actual generated standalone from commit `e0f3caf09f838f2e5968cb05a7cdec140bede10d` passed [browser recording smoke Actions run](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38848372285), including Playwright Chromium, FFmpeg and ffprobe with a synthetic microphone, on 320×568, 360×740, 390×844, 844×390 and 1280×800 viewport sizes. The tested input was a short VP8 WebM, selected because the Ubuntu CI Chromium could not decode the prior H.264 fixture. The report and actual saved WebM outputs are in [test artifact](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38848372285/artifacts/12024307536).
+
+Tests assert: Pen initially selected; successful Record & play; pause maintains microphone and capture; current drawing Undo/Redo and reversible Clear; source-seek slider enabled while capturing and the source moved to the requested ~2 second position while recording continued; an explanatory warning that source footage is skipped; Finish dialog cancel while paused and while playing; Finish confirmation to produce output; video and audio tracks decoded from saved WebM; no live synthetic microphone tracks after result; responsive no horizontal overflow, visible hero/progress, inline video-adjacent transport; and no unexpected JS errors or external app HTTP requests in the cases covered.
+
+**Not covered:** original soundtrack retention in the new recording, preserving skipped source footage, real nondestructive insertion, actual Android/iPhone media permissions and native saved-file playback, file://, extensive low-memory recovery and full 10-minute output. The new insertion design note remains a design proposal only. **G9 remains NO-GO** until required hardware tests pass.
