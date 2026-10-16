@@ -55,7 +55,17 @@ def main():
         }""")
         page.goto(a.url,wait_until='domcontentloaded')
         page.locator('#sourceFile').set_input_files(str(source))
-        page.locator('#editor').wait_for(state='visible',timeout=25000)
+        try:
+            page.locator('#editor').wait_for(state='visible',timeout=25000)
+        except Exception as error:
+            diagnostic={
+                'message':page.locator('#error').inner_text(),
+                'pageErrors':errors,
+                'header':page.locator('h1').inner_text(),
+                'source':page.locator('#sourceInfo').inner_text()
+            }
+            page.screenshot(path=str(a.out/'failure-input.png'),full_page=True)
+            raise AssertionError('Could not open source: '+json.dumps(diagnostic)) from error
         assert not page.locator('#startNote').is_disabled()
         page.locator('#seek').evaluate("""element => {
             element.value='500';element.dispatchEvent(new Event('input',{bubbles:true}));
