@@ -1,0 +1,56 @@
+name: Insertion endurance (opt-in milestone)
+on:
+  workflow_dispatch:
+    inputs:
+      source_seconds:
+        description: "Source fixture duration in seconds (opt-in, not per-commit)"
+        type: choice
+        options:
+          - "30"
+          - "60"
+          - "180"
+        default: "30"
+  pull_request:
+    branches: [main]
+    paths:
+      - 'experiments/insertion-poc/test-endurance.py'
+      - '.github/workflows/insertion-endurance.yml'
+permissions:
+  contents: read
+jobs:
+  endurance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build offline insertion experiment
+        working-directory: experiments/insertion-poc
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+          npm run build
+          node test-timeline.mjs
+      - name: Prepare Chromium and FFmpeg
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.58.0'
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y ffmpeg; fi
+          test -x /usr/bin/chromium
+      - name: Verify a real saved longer WebM
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-endurance.log 2>&1 &
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --source-seconds "\${{ github.event.inputs.source_seconds || '30' }}"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: insertion-endurance-output
+          path: |
+            endurance-evidence/
+            experiments/insertion-poc/dist/index.html
+          retention-days: 7
+          if-no-files-found: ignore
