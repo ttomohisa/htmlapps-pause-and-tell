@@ -61,3 +61,7 @@ Source replacement after recording independent explanation clips is destructive 
 ## v0.11.5 short failure-path regression
 
 `test-resilience.py` injects missing MediaRecorder, unexpected native recorder stop, recorder error and failed re-export into short synthetic desktop-browser flows. It checks preserved explanation state, released microphone tracks, usable retry controls and byte-identical re-download of the previous successful output. These run with ordinary short CI; they do not simulate physical-phone permissions, storage completion, device audio interruptions or actual OS sharing. Existing short media decode checks and v0.9.3 tests remain required; long/VFR/device gates remain opt-in milestones.
+
+## Opt-in codec/VFR probe
+
+See `INSERTION_CODEC_PROBE.md`. Native AVC/AAC feasibility and one short VFR/44.1kHz stereo case live in a separate opt-in workflow. Unsupported codec outcomes are reported explicitly; they are not a product-support pass. Normal short tests keep their existing fixture settings and no extra media encoders are shipped.

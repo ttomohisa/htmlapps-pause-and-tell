@@ -1,0 +1,50 @@
+name: Insertion codec and VFR probe (opt-in)
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [edited]
+permissions:
+  contents: read
+jobs:
+  probe:
+    # Bounded laboratory only; ordinary pushes never execute this milestone.
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-codec-probe]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build isolated probes
+        working-directory: experiments/insertion-poc
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+          npm run build
+          node build-codec-probe.mjs
+      - name: Prepare media checks
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.58.0'
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y ffmpeg; fi
+      - name: Measure native AVC and AAC feasibility
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-codecs.log 2>&1 &
+          python experiments/insertion-poc/test-codec-probe.py --chromium /usr/bin/chromium --out codec-evidence/chromium
+          if command -v google-chrome >/dev/null; then
+            python experiments/insertion-poc/test-codec-probe.py --chromium "$(command -v google-chrome)" --out codec-evidence/chrome
+          fi
+      - name: Verify VFR and stereo source through existing WebM insertion
+        run: python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out codec-evidence/vfr-stereo --vfr-stereo --multiple
+      - name: Preserve probe evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: insertion-codec-vfr-probe
+          path: |
+            codec-evidence/
+            experiments/insertion-poc/dist/codec-probe.html
+          retention-days: 7
+          if-no-files-found: ignore

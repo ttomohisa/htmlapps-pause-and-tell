@@ -34,21 +34,35 @@ def main():
     ap.add_argument('--portrait',action='store_true',help='Use a vertical source and verify pen coordinates')
     ap.add_argument('--memory-target',action='store_true',help='Disable OPFS to exercise the memory fallback')
     ap.add_argument('--expanded-input',action='store_true',help='Verify loading an input longer than the old 15-second prototype cap')
+    ap.add_argument('--vfr-stereo',action='store_true',help='Opt-in irregular video timestamps plus 44.1 kHz stereo Vorbis source')
     a=ap.parse_args()
+    if a.vfr_stereo:a.source_audio=True
     a.out.mkdir(parents=True,exist_ok=True)
     source=a.out/('source-audio-4s.webm' if a.source_audio else 'silent-4s.webm')
     width,height=(180,320) if a.portrait else (320,180)
     source_command=['ffmpeg','-v','error','-y','-f','lavfi','-i',
-        f'testsrc2=size={width}x{height}:rate=15:duration=4']
+        f'testsrc2=size={width}x{height}:rate={60 if a.vfr_stereo else 15}:duration=4']
     if a.source_audio:
-        source_command+=['-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=4',
+        source_command+=['-f','lavfi','-i',('aevalsrc=0.25*sin(2*PI*440*t)|0.25*sin(2*PI*660*t):s=44100:d=4' if a.vfr_stereo else 'sine=frequency=440:sample_rate=48000:duration=4'),
                          '-map','0:v:0','-map','1:a:0']
     else:
         source_command+=['-an']
+    if a.vfr_stereo:
+        source_command+=['-vf',"select='if(lt(t,2),not(mod(n,2)),not(mod(n,5)))+eq(n,239)'",'-fps_mode','vfr']
     source_command+=['-c:v','libvpx','-deadline','realtime','-cpu-used','8','-b:v','500k']
     if a.source_audio:
-        source_command+=['-c:a','libopus','-b:a','64k','-shortest']
+        source_command+=['-c:a',('libvorbis' if a.vfr_stereo else 'libopus'),'-b:a',('96k' if a.vfr_stereo else '64k'),'-shortest']
     command(source_command+[str(source)])
+    source_deltas=[]
+    if a.vfr_stereo:
+        original=ffprobe(source);source_audio=next(s for s in original['streams'] if s['codec_type']=='audio')
+        assert source_audio['sample_rate']=='44100' and source_audio['channels']==2,source_audio
+        frames=json.loads(command(['ffprobe','-v','error','-select_streams','v:0','-show_frames','-show_entries','frame=best_effort_timestamp_time','-of','json',str(source)]))['frames']
+        pts=[float(frame['best_effort_timestamp_time']) for frame in frames]
+        source_deltas=sorted(set(round(b-a,3) for a,b in zip(pts,pts[1:])))
+        assert len(source_deltas)>=2 and max(source_deltas)-min(source_deltas)>.03,source_deltas
+        assert pts[-1]>3.95,pts[-1]
+
     with sync_playwright() as p:
         browser=p.chromium.launch(executable_path=a.chromium,headless=True,args=[
             '--no-sandbox','--autoplay-policy=no-user-gesture-required'])
@@ -240,6 +254,14 @@ def main():
             second_voice=tone_amplitude(pcm,5.2,800)
             second_original=tone_amplitude(pcm,5.2,440)
             assert second_voice>.04 and second_original<.025,('Second inserted segment incorrect',second_voice,second_original)
+        if a.vfr_stereo:
+            assert streams['audio']['channels']==2,streams['audio']
+            stereo=array('h');stereo.frombytes(command(['ffmpeg','-v','error','-i',str(result),'-vn','-ar','48000','-ac','2','-f','s16le','-'],binary=True))
+            left,right=stereo[::2],stereo[1::2]
+            for sample in (.7,duration-.5):
+                assert tone_amplitude(left,sample,440)>.12 and tone_amplitude(left,sample,660)<.025
+                assert tone_amplitude(right,sample,660)>.12 and tone_amplitude(right,sample,440)<.025
+            assert tone_amplitude(left,2.5,800)>.04 and tone_amplitude(right,2.5,800)>.04
         # Verify original frames survive both before AND after insertion.
         def rgb_at(file, seconds):
             return command(['ffmpeg','-v','error','-ss',f'{seconds:.3f}','-i',
@@ -303,7 +325,7 @@ def main():
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
           'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,
-          'portrait':a.portrait,'multiple':a.multiple,
+          'portrait':a.portrait,'multiple':a.multiple,'vfrStereo':a.vfr_stereo,'sourceFrameDeltas':source_deltas,
           'storage':storage,'expectedOutput':expected_output,
           'originalToneBefore':lead_original,'originalToneDuring':insert_original,
           'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,
