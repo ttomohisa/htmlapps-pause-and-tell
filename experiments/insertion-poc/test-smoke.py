@@ -261,7 +261,10 @@ def main():
             for sample in (.7,duration-.5):
                 assert tone_amplitude(left,sample,440)>.12 and tone_amplitude(left,sample,660)<.025
                 assert tone_amplitude(right,sample,660)>.12 and tone_amplitude(right,sample,440)<.025
-            assert tone_amplitude(left,2.5,800)>.04 and tone_amplitude(right,2.5,800)>.04
+            for sample in (2.5,5.2):
+                assert tone_amplitude(left,sample,800)>.04 and tone_amplitude(right,sample,800)>.04
+                for channel in (left,right):
+                    assert tone_amplitude(channel,sample,440)<.025 and tone_amplitude(channel,sample,660)<.025, 'Source stereo tone leaked into narration'
         # Verify original frames survive both before AND after insertion.
         def rgb_at(file, seconds):
             return command(['ffmpeg','-v','error','-ss',f'{seconds:.3f}','-i',

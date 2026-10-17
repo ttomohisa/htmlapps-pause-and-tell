@@ -25,6 +25,12 @@ def main():
         for t,channel in ((.5,0),(1.5,1)):
             rgb=command(['ffmpeg','-v','error','-i',str(path),'-ss',str(t),'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','-threads','1','-'])
             means=[sum(rgb[c::3])/len(rgb[c::3]) for c in range(3)];assert means[channel]>200 and means[1-channel]<40,means
+        rgb=command(['ffmpeg','-v','error','-i',str(path),'-an','-f','rawvideo','-pix_fmt','rgb24','-threads','1','-'])
+        frame_bytes=320*180*3
+        assert len(rgb)==30*frame_bytes,len(rgb)
+        green_frames=[i for i in range(30) if sum(rgb[i*frame_bytes+1:(i+1)*frame_bytes:3])/(320*180)>200]
+        assert green_frames and green_frames[0]==15,green_frames
+        report['videoTransitionSeconds']=green_frames[0]/15
         if report['aac']:
             assert streams['audio']['codec_name']=='aac' and streams['audio']['channels']==2
             pcm=array('h');pcm.frombytes(command(['ffmpeg','-v','error','-i',str(path),'-vn','-ac','2','-ar','48000','-f','s16le','-']))
@@ -32,7 +38,7 @@ def main():
             assert rms(mono[12000:24000])<.01;assert rms(mono[60000:72000])>.1
             # Audio onset and video color transition should both lie at one second.
             onsets=[i/48000 for i in range(47000,50000,240) if rms(mono[i:i+240])>.05]
-            assert onsets and abs(onsets[0]-1)<.08,onsets
+            assert onsets and abs(onsets[0]-report['videoTransitionSeconds'])<.08,onsets
             report['audioOnsetSeconds']=onsets[0]
         else:assert 'audio' not in streams
     (a.out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps({k:v for k,v in report.items() if k!='ffprobe'}))

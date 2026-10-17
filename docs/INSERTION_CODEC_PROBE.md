@@ -61,3 +61,36 @@ video-only AVC MP4 because AAC was unavailable.
 The Windows PR-preview build also exposed URL pathname handling (`D:/D:/...`);
 `fileURLToPath(import.meta.url)` now resolves build entries on Windows and Linux.
 The generated Linux app bytes did not change from this portability correction.
+
+## Optional AAC extension: CI-only CSP investigation
+
+Read-only inspection of official `@mediabunny/aac-encoder@1.61.5` found:
+
+- The package declares MPL-2.0 and provides its bridge/TypeScript source. Its
+  AAC encoder uses bundled FFmpeg WASM in a blob Worker, SIMD and growable memory.
+  npm package size is 1,287,885 bytes compressed / 4,701,888 unpacked; the shipped
+  minified module is 992,505 bytes. These are package sizes, not measured runtime
+  memory or the app's incremental bundle size.
+- The package README provides FFmpeg build flags but does not pin the source
+  revision. A binary string identifies libavcodec 62.23.103; this does not establish
+  exact source correspondence or distribution compliance. The tarball includes
+  no separate FFmpeg source archive/license notice. Do not redistribute this
+  optional generated bundle until matching source/license requirements are resolved.
+- Current app CSP disallows Workers and WASM compilation. The new CI-only check
+  copies that CSP unchanged and expects the AAC Worker to fail visibly, even if
+  canEncodeAudio advertises support. Its generated HTML is not uploaded as an
+  artifact or placed in the public preview. Only diagnostics are preserved.
+- A future actual-encoding sandbox would need explicit blob Worker and
+  `wasm-unsafe-eval` allowances, with `connect-src 'none'` retained, plus timeout,
+  worker cleanup and resource measurements. No such CSP change is made here.
+  Current product/preview CSP and all app encoder dependencies are unchanged.
+
+References:
+https://mediabunny.dev/guide/extensions/aac-encoder
+https://registry.npmjs.org/@mediabunny/aac-encoder/-/aac-encoder-1.61.5.tgz
+https://ffmpeg.org/legal.html
+
+Independent review found no blocker in timestamp/preview changes. Follow-up
+assertions now reject both stereo source tones in both narration intervals, and
+measure the decoded MP4 color-transition frame instead of inferring it from two
+sparse color samples. These strengthened assertions need a fresh probe result.
