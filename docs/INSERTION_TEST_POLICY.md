@@ -65,3 +65,28 @@ Source replacement after recording independent explanation clips is destructive 
 ## Opt-in codec/VFR probe
 
 See `INSERTION_CODEC_PROBE.md`. Native AVC/AAC feasibility and one short VFR/44.1kHz stereo case live in a separate opt-in workflow. Unsupported codec outcomes are reported explicitly; they are not a product-support pass. Normal short tests keep their existing fixture settings and no extra media encoders are shipped.
+
+
+## Storage-failure boundary regression (2026-10-17)
+
+The existing short `failed_export` case now covers two errored-write boundaries
+(quota-labelled and generic write error), OPFS creation failure and recovery.
+The write injection performs a real staged write and deliberately aborts its
+native writer before rejecting. It models an already-errored stream; it does not
+fill a disk, reproduce an OS quota event, or prove that application cleanup itself
+aborts writers. Creation failure uses the existing bounded RAM fallback.
+
+Checks include unchanged previous output URL/metadata/download SHA256, retained
+narration, exact OPFS filename baseline after failure, no leaked candidate file,
+successful memory fallback and a subsequent OPFS retry. New successful files
+must have nonempty media, decoded video and replacement URLs. This extends one
+existing routine case; native Windows and long tests are not rerun for this shared
+storage transaction.
+
+The initial run exposed an overly specific test expectation: Mediabunny surfaced
+`Cannot close a ERRORED writable stream` instead of the injected exception text.
+The test now checks the recorded injection and failure UI independently of that
+internal wording. The UI gives recovery steps in Japanese/English: save the old
+output first, keep the page open, check available storage and retry; do not reload
+or clear site data. Full disk, browser eviction, OS termination and physical-phone
+storage behavior remain milestone/release gates. No writer leak is claimed.

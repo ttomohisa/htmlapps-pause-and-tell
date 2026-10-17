@@ -225,7 +225,11 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         for mode in ['quota', 'write']:
             page.evaluate('(mode) => {window.__storageFault=mode;}', mode)
             page.locator('#export').click()
-            expect(page.locator('#error')).to_contain_text('Injected storage '+mode, timeout=30000)
+            expect(page.locator('#error')).to_contain_text('Failed:', timeout=30000)
+            # The muxer may surface a close-on-errored-stream error instead of
+            # the original quota exception; assert the actual fault was hit.
+            assert page.evaluate('__storageFaults.at(-1)') == mode
+            expect(page.locator('#exportStatus')).to_contain_text('Keep this page open')
             expect(page.locator('#export')).to_be_enabled(timeout=15000)
             assert page.evaluate('__tempNames()') == baseline, 'Partial temporary file leaked'
             assert note_snapshot(page) == notes
@@ -242,7 +246,12 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         assert page.locator('#result').get_attribute('data-storage') == 'memory'
         page.wait_for_function('async () => (await __tempNames()).length === 0')
         assert note_snapshot(page) == notes
-        assert download(page, out/'after-storage-fallback.webm')
+        download(page, out/'after-storage-fallback.webm')
+        assert (out/'after-storage-fallback.webm').stat().st_size > 2048
+        fallback_url = page.locator('#resultVideo').get_attribute('src')
+        assert fallback_url != first_url
+        assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+        expect(page.locator('#error')).to_be_empty()
         page.evaluate("window.__storageFault=null")
         page.locator('#export').click()
         expect(page.locator('#exportStatus')).to_contain_text('Composition complete', timeout=30000)
@@ -251,7 +260,11 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         assert len(page.evaluate('__tempNames()')) == 1
         assert note_snapshot(page) == notes
         assert page.evaluate('__storageFaults') == ['quota', 'write', 'create']
-        assert download(page, out/'after-storage-retry.webm')
+        download(page, out/'after-storage-retry.webm')
+        assert (out/'after-storage-retry.webm').stat().st_size > 2048
+        assert page.locator('#resultVideo').get_attribute('src') != fallback_url
+        assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+        expect(page.locator('#error')).to_be_empty()
 
 
 def failed_start(page, url, source, out):

@@ -744,8 +744,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         'Composition complete. Play the entire output to check it.');
     }catch(error){
       showError(error);
-      $('exportStatus').textContent=l('書き出しできませんでした。説明区間と前回の完成動画（ある場合）は保持しています。',
-        'Export failed. Your explanations and previous successful output (if any) are retained.');
+      $('exportStatus').textContent=l('書き出しできませんでした。説明区間と前回の完成動画（ある場合）は保持しています。前回の動画を先に保存してください。このページを開いたまま、端末の空き容量を確認して再試行できます。ページの再読み込みやサイトデータの削除は避けてください。',
+        'Export failed. Your explanations and previous successful output (if any) are retained. Save the previous output first. Keep this page open, check available device storage and retry. Avoid reloading or clearing site data.');
       if(output && output.state!=='finalized' && output.state!=='canceled'){
         try {await output.cancel();}catch{}
       }
