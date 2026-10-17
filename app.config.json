@@ -1,15 +1,15 @@
 {
   "$schema": "./schemas/app-config.schema.json",
-  "name": "Single HTML App Starter",
-  "nameJa": "単一HTMLアプリ スターター",
-  "slug": "single-html-app-starter",
-  "version": "1.3.0",
-  "description": "A reusable starter for privacy-friendly, fully self-contained browser apps.",
-  "descriptionJa": "プライバシーに配慮した完全内包型ブラウザーアプリの再利用テンプレートです。",
+  "name": "Pause & Tell",
+  "nameJa": "Pause & Tell｜動画解説レコーダー",
+  "slug": "pause-and-tell",
+  "version": "0.9.3",
+  "description": "Seek while recording, default pen and safe finish-confirmation dialog in a local narration recorder.",
+  "descriptionJa": "録画中の位置移動に対応。初期ツールはペン、録画終了は確認ダイアログで確定。元動画は端末内で処理。",
   "defaultLanguage": "auto",
   "repository": {
-    "owner": "OWNER",
-    "name": "single-html-app-template"
+    "owner": "ttomohisa",
+    "name": "htmlapps-pause-and-tell"
   },
   "build": {
     "output": "dist/index.html",

@@ -43,6 +43,35 @@ jobs:
         shell: pwsh
         run: ./scripts/check-repository.ps1
 
+      - name: Build experimental insertion PoC for PR preview only
+        shell: pwsh
+        run: |
+          $normalHash = (Get-FileHash ./dist/index.html -Algorithm SHA256).Hash
+          Push-Location ./experiments/insertion-poc
+          try {
+            npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+            if ($LASTEXITCODE -ne 0) { throw "PoC dependency install failed." }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw "PoC build failed." }
+            node build-native-sample.mjs
+            if ($LASTEXITCODE -ne 0) { throw "Native diagnostic build failed." }
+          } finally { Pop-Location }
+          New-Item -ItemType Directory -Force ./dist/insertion-poc | Out-Null
+          Copy-Item ./experiments/insertion-poc/dist/index.html ./dist/insertion-poc/index.html
+          New-Item -ItemType Directory -Force ./dist/insertion-poc/native-mp4 | Out-Null
+          Copy-Item ./experiments/insertion-poc/dist/native-mp4.html ./dist/insertion-poc/native-mp4/index.html
+          node ./experiments/insertion-poc/test-preview-modes.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Mode guide regression failed." }
+          node ./experiments/insertion-poc/prepare-preview-modes.mjs ./dist
+          if ($LASTEXITCODE -ne 0) { throw "Mode guide staging failed." }
+          if ((Get-FileHash ./dist/index.html -Algorithm SHA256).Hash -ne $normalHash) {
+            throw "Normal app changed while preparing PoC preview."
+          }
+          $poc = Get-Content -Raw ./dist/insertion-poc/index.html
+          if ($poc -notmatch 'noindex,nofollow' -or $poc -notmatch 'Insertion PoC') {
+            throw "PoC preview lacks experiment or noindex marker."
+          }
+
       - name: Check Cloudflare preview credentials
         id: cloudflare
         shell: pwsh
@@ -157,7 +186,20 @@ jobs:
               $response = Invoke-WebRequest -Uri $env:PREVIEW_URL -MaximumRedirection 5 -TimeoutSec 30
 
               if ($response.StatusCode -eq 200) {
-                Write-Host "Preview returned HTTP 200."
+                $pocUrl = $env:PREVIEW_URL.TrimEnd('/') + '/insertion-poc/'
+                $poc = Invoke-WebRequest -Uri $pocUrl -MaximumRedirection 5 -TimeoutSec 30
+                if ($poc.StatusCode -ne 200 -or $poc.Content -notmatch 'Insertion PoC' -or $poc.Content -notmatch 'noindex,nofollow') {
+                  throw "Insertion PoC preview route is missing or serves the wrong page."
+                }
+                $native = Invoke-WebRequest -Uri ($pocUrl + 'native-mp4/') -MaximumRedirection 5 -TimeoutSec 30
+                if ($native.StatusCode -ne 200 -or $native.Content -notmatch 'Native MP4 laboratory' -or $native.Content -notmatch 'noindex,nofollow') {
+                  throw "Native diagnostic preview is missing or wrong."
+                }
+                $modes = Invoke-WebRequest -Uri ($env:PREVIEW_URL.TrimEnd('/') + '/modes/') -MaximumRedirection 5 -TimeoutSec 30
+                if ($modes.StatusCode -ne 200 -or $modes.Content -notmatch 'Choose a mode' -or $modes.Content -notmatch 'noindex,nofollow') {
+                  throw "Mode guide preview is missing or wrong."
+                }
+                Write-Host "Normal, insertion, mode guide and native diagnostic previews returned HTTP 200."
                 exit 0
               }
 
@@ -180,10 +222,17 @@ jobs:
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
           PREVIEW_NAME: ${{ steps.preview.outputs.preview_name }}
         run: |
+          $pocUrl = $env:PREVIEW_URL.TrimEnd('/') + '/insertion-poc/'
           $body = @"
           ## Browser Kitty PR Preview
 
-          **[Previewを開く]($env:PREVIEW_URL)**
+          **[モードを選ぶ / Choose a mode]($($env:PREVIEW_URL.TrimEnd('/') + '/modes/'))**
+
+          **[通常版を開く]($env:PREVIEW_URL)**
+
+          **[差し込みPoCを開く（Draft・実験版）]($pocUrl)**
+
+          **[Native MP4 合成2秒テスト（Draft）]($($pocUrl + 'native-mp4/'))**
 
           - Preview: ``$env:PREVIEW_NAME``
           - Commit: ``${{ github.event.pull_request.head.sha }}``

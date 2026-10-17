@@ -2,6 +2,7 @@
   Reusable confirmation dialog for htmlapps-template.
   Copy this block into src/index.template.html and adapt tokens/labels as needed.
   API: await AppConfirm.ask({ title, message, confirmLabel, cancelLabel, tone })
+  AppConfirm.dismiss() closes a pending confirmation with a false result (for safety stops).
 -->
 <style>
   .app-confirm-dialog {
@@ -198,6 +199,6 @@
       if (outside) finish(false);
     });
 
-    window.AppConfirm = Object.freeze({ ask });
+    window.AppConfirm = Object.freeze({ ask, dismiss: () => finish(false) });
   })();
 </script>

@@ -1,0 +1,75 @@
+name: Insertion endurance (opt-in milestone)
+on:
+  workflow_dispatch:
+    inputs:
+      source_seconds:
+        description: "Source fixture duration in seconds (opt-in, not per-commit)"
+        type: choice
+        options:
+          - "30"
+          - "60"
+          - "180"
+        default: "30"
+      source_format:
+        description: "Source container/codec fixture"
+        type: choice
+        options:
+          - "webm"
+          - "mp4"
+        default: "webm"
+      orientation:
+        description: "Source image orientation"
+        type: choice
+        options: ["landscape", "portrait", "rotated"]
+        default: "landscape"
+  pull_request:
+    types: [edited]
+permissions:
+  contents: read
+jobs:
+  endurance:
+    # Explicit draft PR title tag [run-endurance-60] runs a 60s test.
+    # [run-endurance-mp4] tests 30s MP4; [run-rotation-mp4] tests 30s metadata-rotated MP4.
+    # Normal PR pushes and unrelated PR edits never run the expensive job.
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-endurance-60]') || contains(github.event.pull_request.title, '[run-endurance-mp4]') || contains(github.event.pull_request.title, '[run-rotation-mp4]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build offline insertion experiment
+        working-directory: experiments/insertion-poc
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+          npm run build
+          node test-timeline.mjs
+      - name: Prepare Chromium and FFmpeg
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.58.0'
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y ffmpeg; fi
+          test -x /usr/bin/chromium
+      - name: Verify a real saved longer WebM
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/pause-endurance.log 2>&1 &
+          FORMAT="${{ github.event.inputs.source_format || ((contains(github.event.pull_request.title, '[run-endurance-mp4]') || contains(github.event.pull_request.title, '[run-rotation-mp4]')) && 'mp4' || 'webm') }}"
+          BROWSER=/usr/bin/chromium
+          if [ "$FORMAT" = mp4 ] && command -v google-chrome >/dev/null 2>&1; then
+            BROWSER="$(command -v google-chrome)"
+          fi
+          echo "Browser executable: $BROWSER; source container: $FORMAT"
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --chromium "$BROWSER" --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "$FORMAT" --orientation "${{ github.event.inputs.orientation || (contains(github.event.pull_request.title, '[run-rotation-mp4]') && 'rotated' || 'landscape') }}"
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: insertion-endurance-output
+          path: |
+            endurance-evidence/
+            experiments/insertion-poc/dist/index.html
+          retention-days: 7
+          if-no-files-found: ignore
