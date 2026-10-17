@@ -31,6 +31,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   const playback = $('resultVideo');
   const errorNode = $('error');
   let recordingTimeout = null;
+  let recordingClock = null;
   let exportTask = null;
   const exportCancelled = new Error('Export cancelled');
   function checkExportCancelled() { if(exportTask?.cancelled) throw exportCancelled; }
@@ -70,6 +71,32 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     $('rerecord').disabled = value || Boolean(state.recorder) || !state.note || !state.capabilities?.record || !state.capabilities?.encode;
     for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
   }
+  function renderRecordingClock() {
+    const active=Boolean(state.session && !state.session.finishing && state.recorder?.state==='recording');
+    $('recordingClock').hidden=!active;
+    if(!active)return;
+    const elapsed=Math.max(0,(performance.now()-state.startedAt)/1000);
+    const remaining=Math.max(0,MAX_NOTE_SECONDS-elapsed);
+    $('recordingElapsed').textContent=l('録音経過 '+fmt(elapsed)+' / 1件の上限 '+fmt(MAX_NOTE_SECONDS)+'。自動停止まで約 '+fmt(remaining),
+      'Recording elapsed '+fmt(elapsed)+' / per-clip limit '+fmt(MAX_NOTE_SECONDS)+'. Automatic stop in approximately '+fmt(remaining));
+    const notes=state.notes.filter(note=>note!==state.session.replacing);
+    notes.push({id:state.session.replacing?.id || state.nextNoteId,position:state.insertAt,duration:Math.max(1/FPS,elapsed)});
+    const budget=compositionBudget(state.exportSourceDuration,notes,$('exportFormat').value,FPS);
+    const format=exportFormat($('exportFormat').value).extension.toUpperCase();
+    $('recordingBudget').textContent=l('現在の録音を含む完成目安 '+fmt(budget.duration)+' / '+format+' 試験上限 '+fmt(budget.limit)+'。',
+      'Estimated output including this recording '+fmt(budget.duration)+' / '+format+' experimental limit '+fmt(budget.limit)+'. ')+
+      (budget.exceeded ? l('完成尺の上限を超えています。この完成尺の上限では録音は自動停止しません。終了後に短く録り直すか、対応形式を選んでください。',
+      'Output limit exceeded. Recording will not stop at this format limit. Rerecord shorter explanations afterward or choose a supported format.') :
+      l('録音の上限とは別です。実際の録音時間を確認後に再計算します。','This is separate from the recording limit; recalculated after actual audio validation.'));
+    $('recordingBudget').classList.toggle('alert',budget.exceeded);
+    $('recordingClock').dataset.elapsed=String(elapsed);
+    $('recordingClock').dataset.remaining=String(remaining);
+    $('recordingClock').dataset.output=String(budget.duration);
+  }
+  function stopRecordingClock() {
+    clearInterval(recordingClock);recordingClock=null;
+    $('recordingClock').hidden=true;
+  }
   function renderDurationBudget() {
     const budget=state.file ? compositionBudget(state.exportSourceDuration,state.notes,$('exportFormat').value,FPS) : null;
     $('durationBudget').hidden=!budget;
@@ -97,7 +124,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();
+    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -504,12 +531,16 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         void endExplanation();
       };
       recorder.start(250);
+      state.startedAt=performance.now();
+      renderRecordingClock();
+      recordingClock=setInterval(renderRecordingClock,250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
       $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
       info(replacing ? l('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。ペンは描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new pen annotations.') : l('説明を録音中。ペンで描けます。元動画の録画はしていません。','Narration recording. Draw with the pen. Source footage is not being recorded.'));
       recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
+      stopRecordingClock();
       state.mic=null;state.recorder=null;state.session=null;showError(e);
     } finally { setBusy(false); }
   }
@@ -534,6 +565,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     session.finishing=true;session.requested=true;
     setBusy(true);
     clearTimeout(recordingTimeout);recordingTimeout=null;
+    stopRecordingClock();
     try {
       if(recorder.state!=='inactive') recorder.stop();
       let timer;
@@ -942,6 +974,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   window.addEventListener('pagehide',event=>{
     // Back/forward cache retains this live page; keep its inputs and URLs valid.
     if(event.persisted)return;
+    stopRecordingClock();
     state.mic?.getTracks().forEach(t=>t.stop());
     if(state.input)state.input.dispose();
     clearResult();

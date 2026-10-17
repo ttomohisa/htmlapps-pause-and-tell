@@ -175,3 +175,42 @@ then released to check exact temporary-file inventory, old download SHA, explana
 retention, and retry via the existing storage/retry cases. These are synthetic
 browser tests, not physical-device interruption or storage-exhaustion evidence.
 Local syntax, build and timeline/profile tests pass. [Browser CI 39027054306](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39027054306) passed at 39fa4c4, including all four media scenarios and seven resilience cases. All four routine workflows passed. The first run stopped at a test-only string-predicate/CSP error; changing the wait to a function fixed it without relaxing CSP. Independent code review found no remaining blocker after writable ownership and error-versus-cancellation fixes.
+
+## Recording-time guidance and remaining delivery scope
+
+The isolated editor now shows elapsed narration time and the approximate time to
+its existing 120-second per-clip automatic stop. A separate, frame-rounded estimate
+includes the in-progress narration in the selected output format's duration budget.
+Rerecording substitutes the candidate for the old clip in this estimate. Crossing
+the MP4 30-second output limit does not automatically stop or delete a recording;
+actual decoded duration is validated again when recording finishes. The estimate
+is guidance, not an encoder performance promise. The display stops on finishing,
+cancellation or error. Browser regression for this addition is pending.
+
+The original handoff priorities now have these bounded outcomes:
+
+- **Mobile recording/export/save path:** capability-guided microphone MIME,
+  native-only experimental AVC/AAC MP4 (30-second completed output), WebM default,
+  separate playback/save/share, safe rerecording and explicit cancellation.
+- **MP4 feasibility and synchronization:** actual native Windows AVC/AAC output
+  with two insertions, VFR/nonzero first PTS and 44.1-to-48 kHz audio was decoded
+  and measured; one owner device also reported short insertion MP4 save/replay/sync
+  success. These are bounded evidence, not universal smartphone acceptance.
+- **Failure protection:** decode/URL/encoder/storage faults and cancellation
+  retain completed notes and the last valid output until a new candidate commits.
+  Synthetic fault injection does not establish behavior under physical OS memory
+  pressure, eviction, screen locking or device storage exhaustion.
+- **Routine versus milestone testing:** short synthetic regressions run normally;
+  native Windows/extended-duration checks remain explicit milestone work. No
+  routine long test or additional codec fallback was introduced.
+
+For a release decision, consolidate one identified iPhone/Safari and one identified
+Android/Chrome session covering input, narration, short composed saved playback and
+an interrupted/retried operation. Record actual device/OS/browser and supported
+output format; an unsupported native AAC result is a limitation, not a failed WebM
+feature. Run longer-duration checks only if claiming a higher accepted operating
+range; do not infer that the trial caps are accepted ranges. Preserve the normal
+v0.9.3 entry point while deciding whether to offer the insertion editor as a second
+mode. Production promotion/merge and replacing the normal app are separate steps,
+not completed by this Draft. Optional AAC WASM provenance remains unresolved and
+is not required for the native-only path.

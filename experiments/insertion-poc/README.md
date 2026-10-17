@@ -19,6 +19,8 @@ experiment; it is not a production release.
    device with native AVC/AAC encoding support. The page shows the frame-rounded
    completed duration and current format limit before export.
 2. Seek to an insertion point, record an explanation and draw, then finish it.
+   The live timer separates the 120-second recording cap from the selected output
+   format budget; crossing the MP4 budget does not automatically stop recording.
    Repeat at other positions. The whole original video and its soundtrack within the video timeline are
    preserved around explanations, rather than being re-recorded live.
 3. Select an explanation to rerecord it safely. The existing clip remains until

@@ -62,8 +62,14 @@ def record_note(page):
     expect(page.locator('#startNote')).to_be_enabled(timeout=25000)
     page.locator('#startNote').click()
     expect(page.locator('#finishNote')).to_be_visible(timeout=15000)
+    expect(page.locator('#recordingClock')).to_be_visible()
+    expect(page.locator('#recordingElapsed')).to_contain_text('per-clip limit 120.0s')
     page.wait_for_timeout(1000)
+    elapsed=float(page.locator('#recordingClock').get_attribute('data-elapsed'))
+    remaining=float(page.locator('#recordingClock').get_attribute('data-remaining'))
+    assert elapsed>=.5 and abs(elapsed+remaining-120)<.01
     page.locator('#finishNote').click()
+    expect(page.locator('#recordingClock')).to_be_hidden()
     expect(page.locator('#noteList .note-item')).to_have_count(1, timeout=25000)
     expect(page.locator('#startNote')).to_be_enabled(timeout=25000)
 
@@ -78,6 +84,7 @@ def note_snapshot(page):
 
 def assert_recovered(page, before):
     expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
+    expect(page.locator('#recordingClock')).to_be_hidden()
     expect(page.locator('#startNote')).to_be_visible()
     for selector in ('#startNote', '#sourceFile', '#seek', '#playSource', '#export'):
         expect(page.locator(selector)).to_be_enabled()
@@ -106,6 +113,11 @@ def recording_failure(page, url, source, out, kind):
     page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()
     page.wait_for_timeout(400)
+    clock=page.locator('#recordingClock')
+    assert float(clock.get_attribute('data-output')) < 3, 'Rerecord budget includes old clip twice'
+    page.locator('#language').click()
+    expect(page.locator('#recordingElapsed')).to_contain_text('録音経過')
+    page.locator('#language').click()
     if kind == 'unexpected_stop':
         # Actual native stop, without the app's explicit Finish operation.
         page.evaluate('__testRecorders.at(-1).stop()')

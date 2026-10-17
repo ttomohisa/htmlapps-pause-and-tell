@@ -45,6 +45,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <button id="finishNote" hidden data-ja="説明の録音を終了" data-en="Finish explanation">説明の録音を終了</button>
 </div>
 <p class="muted" id="captureStatus" aria-live="polite"></p>
+<div id="recordingClock" hidden><p id="recordingElapsed" role="timer" aria-live="off"></p><p class="muted" id="recordingBudget"></p></div>
 </section>
 <section class="panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
 <section class="panel" id="notePanel" hidden>
