@@ -144,3 +144,7 @@ The duration notice stays above the video, keeping seek/record controls adjacent
 to the preview. The portrait pointer test scrolls its target into view and verifies
 both endpoints actually hit the canvas before drawing; viewport clipping must not
 be mistaken for lost encoded pen events.
+
+## 180-second milestone completed (2026-10-17)
+
+The single explicitly approved 180s WebM run passed at `fe2da99`: [saved-media evidence](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39077865330). A new `[run-endurance-180]` title tag triggers only when added by a title edit; body edits and tag removal do not repeat it. The tag was removed after the run was accepted. Ordinary pushes remain unchanged. Full output decode and SHA256 are recorded in INSERTION_POC_VALIDATION.md; this is desktop synthetic WebM evidence, not a phone or native MP4 endurance claim.

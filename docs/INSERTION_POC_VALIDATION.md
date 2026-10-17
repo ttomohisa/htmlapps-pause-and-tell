@@ -240,3 +240,11 @@ last-good deletion targets. Browser CI passed at `a8f8f8d`: [PoC run 39069488464
 could not start because its singleton socket was denied by this execution environment;
 that is an unrun local browser test, not an application failure or a device pass.
 Physical device storage exhaustion remains unverified.
+
+## 180-second WebM milestone — PASS (2026-10-17)
+
+At `fe2da99`, the single opted-in [run 39077865330](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39077865330) generated a 180-second 320×180/15fps VP8/Opus synthetic source and inserted 1.22 seconds of recorded synthetic narration. The saved OPFS-backed output is 181.22 seconds, 16,130,382 bytes, VP8 plus mono 48kHz Opus. The test took 81.29 seconds including fixture preparation and verification. Source audio before/after, narration-only insertion, and the original tail frame passed independent FFmpeg checks (tail mean RGB error 2.21144); no page errors or external media requests.
+
+The [artifact 12117756567](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39077865330/artifacts/12117756567) was downloaded and independently decoded in full with FFmpeg, exit 0. Output SHA256: `1e60ffc53d6deb98a9a82885246524f891b092ad729c8d226d7078954891c8c5`. All four ordinary workflows at this revision passed. The temporary `[run-endurance-180]` title tag was removed after acceptance; its removal produced only a skipped endurance job, not a second run. This remains milestone-only and adds no routine endurance run.
+
+This closes the handoff's specific 180-second desktop WebM check. It does not establish 180-second MP4, physical-phone performance, all trial ceilings, or arbitrary real-camera VFR/long-drift compatibility. Native MP4 remains experimental with a 30-second output cap. Normal v0.9.3 and app runtime were unchanged for this milestone.
