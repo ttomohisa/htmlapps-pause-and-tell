@@ -8,13 +8,13 @@ from playwright.sync_api import sync_playwright
 def command(args):return subprocess.run(args,capture_output=True,check=True).stdout
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--url',default='http://127.0.0.1:8765/codec-probe.html');parser.add_argument('--chromium',default='/usr/bin/chromium');parser.add_argument('--out',type=Path,required=True);a=parser.parse_args();a.out.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--url',default='http://127.0.0.1:8765/codec-probe.html');parser.add_argument('--chromium',default='/usr/bin/chromium');parser.add_argument('--out',type=Path,required=True);parser.add_argument('--require-aac',action='store_true');a=parser.parse_args();a.out.mkdir(parents=True,exist_ok=True)
     with sync_playwright() as p:
         browser=p.chromium.launch(executable_path=a.chromium,headless=True,args=['--no-sandbox'])
-        page=browser.new_page();errors=[];external=[]
+        context=browser.new_context();page=context.new_page();errors=[];external=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
-        page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) and not r.url.startswith('http://127.0.0.1:') else None)
-        page.goto(a.url,wait_until='load');report=page.evaluate('runCodecProbe()');browser.close()
+        context.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) and not r.url.startswith('http://127.0.0.1:') else None)
+        page.goto(a.url,wait_until='load');report=page.evaluate("Promise.race([runCodecProbe(),new Promise(resolve=>setTimeout(()=>resolve({status:'ENCODE_FAILED',error:'30-second laboratory timeout'}),30000))])");browser.close()
     encoded=report.pop('base64',None);report.update(pageErrors=errors,externalRequests=external)
     if encoded:
         path=a.out/'probe.mp4';path.write_bytes(base64.b64decode(encoded))
@@ -44,4 +44,5 @@ def main():
     (a.out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps({k:v for k,v in report.items() if k!='ffprobe'}))
     assert not errors and not external
     assert report['status']!='ENCODE_FAILED',report
+    if a.require_aac:assert report['status']=='ENCODED_AVC_AAC',report
 if __name__=='__main__':main()

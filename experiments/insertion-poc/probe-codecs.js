@@ -2,6 +2,7 @@
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource,
   Quality, canEncodeVideo, canEncodeAudio } from 'mediabunny';
 window.runCodecProbe = async () => {
+  const started=performance.now();
   const videoConfig={width:320,height:180,frameRate:15,quality:new Quality({bitrate:900000})};
   const audioConfig={numberOfChannels:2,sampleRate:48000,quality:new Quality({bitrate:96000})};
   const avc=await canEncodeVideo('avc',videoConfig);
@@ -37,7 +38,7 @@ window.runCodecProbe = async () => {
     let binary='';for(const byte of new Uint8Array(target.buffer))binary+=String.fromCharCode(byte);
     return {...report,status:aac?'ENCODED_AVC_AAC':'ENCODED_AVC_ONLY',
       warning:aac?'Synthetic encoding only; no phone, insertion or OS save claim.':'AAC encoder missing. Silent MP4 is not a usable narration output.',
-      base64:btoa(binary),bytes:target.buffer.byteLength};
+      base64:btoa(binary),bytes:target.buffer.byteLength,encodeMilliseconds:performance.now()-started};
   }catch(error){
     if(output.state!=='finalized'&&output.state!=='canceled')await output.cancel().catch(()=>{});
     return {...report,status:'ENCODE_FAILED',error:String(error)};

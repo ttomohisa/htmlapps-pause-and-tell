@@ -134,3 +134,20 @@ a finding of license noncompliance. Product redistribution remains deferred.
 A reproducible replacement built from an explicitly pinned FFmpeg source,
 recorded flags/toolchain and matching notices is a possible later route. It is
 not part of the current dependency set or a completed verification.
+
+## Approved CI-only actual-encoding sandbox (pending measurement)
+
+A separate generated localhost page now allows only blob Workers and
+`wasm-unsafe-eval` beyond the existing policy, with `connect-src 'none'` retained.
+This explicitly bounded test uses only two seconds of synthetic red/green video
+and stereo tones, no microphone/user media/secrets. The browser is closed after
+the attempt; an encoding wait is bounded at 30 seconds. Only diagnostics and the
+synthetic MP4 may be uploaded as evidence; the generated HTML/WASM is excluded.
+The actual app and public preview retain their original CSP and dependencies.
+Source/license provenance remains a separate unresolved product-distribution gate.
+
+The isolated generated sandbox is 1,222,787 bytes. This is a file-size measurement,
+not runtime memory evidence. A result must independently decode H.264/AAC,
+measure the video transition and audio onset, and contain no external requests
+before the synthetic test is considered successful. Product MP4 support remains
+unimplemented regardless of this laboratory result.

@@ -44,6 +44,9 @@ jobs:
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save @mediabunny/aac-encoder@1.61.5
           node build-aac-csp-probe.mjs
           python test-aac-csp-probe.py --out ../../codec-evidence/aac-csp
+      - name: Measure AAC MP4 in approved CI-only synthetic sandbox
+        run: |
+          python experiments/insertion-poc/test-codec-probe.py --chromium "$(command -v google-chrome)" --url http://127.0.0.1:8765/aac-sandbox.html --out codec-evidence/aac-sandbox --require-aac
       - name: Preserve probe evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -52,6 +55,6 @@ jobs:
           path: |
             codec-evidence/
             experiments/insertion-poc/dist/codec-probe.html
-          # Do not upload aac-csp-probe.html: bundled FFmpeg source correspondence is unresolved.
+          # Do not upload aac-csp-probe.html or aac-sandbox.html: bundled FFmpeg source correspondence is unresolved.
           retention-days: 7
           if-no-files-found: ignore
