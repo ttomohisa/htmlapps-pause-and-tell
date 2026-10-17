@@ -148,7 +148,9 @@ def main():
             }
             page.screenshot(path=str(a.out/'failure-capture.png'),full_page=True)
             raise AssertionError('Failed to start isolated explanation: '+json.dumps(diagnostic)) from error
+        page.locator('#drawCanvas').scroll_into_view_if_needed()
         canvas=page.locator('#drawCanvas').bounding_box()
+        assert page.locator('#drawCanvas').evaluate("c => {const r=c.getBoundingClientRect();return [[.35,.4],[.7,.65]].every(([x,y])=>document.elementFromPoint(r.x+r.width*x,r.y+r.height*y)===c);}"), 'Pen test target is clipped or covered'
         displayed_ratio=canvas['width']/canvas['height']
         expected_ratio=width/height
         assert abs(displayed_ratio-expected_ratio)<.04,(

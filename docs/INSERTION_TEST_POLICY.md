@@ -135,3 +135,9 @@ automatically resuming them after cancellation/failure. The existing rerecord
 case starts all three players and verifies they are paused and preview positions
 retained. This prevents app-generated playback feedback; it is not a physical
 microphone/acoustic echo-cancellation certification.
+
+
+The duration notice stays above the video, keeping seek/record controls adjacent
+to the preview. The portrait pointer test scrolls its target into view and verifies
+both endpoints actually hit the canvas before drawing; viewport clipping must not
+be mistaken for lost encoded pen events.

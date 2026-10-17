@@ -35,9 +35,9 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <section class="panel" id="editor" hidden>
 <h2 data-ja="2. 説明する位置を決める" data-en="2. Select the insertion position">2. 説明する位置を決める</h2>
 <p class="muted" id="sourceInfo"></p>
+<p id="durationBudget" class="note" aria-live="polite" hidden></p>
 <div class="stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden aria-label="Draw a pen annotation"></canvas></div>
 <label class="seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
-<p id="durationBudget" class="note" aria-live="polite" hidden></p>
 <div class="row">
 <button id="playSource" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
 <button id="startNote" class="primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
