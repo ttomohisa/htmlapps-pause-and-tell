@@ -236,7 +236,7 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
             assert page.locator('#resultVideo').get_attribute('src') == first_url
             assert page.locator('#resultInfo').inner_text() == first_info
             assert download(page, out / ('after-storage-'+mode+'.webm')) == first_hash
-            assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+            page.wait_for_function("() => {const v=document.getElementById('resultVideo');return v.readyState >= 2 && v.videoWidth > 0;}")
         # Creation failure should use the already bounded RAM fallback, and
         # remove its empty temp file plus the superseded successful temp result.
         page.evaluate("window.__storageFault='create'")
@@ -250,7 +250,7 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         assert (out/'after-storage-fallback.webm').stat().st_size > 2048
         fallback_url = page.locator('#resultVideo').get_attribute('src')
         assert fallback_url != first_url
-        assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+        page.wait_for_function("() => {const v=document.getElementById('resultVideo');return v.readyState >= 2 && v.videoWidth > 0;}")
         expect(page.locator('#error')).to_be_empty()
         page.evaluate("window.__storageFault=null")
         page.locator('#export').click()
@@ -263,7 +263,7 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         download(page, out/'after-storage-retry.webm')
         assert (out/'after-storage-retry.webm').stat().st_size > 2048
         assert page.locator('#resultVideo').get_attribute('src') != fallback_url
-        assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+        page.wait_for_function("() => {const v=document.getElementById('resultVideo');return v.readyState >= 2 && v.videoWidth > 0;}")
         expect(page.locator('#error')).to_be_empty()
 
 
