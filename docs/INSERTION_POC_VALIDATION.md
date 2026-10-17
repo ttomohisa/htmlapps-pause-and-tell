@@ -248,3 +248,16 @@ At `fe2da99`, the single opted-in [run 39077865330](https://github.com/ttomohisa
 The [artifact 12117756567](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39077865330/artifacts/12117756567) was downloaded and independently decoded in full with FFmpeg, exit 0. Output SHA256: `1e60ffc53d6deb98a9a82885246524f891b092ad729c8d226d7078954891c8c5`. All four ordinary workflows at this revision passed. The temporary `[run-endurance-180]` title tag was removed after acceptance; its removal produced only a skipped endurance job, not a second run. This remains milestone-only and adds no routine endurance run.
 
 This closes the handoff's specific 180-second desktop WebM check. It does not establish 180-second MP4, physical-phone performance, all trial ceilings, or arbitrary real-camera VFR/long-drift compatibility. Native MP4 remains experimental with a 30-second output cap. Normal v0.9.3 and app runtime were unchanged for this milestone.
+
+## Pixel owner acceptance and experimental release decision (2026-10-17)
+
+On the preview at `619adfc`, the owner reported successful recording and saving with a real video, then explicitly confirmed both playback through the end of an approximately three-minute WebM and preservation of the original explanation after cancelling a rerecording attempt. The device was identified as **Pixel**; model number, Android version and browser/version were not recorded. These are owner-reported functional results, not instrumented measurements or a claim about every Pixel/Android/browser combination. No user video was collected for this record.
+
+The earlier short native MP4 insertion/save/saved-playback and perceived-sync acceptance remains valid, with its device unspecified. Do not retroactively assign that separate report to this Pixel or claim numerical synchronization accuracy from either report.
+
+**Decision recommendation:** the insertion editor is suitable for a bounded experimental second-mode trial with the current preview, retaining normal v0.9.3 as the default. The specific desktop 180s WebM milestone and reported Pixel real-video/cancel workflow no longer block that trial. Missing version details do not require another user check to reach this limited decision. This recommendation is not a merge, production-publishing or normal-app replacement decision.
+
+- WebM is the default. Native AVC/AAC MP4 remains experimental and requires available encoders, with a 30s completed-output cap; unsupported devices must retain usable prior output rather than silently fall back.
+- Successful files should be saved before leaving. Explanations are session-only: reload/page close/OS process termination can lose them. In-session cancel/failure preservation is not persistent project recovery.
+- Phone storage exhaustion, OS termination/background behavior, iPhone Safari, broader Pixel/Android versions, MOV/HEVC/HDR and arbitrary camera VFR remain unverified. Trial input/output ceilings are not performance guarantees. No additional physical stress test is required merely to repeat this bounded trial acceptance.
+- Wider compatibility or a production release requires a separate scope decision. Keep the existing normal app and current limits; no optional AAC WASM redistribution or CSP relaxation is included.
