@@ -73,3 +73,14 @@ the nonproduction preview workflow, includes `noindex,nofollow`, and contains no
 test media or user data. Production deployment is unchanged. Phone microphone,
 codec availability and OS save/share still require physical-device verification;
 a successful HTTPS load alone is not a device test pass.
+
+### Native codec candidate check on a phone
+
+On the HTTPS PoC, open **端末のMP4候補を確認（生成しません）** and tap
+**候補を確認** (English: **Check native MP4 candidates (no encoding)** →
+**Check candidates**). It shows Native AVC and Native AAC separately. A screenshot
+of those two statuses is enough for a first compatibility report; no media file,
+microphone permission or actual encode is needed. The exact queried configuration
+is shown. “Candidate available” is not proof of recording, MP4 muxing, sync or OS
+saving, and does not enable an MP4 export option. Queries use native WebCodecs
+isConfigSupported only, with a five-second timeout; no fallback/WASM is loaded.

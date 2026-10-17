@@ -22,6 +22,12 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <h2 data-ja="1. 元動画を選ぶ" data-en="1. Choose a source video">1. 元動画を選ぶ</h2>
 <p class="muted" data-ja="この技術検証では5分・250MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。" data-en="This experiment supports source videos up to 5 minutes and 250 MiB. Original audio plays before and after the inserted explanation, not during it.">この技術検証では5分・250MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。</p>
 <p id="capabilities" class="note" aria-live="polite"></p>
+<details id="nativeSupportPanel">
+<summary data-ja="端末のMP4候補を確認（生成しません）" data-en="Check native MP4 candidates (no encoding)">端末のMP4候補を確認（生成しません）</summary>
+<p class="muted" data-ja="AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4動画出力は未実装です。" data-en="AVC: 320×180, 15fps, 900kbps / AAC: 48kHz, stereo, 96kbps. Permission-free support queries only. This does not test MP4 encoding, sync or saving. A candidate does not prove iPhone/Android support. MP4 video export is not implemented.">AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4動画出力は未実装です。</p>
+<button id="checkNativeSupport" type="button" data-ja="候補を確認" data-en="Check candidates">候補を確認</button>
+<p id="nativeSupportResult" class="muted" aria-live="polite" data-ready="false"></p>
+</details>
 <input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="Select source video">
 </section>
 <section class="panel" id="editor" hidden>

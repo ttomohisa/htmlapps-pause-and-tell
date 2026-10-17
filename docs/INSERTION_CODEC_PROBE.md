@@ -172,3 +172,33 @@ This is a small synthetic encoding result only. The insertion app still outputs
 WebM; MP4 composition, OPFS MP4 behavior, phone memory/performance and actual OS
 save/share are unverified. The exact FFmpeg source correspondence/distribution
 gate also remains unresolved.
+
+### Final stereo sandbox result and next bounded route
+
+At 97251d3, the strengthened test passes for both channels: left 440Hz/right 660Hz,
+no cross-channel tone leakage beyond the diagnostic threshold, both onsets
+1.01917s against video transition 1.000s. Generated MP4: 16,342 bytes; runner encoding
+292.8ms; no browser errors/external requests. Browser closure is now in finally.
+https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39007079797/artifacts/12091199100
+
+The public PoC now offers an optional native support-query disclosure. It calls
+only VideoEncoder/AudioEncoder.isConfigSupported for the displayed configuration,
+without constructors, microphone, input media, Workers or WASM. It is advisory,
+separate from WebM recording/export controls, and never enables MP4 export.
+
+Next-route comparison (no additional implementation or upstream message yet):
+
+1. **Preferred first:** measure native AVC/AAC candidates on the intended phone,
+   then separately validate actual native encoding on that device. This avoids
+   adding the optional FFmpeg binary but may leave some platforms unsupported.
+2. If cross-platform fallback is essential, plan a reproducible AAC build from
+   pinned FFmpeg/toolchain sources with recorded flags, hashes and matching
+   source/notices/reconstruction materials. This is a new build/distribution
+   milestone, not a solved license review or an instruction to ship now.
+3. Ask upstream for the historical source revision/build receipt. Existing issue
+   544 did not resolve it, so timing/outcome are uncertain. No outreach is sent.
+
+FFmpeg's own checklist stresses exact binary/source correspondence and build
+instructions: https://ffmpeg.org/legal.html . Emscripten provides version-selectable
+SDK installation: https://emscripten.org/docs/getting_started/downloads.html .
+Alternative encoder replacement is deferred rather than expanding this probe.

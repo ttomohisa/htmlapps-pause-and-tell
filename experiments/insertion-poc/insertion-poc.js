@@ -3,6 +3,7 @@ import {
   Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
 } from 'mediabunny';
 import { buildTimeline, sourceSampleTime } from './timeline.js';
+import { queryNativeCodecSupport } from './native-codec-support.js';
 
 (() => {
   'use strict';
@@ -31,6 +32,7 @@ import { buildTimeline, sourceSampleTime } from './timeline.js';
   let recordingTimeout = null;
   let uploadGeneration = 0;
   let capabilityGeneration = 0;
+  let nativeSupport=null,nativeSupportPending=false;
   const l = (ja, en) => lang === 'ja' ? ja : en;
   const fmt = seconds => (Number.isFinite(seconds) ? seconds.toFixed(1) + 's' : '—');
 
@@ -57,11 +59,27 @@ import { buildTimeline, sourceSampleTime } from './timeline.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();
+    renderCapabilities();renderRecovery();renderNativeSupport();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
     translate();
+  });
+  function renderNativeSupport() {
+    const labels={supported:l('候補あり','Candidate available'),unsupported:l('候補なし','No candidate'),
+      unavailable:l('APIなし','API unavailable'),error:l('確認できません','Could not check'),timeout:l('確認が時間切れ','Query timed out')};
+    $('nativeSupportResult').textContent=nativeSupportPending?l('候補を照会中…','Querying candidates…'):
+      nativeSupport?`Native AVC: ${labels[nativeSupport.avc]} / Native AAC: ${labels[nativeSupport.aac]}`:
+      l('ボタンを押すと、このブラウザの候補を表示します。','Press the button to see candidates on this browser.');
+  }
+  $('checkNativeSupport').addEventListener('click',async()=>{
+    if(nativeSupportPending)return;
+    nativeSupportPending=true;$('checkNativeSupport').disabled=true;
+    $('nativeSupportResult').dataset.ready='false';renderNativeSupport();
+    try{nativeSupport=await queryNativeCodecSupport();}
+    catch{nativeSupport={avc:'error',aac:'error'};}
+    finally{nativeSupportPending=false;$('checkNativeSupport').disabled=false;
+      $('nativeSupportResult').dataset.ready='true';renderNativeSupport();}
   });
   function recordingType() {
     if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function' || !navigator.mediaDevices?.getUserMedia) return null;
