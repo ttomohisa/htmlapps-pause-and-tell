@@ -30,6 +30,7 @@ import { buildTimeline } from './timeline.js';
   const errorNode = $('error');
   let recordingTimeout = null;
   let uploadGeneration = 0;
+  let capabilityGeneration = 0;
   const l = (ja, en) => lang === 'ja' ? ja : en;
   const fmt = seconds => (Number.isFinite(seconds) ? seconds.toFixed(1) + 's' : '—');
 
@@ -63,7 +64,7 @@ import { buildTimeline } from './timeline.js';
     translate();
   });
   function recordingType() {
-    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
+    if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function' || !navigator.mediaDevices?.getUserMedia) return null;
     return ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4']
       .find(type => MediaRecorder.isTypeSupported(type)) || null;
   }
@@ -76,6 +77,7 @@ import { buildTimeline } from './timeline.js';
     ].join(' ');
   }
   async function inspectCapabilities() {
+    const generation=++capabilityGeneration;
     const type=recordingType();
     let encode=false;
     try {
@@ -84,6 +86,7 @@ import { buildTimeline } from './timeline.js';
         && await canEncodeVideo('vp8',{width:canvas.width || 320,height:canvas.height || 180,frameRate:FPS,bitrate:900000})
         && await canEncodeAudio('opus',{numberOfChannels:2,sampleRate:48000,bitrate:96000});
     } catch { /* Capability probes are advisory; unsupported environments fail closed. */ }
+    if(generation!==capabilityGeneration)return;
     state.capabilities={type,record:Boolean(type),encode};
     renderCapabilities();setBusy(state.busy);
   }
@@ -406,16 +409,20 @@ import { buildTimeline } from './timeline.js';
       const type=recordingType();
       if(!type) throw new Error(l('対応する録音形式がありません。','No supported narration recording format.'));
       mic=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true }, video:false });
+      if(document.hidden) throw new Error(l('画面に戻ってから録音を開始してください。','Return to this page before starting recording.'));
       const recorder=new MediaRecorder(mic,{mimeType:type});
       const chunks=[];
       state.chunks=chunks;state.mic=mic;state.recorder=recorder;
       state.freeze=freeze;state.events=[];state.strokes=[];state.pointerId=null;state.activeStroke=null;
       state.startedAt=performance.now();
       state.insertAt=position;
-      const session={recorder,chunks,stopped:false,finishing:false,error:null,requested:false};
+      const session={recorder,chunks,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
       state.session=session;
       session.done=new Promise(resolve=>{session.resolve=resolve;});
-      recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
+      recorder.ondataavailable=e=>{
+        if(e.data?.size)chunks.push(e.data);
+        if(session.failed && session.generation===uploadGeneration) retainRecovery(session);
+      };
       recorder.addEventListener('stop',()=>{
         session.stopped=true;session.resolve();
         if(!session.requested && !session.error) session.error=new Error(l('録音が中断されました。回収データは未検証です。','Recording was interrupted. Recovered audio is unverified.'));
@@ -484,8 +491,7 @@ import { buildTimeline } from './timeline.js';
         info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
       } finally { input.dispose(); }
     } catch(e) {
-      const partial=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
-      if(partial.size) {state.recoveryBlobs.push(partial);renderRecovery();}
+      session.failed=true;retainRecovery(session);
       showError(e);
       info(l('録音は完了していません。既存の説明区間は保持しています。','Recording did not complete. Existing explanations are retained.'));
     } finally {
@@ -756,6 +762,15 @@ import { buildTimeline } from './timeline.js';
         : l('共有できませんでした。保存を試してください。結果は保持しています。','Sharing failed. Try Save; the result is retained.');
     }
   });
+  function retainRecovery(session) {
+    const blob=new Blob(session.chunks,{type:session.recorder.mimeType||'audio/webm'});
+    if(!blob.size)return;
+    if(session.recoveryIndex===null) {
+      session.recoveryIndex=state.recoveryBlobs.length;
+      state.recoveryBlobs.push(blob);
+    }else state.recoveryBlobs[session.recoveryIndex]=blob;
+    renderRecovery();
+  }
   function renderRecovery() {
     $('recovery').hidden=!state.recoveryBlobs.length;
     $('recoveryFiles').replaceChildren();
@@ -777,7 +792,7 @@ import { buildTimeline } from './timeline.js';
     }
   });
   window.addEventListener('beforeunload',event=>{
-    if(state.notes.length || state.recorder || state.recoveryBlobs.length) {event.preventDefault();event.returnValue='';}
+    if(state.notes.length || state.session || state.recorder || state.recoveryBlobs.length) {event.preventDefault();event.returnValue='';}
   });
   async function cleanupStaleTemporaryOutput() {
     // OPFS is persistent across abnormal shutdowns. Remove only this app's own
@@ -795,7 +810,9 @@ import { buildTimeline } from './timeline.js';
     }catch{/* OPFS can be unavailable under file://, privacy or storage restrictions. */}
   }
   void cleanupStaleTemporaryOutput();
-  window.addEventListener('pagehide',()=>{
+  window.addEventListener('pagehide',event=>{
+    // Back/forward cache retains this live page; keep its inputs and URLs valid.
+    if(event.persisted)return;
     state.mic?.getTracks().forEach(t=>t.stop());
     if(state.input)state.input.dispose();
     clearResult();

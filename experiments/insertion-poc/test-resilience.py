@@ -20,6 +20,7 @@ INSTRUMENT = """(() => {
   window.__testEncodeFailure = false;
   Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
     configurable: true, value: async () => {
+      if(window.__holdMicrophone) await new Promise(resolve => {window.__releaseMicrophone=resolve;});
       const context = new AudioContext();
       await context.resume();
       const wave = context.createOscillator();
@@ -139,6 +140,14 @@ def failed_export_preserves_result(page, url, source, out):
     expect(page.locator('#export')).to_be_enabled(timeout=10000)
     first_url = page.locator('#resultVideo').get_attribute('src')
     first_info = page.locator('#resultInfo').inner_text()
+    page.locator('#outputName').fill('my/video?.webm')
+    with page.expect_download(timeout=15000) as named:
+        page.locator('#save').click()
+    assert named.value.suggested_filename == 'my-video-.webm'
+    expect(page.locator('#share')).to_be_visible()
+    page.locator('#share').click()
+    expect(page.locator('#saveStatus')).to_contain_text('Sharing cancelled')
+    assert page.evaluate('__sharedFiles[0].name === "my-video-.webm" && __sharedFiles[0].type === "video/webm" && __sharedFiles[0].size > 2048')
     first_hash = download(page, out / 'before-failed-export.webm')
     assert (out / 'before-failed-export.webm').stat().st_size > 2048
     page.evaluate('window.__testEncodeFailure = true')
@@ -153,12 +162,60 @@ def failed_export_preserves_result(page, url, source, out):
     assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0'), 'Previous result no longer decodes'
 
 
+def failed_start(page, url, source, out):
+    load(page, url, source)
+    page.evaluate("MediaRecorder.prototype.start = function() {throw new Error('Injected start failure');}")
+    page.locator('#startNote').click()
+    expect(page.locator('#error')).to_contain_text('Injected start failure')
+    expect(page.locator('#startNote')).to_be_enabled()
+    assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
+    page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+    expect(page.locator('#sourceFile')).to_be_enabled()
+
+
+def hidden_permission_resolution(page, url, source, out):
+    load(page, url, source)
+    page.evaluate('window.__holdMicrophone = true')
+    page.locator('#startNote').click()
+    page.wait_for_function('typeof __releaseMicrophone === "function"')
+    page.evaluate("""() => {
+      Object.defineProperty(document,'hidden',{configurable:true,value:true});
+      document.dispatchEvent(new Event('visibilitychange'));
+      __releaseMicrophone();
+    }""")
+    expect(page.locator('#error')).to_contain_text('Return to this page')
+    expect(page.locator('#startNote')).to_be_enabled()
+    assert page.evaluate('__testTracks.length > 0 && __testTracks.every(t => t.readyState === "ended")')
+    assert page.evaluate('__testRecorders.length === 0')
+
+
+def multiple_recovery(page, url, source, out):
+    load(page, url, source)
+    for count in (1, 2):
+        page.locator('#startNote').click()
+        expect(page.locator('#finishNote')).to_be_visible()
+        page.wait_for_timeout(600)
+        page.evaluate('__testRecorders.at(-1).stop()')
+        expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
+        expect(page.locator('#recoveryFiles button')).to_have_count(count)
+        expect(page.locator('#noteList .note-item')).to_have_count(0)
+    dialogs=[]
+    def cancel(dialog):
+        dialogs.append(dialog.message)
+        dialog.dismiss()
+    page.once('dialog', cancel)
+    page.locator('#sourceFile').set_input_files(str(source))
+    assert len(dialogs) == 1, 'Replacing recovery-only session did not confirm'
+    expect(page.locator('#recoveryFiles button')).to_have_count(2)
+    assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', default='http://127.0.0.1:8765/index.html')
     parser.add_argument('--out', type=Path, default=Path('/tmp/pause-tell-resilience'))
     parser.add_argument('--chromium', default='/usr/bin/chromium')
-    parser.add_argument('--case', choices=['missing_recorder', 'unexpected_stop', 'recorder_error', 'failed_export'])
+    parser.add_argument('--case', choices=['missing_recorder', 'unexpected_stop', 'recorder_error', 'failed_export', 'failed_start', 'hidden_permission', 'multiple_recovery'])
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     source = args.out / 'synthetic-source.webm'
@@ -170,6 +227,9 @@ def main():
         'unexpected_stop': lambda *a: recording_failure(*a, kind='unexpected_stop'),
         'recorder_error': lambda *a: recording_failure(*a, kind='recorder_error'),
         'failed_export': failed_export_preserves_result,
+        'failed_start': failed_start,
+        'hidden_permission': hidden_permission_resolution,
+        'multiple_recovery': multiple_recovery,
     }
     results = []
     with sync_playwright() as playwright:
@@ -185,6 +245,11 @@ def main():
             injection = INSTRUMENT
             if name == 'missing_recorder':
                 injection += "\nObject.defineProperty(window, 'MediaRecorder', {configurable:true, value:undefined});"
+            if name == 'failed_export':
+                injection += """Object.defineProperty(navigator,'canShare',{configurable:true,value:({files})=>files[0] instanceof File});
+                Object.defineProperty(navigator,'share',{configurable:true,value:async ({files})=>{
+                  window.__sharedFiles=files;throw new DOMException('Cancelled','AbortError');
+                }});"""
             page.add_init_script(injection)
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
