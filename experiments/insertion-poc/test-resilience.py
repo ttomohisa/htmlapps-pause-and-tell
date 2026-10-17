@@ -327,7 +327,7 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         for phase in ['opened','frame','finalized','reject']:
             page.evaluate('(phase)=>{window.__cancelPhase=phase;window.__delayCancelCleanup=true;}',phase)
             page.locator('#export').click()
-            page.wait_for_function('window.__cleanupPending === true')
+            page.wait_for_function('() => window.__cleanupPending === true')
             expect(page.locator('#export')).to_be_disabled()
             expect(page.locator('#startNote')).to_be_disabled()
             expect(page.locator('#sourceFile')).to_be_disabled()
