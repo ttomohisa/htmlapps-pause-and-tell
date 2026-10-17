@@ -113,3 +113,24 @@ https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39006381204
 Remaining next gate: resolve the exact FFmpeg source/license correspondence and
 agree the permissions for a separate actual-encoding sandbox before relaxing any
 CSP. Physical phone microphone/export/save tests remain open.
+
+### Exact optional WASM provenance checked (2026-10-17)
+
+The embedded WASM from the official 1.61.5 tarball was decoded as data, without
+executing it: 509,386 bytes, SHA-256
+`8488acb0bc9f43055b83600cc4c2c07d20f07675aa65671f91ac1d75515845d9`.
+This exactly matches the binary discussed in upstream issue 544 for 1.56.0/1.56.3.
+The maintainer states that the FFmpeg checkout was unmodified and Emscripten
+4.0.21 was used. The request for the exact historical FFmpeg commit/configuration
+was closed without that revision being identified. The library version string
+alone is not an exact source mapping. This is incomplete build provenance, not
+a finding of license noncompliance. Product redistribution remains deferred.
+
+- Maintainer statement: https://github.com/Vanilagy/mediabunny/issues/544#issuecomment-5936012964
+- Exact-source follow-up: https://github.com/Vanilagy/mediabunny/issues/544#issuecomment-5985412361
+- The tagged repository's latest committed AAC WASM build change is
+  https://github.com/Vanilagy/mediabunny/commit/0f6c374750d0f2d95f4a435c96ba8da75312a93f
+
+A reproducible replacement built from an explicitly pinned FFmpeg source,
+recorded flags/toolchain and matching notices is a possible later route. It is
+not part of the current dependency set or a completed verification.
