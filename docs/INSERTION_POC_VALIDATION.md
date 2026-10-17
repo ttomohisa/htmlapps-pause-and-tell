@@ -185,7 +185,7 @@ Rerecording substitutes the candidate for the old clip in this estimate. Crossin
 the MP4 30-second output limit does not automatically stop or delete a recording;
 actual decoded duration is validated again when recording finishes. The estimate
 is guidance, not an encoder performance promise. The display stops on finishing,
-cancellation or error. Browser regression for this addition is pending.
+cancellation or error. [Browser CI 39027570070](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39027570070) passed at b32e4cf, including elapsed/remaining display, replacement budget, language switch, stopped display, portrait pointer targeting and saved Pen pixels. All four routine workflows passed. These remain synthetic desktop checks, not additional phone acceptance.
 
 The original handoff priorities now have these bounded outcomes:
 
