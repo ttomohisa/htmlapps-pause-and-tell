@@ -214,3 +214,29 @@ v0.9.3 entry point while deciding whether to offer the insertion editor as a sec
 mode. Production promotion/merge and replacing the normal app are separate steps,
 not completed by this Draft. Optional AAC WASM provenance remains unresolved and
 is not required for the native-only path.
+
+## Failed candidate cleanup remains owned (2026-10-17)
+
+A targeted reassessment found that a rejected OPFS `removeEntry` in export cleanup
+was ignored, followed by ordinary cancellation/retry text. A Node harness executed
+that exact cleanup block with an injected rejection and observed no cleanup warning.
+This establishes a missing cleanup-failure path, not loss of previous output or an
+encoder leak. Previously tested delayed cleanup did not cover rejection.
+
+The exporter now retains only its own failed-candidate cleanup handle, shows a
+separate bilingual warning, and retries removal before allocating another output.
+Repeated deletion failure prevents new export allocation while leaving existing
+save/edit controls usable. `NotFoundError` means the candidate is already removed.
+A cancellation requested during this retry waits for settlement; pending deletion
+is still disclosed afterward. Failed writable-creation fallback also retains an
+undeletable candidate instead of silently abandoning it. No user-selected files or
+previous successful output are placed in this failed-candidate queue.
+
+Local Node fault tests cover repeated rejection, deferred settlement, ownership
+and NotFound, and the bundle builds successfully. The existing browser failed-export
+case adds real temporary files plus injected deletion failure, no-new-allocation
+checks, cancellation/retry, old download SHA and note preservation, and excluded
+last-good deletion targets. Browser CI is pending for this change. Local Chromium
+could not start because its singleton socket was denied by this execution environment;
+that is an unrun local browser test, not an application failure or a device pass.
+Physical device storage exhaustion remains unverified.

@@ -35,6 +35,9 @@ Recording pauses source/narration/result previews to reduce microphone feedback.
 Export cancellation is cooperative: it waits for active processing and cleanup,
 keeps editing locked until then, and preserves explanations and the prior output.
 Failed exports likewise keep the last successful result available to save.
+If a failed export temporary file cannot be deleted, a separate warning remains;
+retry checks that candidate cleanup before creating another output. Existing
+notes and the previous successful download remain available.
 Keep the page open until you have saved your work; reload/close can lose unsaved
 clips. Recovery audio, when offered, is explicitly unverified.
 

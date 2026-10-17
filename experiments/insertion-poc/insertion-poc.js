@@ -5,6 +5,7 @@ import {
 import { buildTimeline, sourceSampleTime } from './timeline.js';
 import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
 import { queryNativeCodecSupport } from './native-codec-support.js';
+import { TemporaryCleanup } from './temporary-cleanup.js';
 
 (() => {
   'use strict';
@@ -33,6 +34,11 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   let recordingTimeout = null;
   let recordingClock = null;
   let exportTask = null;
+  const pendingExportCleanup=new TemporaryCleanup();
+  function renderCleanupWarning() {
+    $('cleanupWarning').hidden=!pendingExportCleanup.size;
+    $('cleanupWarning').textContent=l('失敗した書き出しの一時ファイルを削除できていません。前回の完成動画と説明は保持しています。先に必要な動画を保存し、このページを開いたまま再試行してください。次の書き出しは削除を再確認してから開始します。サイトデータを削除しないでください。','A failed export temporary file could not be removed. Previous output and explanations are retained. Save any needed output first and retry with this page open. A new export starts only after cleanup succeeds. Do not clear site data.');
+  }
   const exportCancelled = new Error('Export cancelled');
   function checkExportCancelled() { if(exportTask?.cancelled) throw exportCancelled; }
   function exportProgress(text) {
@@ -124,7 +130,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();
+    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();renderCleanupWarning();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -672,6 +678,13 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     let videoInput=null,output=null,temporaryResult=null,candidateUrl=null,cancelled=false;
     const audioInputs=[];
     try {
+      if(pendingExportCleanup.size) {
+        exportProgress(l('残った一時ファイルを片付けています…','Retrying temporary-file cleanup…'));
+        const cleaned=await pendingExportCleanup.retry();
+        renderCleanupWarning();
+        checkExportCancelled();
+        if(!cleaned)throw new Error(l('一時ファイルの削除がまだ完了していません。新しい書き出しは開始しません。','Temporary cleanup is still pending. No new export was started.'));
+      }
       if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined') {
         throw new Error(l('このブラウザの動画・音声書き出し機能には未対応です。','WebCodecs video/audio encoding is unavailable.'));
       }
@@ -713,7 +726,10 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         }catch(storageError) {
           console.warn('Local temporary file unavailable:',storageError);
           if(temporaryResult) {
-            try {await temporaryResult.directory.removeEntry(temporaryResult.name);}catch{}
+            const cleaned=await pendingExportCleanup.remove(temporaryResult);
+            temporaryResult=null;
+            renderCleanupWarning();
+            if(!cleaned)throw new Error(l('一時ファイルの削除が完了していないため、書き出しを停止しました。','Export stopped because temporary cleanup is pending.'));
           }
           temporaryResult=null;
         }
@@ -886,14 +902,14 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       }
     }finally{
       if(candidateUrl) URL.revokeObjectURL(candidateUrl);
-      if(temporaryResult) {
-        try {await temporaryResult.directory.removeEntry(temporaryResult.name);}catch{}
-      }
+      if(temporaryResult) await pendingExportCleanup.remove(temporaryResult);
+      renderCleanupWarning();
       videoInput?.dispose();
       for(const item of audioInputs) item.input?.dispose();
       exportTask=null;
       $('cancelExport').hidden=true;
-      if(cancelled) $('exportStatus').textContent=l('書き出しを中止しました。説明と前回の完成動画は保持しています。再試行できます。','Export cancelled. Explanations and the previous output are retained. You can retry.');
+      if(cancelled && pendingExportCleanup.size) $('exportStatus').textContent=l('書き出しは停止しましたが、一時ファイルの削除が未完了です。下の案内を確認してください。','Export stopped, but temporary-file cleanup is pending. Follow the cleanup guidance.');
+      else if(cancelled) $('exportStatus').textContent=l('書き出しを中止しました。説明と前回の完成動画は保持しています。再試行できます。','Export cancelled. Explanations and the previous output are retained. You can retry.');
       setBusy(false);
     }
   }

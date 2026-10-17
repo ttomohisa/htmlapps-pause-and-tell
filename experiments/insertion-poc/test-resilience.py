@@ -333,7 +333,21 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
               await new Promise(resolve=>window.__releaseCleanup=resolve);
               window.__cleanupPending=false;
             }
+            if(window.__deleteFault) {
+              window.__deleteAttempts.push(args[0]);
+              if(window.__deleteFault==='notfound') {
+                await remove.apply(this,args);
+                throw new DOMException('Already removed','NotFoundError');
+              }
+              throw new DOMException('Injected deletion failure','UnknownError');
+            }
             return remove.apply(this,args);
+          };
+          window.__candidateCreates=0;
+          const getHandle=FileSystemDirectoryHandle.prototype.getFileHandle;
+          FileSystemDirectoryHandle.prototype.getFileHandle=function(name,options) {
+            if(options?.create) window.__candidateCreates++;
+            return getHandle.call(this,name,options);
           };
         }""")
         for phase in ['opened','frame','finalized','reject']:
@@ -360,6 +374,53 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
             assert note_snapshot(page) == notes
             assert page.locator('#resultInfo').inner_text() == first_info
             assert download(page,out/('after-cancel-'+phase+'.webm')) == first_hash
+        # A rejected deletion must stay visible and owned, not accumulate new
+        # outputs on retry. Only this newly failed candidate may be removed.
+        page.evaluate("()=>{window.__deleteFault='reject';window.__deleteAttempts=[];window.__cancelPhase='finalized';}")
+        page.locator('#export').click()
+        expect(page.locator('#export')).to_be_enabled(timeout=30000)
+        expect(page.locator('#cleanupWarning')).to_be_visible()
+        expect(page.locator('#exportStatus')).to_contain_text('cleanup is pending')
+        orphaned=page.evaluate('__tempNames()')
+        assert len(orphaned)==len(baseline)+1
+        orphan=next(name for name in orphaned if name not in baseline)
+        creates=page.evaluate('__candidateCreates')
+        for attempt in range(2):
+            page.locator('#export').click()
+            expect(page.locator('#error')).to_contain_text('No new export was started')
+            expect(page.locator('#export')).to_be_enabled()
+            assert page.evaluate('__candidateCreates')==creates
+            assert page.evaluate('__tempNames()')==orphaned
+        page.evaluate('window.__delayCancelCleanup=true')
+        page.locator('#export').click()
+        page.wait_for_function('() => window.__cleanupPending === true')
+        page.locator('#cancelExport').click()
+        expect(page.locator('#export')).to_be_disabled()
+        page.evaluate('()=>{window.__delayCancelCleanup=false;window.__releaseCleanup();}')
+        expect(page.locator('#export')).to_be_enabled()
+        expect(page.locator('#exportStatus')).to_contain_text('cleanup is pending')
+        assert page.evaluate('__candidateCreates')==creates
+        assert set(page.evaluate('__deleteAttempts'))=={orphan}
+        assert note_snapshot(page)==notes
+        assert page.locator('#resultVideo').get_attribute('src')==first_url
+        assert download(page,out/'after-cleanup-rejected.webm')==first_hash
+        expect(page.locator('#startNote')).to_be_enabled()
+        page.locator('#language').click()
+        expect(page.locator('#cleanupWarning')).to_contain_text('一時ファイル')
+        page.locator('#language').click()
+        # Simulate a candidate already removed by another completion: NotFound
+        # is success. The next short frame-cancel then returns to the baseline.
+        page.evaluate("()=>{window.__deleteFault='notfound';window.__cancelPhase='frame';}")
+        page.locator('#export').click()
+        expect(page.locator('#exportStatus')).to_contain_text('Export cancelled',timeout=30000)
+        expect(page.locator('#export')).to_be_enabled()
+        expect(page.locator('#cleanupWarning')).to_be_hidden()
+        assert page.evaluate('__candidateCreates')==creates+1
+        assert page.evaluate('__tempNames()')==baseline
+        assert not any(name in baseline for name in page.evaluate('__deleteAttempts'))
+        assert download(page,out/'after-cleanup-retry.webm')==first_hash
+        assert note_snapshot(page)==notes
+        page.evaluate('window.__deleteFault=null')
         for mode in ['quota', 'write']:
             page.evaluate('(mode) => {window.__storageFault=mode;}', mode)
             page.locator('#export').click()

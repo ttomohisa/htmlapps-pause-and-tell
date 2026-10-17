@@ -35,6 +35,7 @@ jobs:
           node test-native-sample.mjs
           node test-export-format.mjs
           node test-preview-modes.mjs
+          node test-temporary-cleanup.mjs
           node build-native-sample.mjs
           node build-native-sample-test.mjs
           test -f dist/index.html
