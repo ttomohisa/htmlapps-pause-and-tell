@@ -93,4 +93,23 @@ https://ffmpeg.org/legal.html
 Independent review found no blocker in timestamp/preview changes. Follow-up
 assertions now reject both stereo source tones in both narration intervals, and
 measure the decoded MP4 color-transition frame instead of inferring it from two
-sparse color samples. These strengthened assertions need a fresh probe result.
+sparse color samples. These strengthened assertions passed in the final measured run below.
+
+### Strengthened measurements and AAC negative test: PASS at 277bb62
+
+https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39006381204
+
+- The VFR/stereo case again produced a decoded 6.74-second WebM. Both source
+  tones are absent from both channels during both narration intervals.
+- Chrome's video-only MP4 changes color at decoded frame 15 / 1.000 seconds.
+  AAC remains unavailable natively; no audio/video alignment pass is claimed.
+- Optional AAC registration advertises support, but actual encoding fails with
+  a Worker error and a console CSP violation of `worker-src 'none'`. This expected
+  negative result passed, with zero external requests. The CI-only bundled HTML
+  was 1,151,071 bytes; it was excluded from artifacts and public preview.
+- Evidence artifact: 12091181736. All four routine workflows also passed at
+  277bb62. App dependencies, public CSP and WebM output remain unchanged.
+
+Remaining next gate: resolve the exact FFmpeg source/license correspondence and
+agree the permissions for a separate actual-encoding sandbox before relaxing any
+CSP. Physical phone microphone/export/save tests remain open.
