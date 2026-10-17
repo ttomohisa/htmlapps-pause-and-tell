@@ -30,3 +30,15 @@ Primary references checked 2026-10-17:
 ## Next decision
 
 If AVC and AAC both actually encode/decode, the next bounded experiment is the existing insertion timeline with an isolated MP4 output adapter and equivalent source/narration/boundary checks. Do not expose MP4 in the app until that result and the intended device save path are verified. If AAC is unavailable, retain WebM and evaluate a separately licensed local audio encoder only after measuring bundle/memory cost; do not silently emit video without narration.
+
+## 2026-10-17 first measured result (d9c6ff3)
+
+Run: https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39005592114
+
+- Ubuntu Chromium 155: AVC false, AAC false, `UNSUPPORTED_AVC`.
+- Ubuntu Google Chrome 155: AVC true, AAC false. A 1,747-byte video-only MP4 was produced and independently decoded, including its red/green frames and two-second duration. This cannot carry the narration. No MP4 product support is established.
+- Both browsers reported no page errors or external requests in the codec probe.
+- The VFR/stereo fixture failed existing export with “Could not decode an original frame.” Its first video PTS is +0.003 seconds; Mediabunny explicitly returns null for a request before the first track timestamp. The export requested timestamp zero. This is a nonzero-start failure exposed by the VFR fixture, not proof that all VFR itself fails.
+- A bounded correction holds the first frame for the initial timestamp gap without shifting the source clock or audio. Pure clock tests cover positive/negative first PTS, later frame timestamps and tail clamp. Browser rerun is required before marking the fixture verified.
+
+AAC fallback remains a separate investigation. The immediate next goal is to pass the actual VFR/stereo insertion fixture and test the HTTPS PoC on physical iOS/Android; no unverified MP4 option is shown.

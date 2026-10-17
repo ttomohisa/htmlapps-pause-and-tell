@@ -63,3 +63,13 @@ These are **synthetic desktop browser acceptance tests only**; real iPhone video
 ### v0.11.5 compatibility preparation
 
 The page reports recording and WebM encoding capabilities before narration. MP4/AAC **audio** may be selected for the microphone when WebM is unavailable; composed **video** is still WebM only. Phone support is not yet verified. Interrupted audio can be saved separately as unverified recovery data. Previously completed explanations and a prior successful export survive failed retries. Download names are editable and file sharing appears only when supported. Save/share cancellation keeps the result; a browser save request does not prove the file reached device storage. Reload or closing the page can still lose unsaved work.
+
+### HTTPS Draft preview
+
+The PR preview workflow publishes this experimental standalone page at
+`/insertion-poc/` under the existing PR preview origin, separately from the normal
+app at `/`. The PR bot comment provides both links. This route is built only by
+the nonproduction preview workflow, includes `noindex,nofollow`, and contains no
+test media or user data. Production deployment is unchanged. Phone microphone,
+codec availability and OS save/share still require physical-device verification;
+a successful HTTPS load alone is not a device test pass.

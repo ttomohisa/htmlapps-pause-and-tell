@@ -43,6 +43,27 @@ jobs:
         shell: pwsh
         run: ./scripts/check-repository.ps1
 
+      - name: Build experimental insertion PoC for PR preview only
+        shell: pwsh
+        run: |
+          $normalHash = (Get-FileHash ./dist/index.html -Algorithm SHA256).Hash
+          Push-Location ./experiments/insertion-poc
+          try {
+            npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+            if ($LASTEXITCODE -ne 0) { throw "PoC dependency install failed." }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw "PoC build failed." }
+          } finally { Pop-Location }
+          New-Item -ItemType Directory -Force ./dist/insertion-poc | Out-Null
+          Copy-Item ./experiments/insertion-poc/dist/index.html ./dist/insertion-poc/index.html
+          if ((Get-FileHash ./dist/index.html -Algorithm SHA256).Hash -ne $normalHash) {
+            throw "Normal app changed while preparing PoC preview."
+          }
+          $poc = Get-Content -Raw ./dist/insertion-poc/index.html
+          if ($poc -notmatch 'noindex,nofollow' -or $poc -notmatch 'Insertion PoC') {
+            throw "PoC preview lacks experiment or noindex marker."
+          }
+
       - name: Check Cloudflare preview credentials
         id: cloudflare
         shell: pwsh
@@ -157,7 +178,12 @@ jobs:
               $response = Invoke-WebRequest -Uri $env:PREVIEW_URL -MaximumRedirection 5 -TimeoutSec 30
 
               if ($response.StatusCode -eq 200) {
-                Write-Host "Preview returned HTTP 200."
+                $pocUrl = $env:PREVIEW_URL.TrimEnd('/') + '/insertion-poc/'
+                $poc = Invoke-WebRequest -Uri $pocUrl -MaximumRedirection 5 -TimeoutSec 30
+                if ($poc.StatusCode -ne 200 -or $poc.Content -notmatch 'Insertion PoC' -or $poc.Content -notmatch 'noindex,nofollow') {
+                  throw "Insertion PoC preview route is missing or serves the wrong page."
+                }
+                Write-Host "Normal and experimental insertion preview returned HTTP 200."
                 exit 0
               }
 
@@ -180,10 +206,13 @@ jobs:
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
           PREVIEW_NAME: ${{ steps.preview.outputs.preview_name }}
         run: |
+          $pocUrl = $env:PREVIEW_URL.TrimEnd('/') + '/insertion-poc/'
           $body = @"
           ## Browser Kitty PR Preview
 
           **[Previewを開く]($env:PREVIEW_URL)**
+
+          **[差し込みPoCを開く（Draft・実験版）]($pocUrl)**
 
           - Preview: ``$env:PREVIEW_NAME``
           - Commit: ``${{ github.event.pull_request.head.sha }}``

@@ -31,3 +31,10 @@ export function buildTimeline(sourceSeconds, notes, fps) {
   }
   return {fps,sourceFrames,frames:outputCursor,duration:outputCursor/fps,segments};
 }
+
+// Hold the first visible frame before a positive track start; do not shift the
+// source clock (which would move every later frame relative to source audio).
+export function sourceSampleTime(frame, fps, duration, firstTimestamp) {
+  if (![frame,fps,duration,firstTimestamp].every(Number.isFinite) || frame<0 || fps<=0 || duration<=0) throw new Error('Invalid source sample clock');
+  return Math.max(0, firstTimestamp, Math.min(Math.max(0,duration-.001),frame/fps));
+}

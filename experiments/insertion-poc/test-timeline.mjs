@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildTimeline } from './timeline.js';
+import { buildTimeline, sourceSampleTime } from './timeline.js';
 function minimal(source,notes,expected) {
   const timeline=buildTimeline(source,notes,15);
   assert.deepEqual(timeline.segments.map(x=>[x.kind,x.sourceStart,x.outputStart,x.length]),expected);
@@ -27,3 +27,11 @@ minimal(4,[{id:1,position:0,duration:1},{id:2,position:4,duration:1}],[
 assert.throws(()=>buildTimeline(4,[{id:0,position:1,duration:0}],15));
 assert.throws(()=>buildTimeline(0,[],15));
 console.log('PASS insertion timeline: empty, single, multi, same-point, boundaries, invalid');
+
+assert.equal(sourceSampleTime(0,15,4,.003),.003);
+assert.equal(sourceSampleTime(1,15,4,.003),1/15);
+assert.equal(sourceSampleTime(59,15,4,.003),59/15);
+assert.equal(sourceSampleTime(0,15,4,-.007),0);
+assert.equal(sourceSampleTime(60,15,4,0),3.999);
+assert.throws(()=>sourceSampleTime(0,15,4,NaN));
+console.log('PASS source sample clock: positive first PTS, no cumulative shift, negative PTS, tail clamp');

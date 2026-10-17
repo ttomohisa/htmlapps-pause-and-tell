@@ -2,7 +2,7 @@ import {
   Input, BlobSource, ALL_FORMATS, VideoSampleSink, AudioBufferSink,
   Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
 } from 'mediabunny';
-import { buildTimeline } from './timeline.js';
+import { buildTimeline, sourceSampleTime } from './timeline.js';
 
 (() => {
   'use strict';
@@ -648,6 +648,7 @@ import { buildTimeline } from './timeline.js';
       $('exportStatus').textContent=l('元動画と説明を結合しています…','Composing original frames and explanations…');
 
       const sink=new VideoSampleSink(vt);
+      const firstVideoTimestamp=await vt.getFirstTimestamp();
       let segIndex=0;
       const clipEvents=new Map();
       const clipDrawings=new Map();
@@ -683,7 +684,7 @@ import { buildTimeline } from './timeline.js';
           renderCtx.restore();
         }else{
           const originalFrame=seg.sourceStart+(frame-seg.outputStart);
-          const sourceTime=Math.min(Math.max(0,duration-.001),originalFrame/FPS);
+          const sourceTime=sourceSampleTime(originalFrame,FPS,duration,firstVideoTimestamp);
           const sample=await sink.getSample(sourceTime);
           if(!sample)throw new Error(l('元動画のフレームを読み出せません。','Could not decode an original frame.'));
           try {sample.draw(renderCtx,0,0,renderCanvas.width,renderCanvas.height);}
