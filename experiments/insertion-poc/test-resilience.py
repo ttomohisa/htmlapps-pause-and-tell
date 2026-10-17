@@ -48,8 +48,9 @@ INSTRUMENT = """(() => {
 })();"""
 
 
-def load(page, url, source):
+def load(page, url, source, output_format="webm"):
     page.goto(url, wait_until='domcontentloaded')
+    page.locator('#exportFormat').select_option(output_format)
     expect(page.locator('#exportFormat')).to_be_visible()  # Must be selectable before recording on MP4-only devices.
     page.locator('#language').click()  # English gives readable diagnostic checks.
     page.locator('#sourceFile').set_input_files(str(source))
@@ -132,8 +133,8 @@ def download(page, destination):
     return hashlib.sha256(destination.read_bytes()).hexdigest()
 
 
-def failed_export_preserves_result(page, url, source, out):
-    load(page, url, source)
+def failed_export_preserves_result(page, url, source, out, output_format="webm"):
+    load(page, url, source, output_format)
     record_note(page)
     notes = note_snapshot(page)
     page.locator('#export').click()
@@ -141,32 +142,33 @@ def failed_export_preserves_result(page, url, source, out):
     expect(page.locator('#export')).to_be_enabled(timeout=10000)
     first_url = page.locator('#resultVideo').get_attribute('src')
     first_info = page.locator('#resultInfo').inner_text()
-    page.locator('#outputName').fill('my/video?.webm')
+    page.locator('#outputName').fill('my/video?.'+output_format)
     with page.expect_download(timeout=15000) as named:
         page.locator('#save').click()
-    assert named.value.suggested_filename == 'my-video-.webm'
+    assert named.value.suggested_filename == 'my-video-.'+output_format
     expect(page.locator('#share')).to_be_visible()
     page.locator('#share').click()
     expect(page.locator('#saveStatus')).to_contain_text('Sharing cancelled')
-    assert page.evaluate('__sharedFiles[0].name === "my-video-.webm" && __sharedFiles[0].type === "video/webm" && __sharedFiles[0].size > 2048')
-    first_hash = download(page, out / 'before-failed-export.webm')
-    assert (out / 'before-failed-export.webm').stat().st_size > 2048
-    # Selecting an unavailable native MP4 path must not relabel the old WebM.
-    page.evaluate('''() => {
-      const original = AudioEncoder.isConfigSupported.bind(AudioEncoder);
-      AudioEncoder.isConfigSupported = async config => config.codec.startsWith('mp4a')
-        ? {supported:false,config} : original(config);
-    }''')
-    page.locator('#exportFormat').select_option('mp4')
-    expect(page.locator('#capabilities')).to_contain_text('encoders unavailable')
-    expect(page.locator('#export')).to_be_disabled()
-    assert page.locator('#resultExtension').inner_text()=='.webm'
-    assert page.locator('#resultVideo').get_attribute('src')==first_url
-    assert download(page,out/'after-mp4-selection.webm')==first_hash
-    page.locator('#share').click()
-    assert page.evaluate('__sharedFiles[0].type === "video/webm" && __sharedFiles[0].name.endsWith(".webm")')
-    page.locator('#exportFormat').select_option('webm')
-    expect(page.locator('#export')).to_be_enabled()
+    assert page.evaluate('(format) => __sharedFiles[0].name === `my-video-.${format}` && __sharedFiles[0].type === `video/${format}` && __sharedFiles[0].size > 2048',output_format)
+    first_hash = download(page, out / ('before-failed-export.'+output_format))
+    assert (out / ('before-failed-export.'+output_format)).stat().st_size > 2048
+    if output_format=='webm':
+        # Selecting an unavailable native MP4 path must not relabel the old WebM.
+        page.evaluate('''() => {
+          const original = AudioEncoder.isConfigSupported.bind(AudioEncoder);
+          AudioEncoder.isConfigSupported = async config => config.codec.startsWith('mp4a')
+            ? {supported:false,config} : original(config);
+        }''')
+        page.locator('#exportFormat').select_option('mp4')
+        expect(page.locator('#capabilities')).to_contain_text('encoders unavailable')
+        expect(page.locator('#export')).to_be_disabled()
+        assert page.locator('#resultExtension').inner_text()=='.webm'
+        assert page.locator('#resultVideo').get_attribute('src')==first_url
+        assert download(page,out/'after-mp4-selection.webm')==first_hash
+        page.locator('#share').click()
+        assert page.evaluate('__sharedFiles[0].type === "video/webm" && __sharedFiles[0].name.endsWith(".webm")')
+        page.locator('#exportFormat').select_option('webm')
+        expect(page.locator('#export')).to_be_enabled()
     page.evaluate('window.__testEncodeFailure = true')
     page.locator('#export').click()
     expect(page.locator('#error')).to_contain_text('Injected encoding failure', timeout=30000)
@@ -175,7 +177,7 @@ def failed_export_preserves_result(page, url, source, out):
     assert page.locator('#resultVideo').get_attribute('src') == first_url, 'Previous result URL was replaced/revoked'
     assert page.locator('#resultInfo').inner_text() == first_info
     assert note_snapshot(page) == notes, 'Failed export changed completed explanations'
-    assert download(page, out / 'after-failed-export.webm') == first_hash, 'Saved result bytes changed after failure'
+    assert download(page, out / ('after-failed-export.'+output_format)) == first_hash, 'Saved result bytes changed after failure'
     assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0'), 'Previous result no longer decodes'
 
 
@@ -233,7 +235,9 @@ def main():
     parser.add_argument('--out', type=Path, default=Path('/tmp/pause-tell-resilience'))
     parser.add_argument('--chromium', default='/usr/bin/chromium')
     parser.add_argument('--case', choices=['missing_recorder', 'unexpected_stop', 'recorder_error', 'failed_export', 'failed_start', 'hidden_permission', 'multiple_recovery'])
+    parser.add_argument("--output-format",choices=["webm","mp4"],default="webm",help="Native MP4 milestone failed-export case only")
     args = parser.parse_args()
+    if args.output_format=="mp4" and args.case!="failed_export": parser.error("MP4 milestone requires --case failed_export")
     args.out.mkdir(parents=True, exist_ok=True)
     source = args.out / 'synthetic-source.webm'
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i',
@@ -243,7 +247,7 @@ def main():
         'missing_recorder': missing_recorder,
         'unexpected_stop': lambda *a: recording_failure(*a, kind='unexpected_stop'),
         'recorder_error': lambda *a: recording_failure(*a, kind='recorder_error'),
-        'failed_export': failed_export_preserves_result,
+        'failed_export': lambda *items: failed_export_preserves_result(*items,output_format=args.output_format),
         'failed_start': failed_start,
         'hidden_permission': hidden_permission_resolution,
         'multiple_recovery': multiple_recovery,
