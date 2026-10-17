@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Build unchanged-CSP app and start localhost server
+      - name: Build unchanged-CSP app and prepare browser
         shell: pwsh
         run: |
           Set-Location experiments/insertion-poc
@@ -33,14 +33,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'App build failed' }
           python -m pip install --disable-pip-version-check playwright==1.58.0
           if ($LASTEXITCODE -ne 0) { throw 'Playwright install failed' }
-          Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1','--directory','dist' -NoNewWindow
           $chrome = Join-Path ${env:ProgramFiles} 'Google/Chrome/Application/chrome.exe'
           if (!(Test-Path $chrome)) { throw 'Preinstalled Google Chrome unavailable' }
           "CHROME=$chrome" >> $env:GITHUB_ENV
       - name: Query actual native candidates (unsupported is not media success)
         id: native
         shell: pwsh
-        run: python experiments/insertion-poc/test-native-gate.py --chromium "$env:CHROME" --out native-mp4-evidence
+        run: python experiments/insertion-poc/run-local-media-test.py test-native-gate.py --chromium "$env:CHROME" --out native-mp4-evidence
       - name: Prepare independent media inspection
         if: steps.native.outputs.ready == 'true'
         shell: pwsh
@@ -55,12 +54,12 @@ jobs:
         if: steps.native.outputs.ready == 'true'
         shell: pwsh
         run: |
-          python experiments/insertion-poc/test-smoke.py --chromium "$env:CHROME" --output-format mp4 --vfr-stereo --multiple --out native-mp4-evidence/vfr-two-inserts
+          python experiments/insertion-poc/run-local-media-test.py test-smoke.py --chromium "$env:CHROME" --output-format mp4 --vfr-stereo --multiple --out native-mp4-evidence/vfr-two-inserts
           if ($LASTEXITCODE -ne 0) { throw 'Native MP4 media verification failed' }
       - name: Verify last-good native MP4 after failed re-export
         if: steps.native.outputs.ready == 'true'
         shell: pwsh
-        run: python experiments/insertion-poc/test-resilience.py --chromium "$env:CHROME" --case failed_export --output-format mp4 --out native-mp4-evidence/failure-protection
+        run: python experiments/insertion-poc/run-local-media-test.py test-resilience.py --chromium "$env:CHROME" --case failed_export --output-format mp4 --out native-mp4-evidence/failure-protection
       - name: Preserve bounded milestone evidence
         if: always()
         uses: actions/upload-artifact@v7
