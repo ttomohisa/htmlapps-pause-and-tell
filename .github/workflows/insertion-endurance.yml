@@ -28,10 +28,10 @@ permissions:
   contents: read
 jobs:
   endurance:
-    # Explicit draft PR title tag [run-endurance-60] runs a 60s test.
+    # Explicit title tags select a milestone: [run-endurance-60] or [run-endurance-180].
     # [run-endurance-mp4] tests 30s MP4; [run-rotation-mp4] tests 30s metadata-rotated MP4.
     # Normal PR pushes and unrelated PR edits never run the expensive job.
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.title, '[run-endurance-60]') || contains(github.event.pull_request.title, '[run-endurance-mp4]') || contains(github.event.pull_request.title, '[run-rotation-mp4]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.changes.title && !contains(github.event.changes.title.from, '[run-endurance-180]') && contains(github.event.pull_request.title, '[run-endurance-180]')) || contains(github.event.pull_request.title, '[run-endurance-60]') || contains(github.event.pull_request.title, '[run-endurance-mp4]') || contains(github.event.pull_request.title, '[run-rotation-mp4]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -62,7 +62,7 @@ jobs:
             BROWSER="$(command -v google-chrome)"
           fi
           echo "Browser executable: $BROWSER; source container: $FORMAT"
-          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --chromium "$BROWSER" --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "$FORMAT" --orientation "${{ github.event.inputs.orientation || (contains(github.event.pull_request.title, '[run-rotation-mp4]') && 'rotated' || 'landscape') }}"
+          python experiments/insertion-poc/test-endurance.py --out endurance-evidence --chromium "$BROWSER" --source-seconds "${{ github.event.inputs.source_seconds || (contains(github.event.pull_request.title, '[run-endurance-180]') && '180') || (contains(github.event.pull_request.title, '[run-endurance-60]') && '60' || '30') }}" --source-format "$FORMAT" --orientation "${{ github.event.inputs.orientation || (contains(github.event.pull_request.title, '[run-rotation-mp4]') && 'rotated' || 'landscape') }}"
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v7
