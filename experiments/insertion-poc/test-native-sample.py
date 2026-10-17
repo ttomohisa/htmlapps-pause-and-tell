@@ -16,14 +16,14 @@ with sync_playwright() as pw:
         actual=page.locator('#status').inner_text()
         page.goto('http://127.0.0.1:8765/native-mp4-ui-test.html')
         # A tiny fixture blob tests UI ownership only; it is deliberately not a valid media success.
-        page.evaluate("window.testEncode=async()=>new Blob(['fixture-only'],{type:'video/mp4'})")
+        page.evaluate("() => { window.testEncode=async()=>new Blob(['fixture-only'],{type:'video/mp4'}); }")
         page.locator('#generate').click();page.wait_for_function("document.querySelector('#status').dataset.result==='success'")
         previous=page.locator('#save').get_attribute('href');assert previous.startswith('blob:')
         assert page.locator('#saveStatus').inner_text()==''
         with page.expect_download() as download:page.locator('#save').click()
         assert download.value.suggested_filename=='pause-tell-native-synthetic-2s.mp4'
         assert '保存完了' in page.locator('#saveStatus').inner_text()
-        page.evaluate("window.testEncode=async()=>{throw Error('injected failure')}")
+        page.evaluate("() => { window.testEncode=async()=>{throw Error('injected failure')}; }")
         page.locator('#generate').click();page.wait_for_function("document.querySelector('#status').dataset.result==='failed'")
         assert page.locator('#save').get_attribute('href')==previous
         assert page.locator('#video').get_attribute('src')==previous
