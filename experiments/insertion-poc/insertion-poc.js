@@ -53,6 +53,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     $('export').disabled = value || Boolean(state.recorder) || !state.notes.length || !state.capabilities?.encode;
     $('discard').disabled = value || Boolean(state.recorder) || !state.note;
     $('finishNote').disabled = value;
+    $('cancelNote').disabled = value;
+    $('rerecord').disabled = value || Boolean(state.recorder) || !state.note || !state.capabilities?.record || !state.capabilities?.encode;
+    for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
   }
   function translate() {
     document.documentElement.lang = lang;
@@ -188,11 +191,12 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       choose.type='button';
       choose.textContent=fmt(note.position)+' · '+fmt(note.duration)+' · '+l('説明','Explanation')+' '+note.id;
       choose.setAttribute('aria-pressed',String(state.note?.id===note.id));
-      choose.addEventListener('click',()=>selectNote(note));
+      choose.addEventListener('click',()=>{if(!state.busy)selectNote(note);});
       const remove=document.createElement('button');
       remove.type='button';
       remove.textContent=l('削除','Delete');
       remove.addEventListener('click',()=>confirmRemoveNote(note));
+      choose.disabled=remove.disabled=state.busy || Boolean(state.recorder);
       row.append(choose,remove);
       host.append(row);
     }
@@ -396,14 +400,16 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   canvas.addEventListener('pointerup',finishStroke);
   canvas.addEventListener('pointercancel',finishStroke);
 
-  async function beginExplanation() {
+  async function beginExplanation(replacing=null) {
     if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
+    if(replacing && !state.notes.includes(replacing))return;
     errorNode.textContent='';
     sourceVideo.pause();
+    if(replacing)sourceVideo.currentTime=Math.min(replacing.position,Math.max(0,state.duration-.01));
     setBusy(true);
     let mic=null;
     try {
-      const position=Math.max(0, Math.min(state.duration, sourceVideo.currentTime));
+      const position=replacing ? replacing.position : Math.max(0, Math.min(state.duration, sourceVideo.currentTime));
       // A seek sets currentTime immediately but the destination frame may still
       // be decoding. Never capture an earlier/stale frame as the insertion base.
       if (sourceVideo.seeking || sourceVideo.readyState < 2) {
@@ -428,7 +434,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       freeze.width=canvas.width;freeze.height=canvas.height;
       const freezeCtx=freeze.getContext('2d',{alpha:false});
       if(sourceVideo.readyState<2) throw new Error(l('動画のフレームを準備できません。','Source frame not available.'));
-      freezeCtx.drawImage(sourceVideo,0,0,freeze.width,freeze.height);
+      // A replacement keeps the original insertion's exact frozen frame.
+      freezeCtx.drawImage(replacing?.freeze || sourceVideo,0,0,freeze.width,freeze.height);
       const type=recordingType();
       if(!type) throw new Error(l('対応する録音形式がありません。','No supported narration recording format.'));
       mic=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true }, video:false });
@@ -439,7 +446,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       state.freeze=freeze;state.events=[];state.strokes=[];state.pointerId=null;state.activeStroke=null;
       state.startedAt=performance.now();
       state.insertAt=position;
-      const session={recorder,chunks,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
+      const session={recorder,chunks,replacing,cancelled:false,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
       state.session=session;
       session.done=new Promise(resolve=>{session.resolve=resolve;});
       recorder.ondataavailable=e=>{
@@ -458,8 +465,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       };
       recorder.start(250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
-      $('finishNote').hidden=false;$('startNote').hidden=true;
-      info(l('説明を録音中。ペンで描けます。元動画の録画はしていません。','Narration recording. Draw with the pen. Source footage is not being recorded.'));
+      $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
+      info(replacing ? l('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。ペンは描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new pen annotations.') : l('説明を録音中。ペンで描けます。元動画の録画はしていません。','Narration recording. Draw with the pen. Source footage is not being recorded.'));
       recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
@@ -494,6 +501,10 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
           timer=setTimeout(()=>reject(new Error(l('録音終了を確認できませんでした。','Recorder did not finish.'))),5000);
         })]);
       } finally { clearTimeout(timer); }
+      if(session.cancelled) {
+        info(l('録音を取り消しました。元の説明と前回の完成動画は保持しています。','Recording cancelled. Original explanations and previous output are retained.'));
+        return;
+      }
       const blob=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
       if(session.error) throw session.error;
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
@@ -506,9 +517,17 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         if(!(duration>.15 && duration<=MAX_NOTE_SECONDS+1))
           throw new Error(l('録音時間が不正です。','Narration duration is invalid.'));
         const exactPosition=Math.round(state.insertAt*FPS)/FPS;
-        const note={id:state.nextNoteId++,position:exactPosition,duration,blob,
+        const note={id:session.replacing?.id ?? state.nextNoteId++,position:exactPosition,duration,blob,
           events:state.events.slice(),freeze:state.freeze};
-        state.notes.push(note);
+        if(session.replacing) {
+          const index=state.notes.indexOf(session.replacing);
+          if(index<0)throw new Error('Original explanation changed during rerecording');
+          state.notes[index]=note;
+        }else state.notes.push(note);
+        // Only a committed edit invalidates the old composition. Failed/cancelled
+        // recording must keep its download and the original explanation intact.
+        clearResult();
+        $('exportStatus').textContent='';
         $('notePanel').hidden=false;
         selectNote(note);
         info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
@@ -520,7 +539,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     } finally {
       state.session=null;
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
-      $('finishNote').hidden=true;$('startNote').hidden=false;
+      $('finishNote').hidden=true;$('cancelNote').hidden=true;$('startNote').hidden=false;
       state.pointerId=null;state.activeStroke=null;
       canvas.hidden=true;sourceVideo.hidden=false;
       setBusy(false);
@@ -528,6 +547,11 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   }
   $('startNote').addEventListener('click',()=>void beginExplanation());
   $('finishNote').addEventListener('click',()=>void endExplanation());
+  $('rerecord').addEventListener('click',()=>void beginExplanation(state.note));
+  $('cancelNote').addEventListener('click',()=>{
+    if(!state.session || state.session.finishing)return;
+    state.session.cancelled=true;void endExplanation();
+  });
   $('discard').addEventListener('click',()=>{if(state.note)confirmRemoveNote(state.note);});
 
   async function checkResultPlayable(url) {

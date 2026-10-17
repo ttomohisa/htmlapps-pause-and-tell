@@ -186,15 +186,21 @@ def main():
             page.wait_for_timeout(850)
             page.locator('#finishNote').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==2)
-            # Delete just the second segment, then independently rerecord it.
-            page.once('dialog',lambda dialog:dialog.accept())
-            page.locator('#noteList .note-item').last.locator('button').last.click()
-            wait_for(lambda:page.locator('#noteList .note-item').count()==1)
-            page.locator('#startNote').click()
+            # Rerecord the selected second segment without deleting it first.
+            previous_audio=page.locator('#notePlayer').get_attribute('src')
+            previous_rows=page.locator('#noteList .note-item button:first-child').all_inner_texts()
+            page.locator('#seek').evaluate("element => {element.value='0';element.dispatchEvent(new Event('input',{bubbles:true}));}")
+            page.locator('#rerecord').click()
+            assert page.locator('#noteList .note-item').count()==2
             page.locator('#finishNote').wait_for(state='visible',timeout=25000)
             page.wait_for_timeout(850)
             page.locator('#finishNote').click()
-            wait_for(lambda:page.locator('#noteList .note-item').count()==2)
+            wait_for(lambda:page.locator('#notePlayer').get_attribute('src')!=previous_audio)
+            assert page.locator('#noteList .note-item').count()==2
+            replaced=page.locator('#noteList .note-item button:first-child').all_inner_texts()
+            assert replaced[0]==previous_rows[0]
+            assert replaced[1].split(' · ')[0]==previous_rows[1].split(' · ')[0]
+            assert replaced[1].split(' · ')[-1]==previous_rows[1].split(' · ')[-1]
             assert '2' in page.locator('#noteSummary').inner_text()
         # Read user-visible, rounded clip durations rather than assuming every
         # browser's MediaRecorder returns exactly 1.94 seconds.
@@ -347,5 +353,12 @@ def main():
           'networkRequests':external,'pageErrors':errors}
         (a.out/'report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
         print('PASS insertion PoC:',json.dumps(report))
+        if a.multiple:
+            # Deletion stays covered after saved-file verification, without
+            # another recording/export just to restore the test fixture.
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#noteList .note-item').last.locator('button').last.click()
+            wait_for(lambda:page.locator('#noteList .note-item').count()==1)
+            assert not page.locator('#result').is_visible()
         context.close();browser.close()
 if __name__=='__main__':main()

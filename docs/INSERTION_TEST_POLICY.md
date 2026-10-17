@@ -90,3 +90,22 @@ internal wording. The UI gives recovery steps in Japanese/English: save the old
 output first, keep the page open, check available storage and retry; do not reload
 or clear site data. Full disk, browser eviction, OS termination and physical-phone
 storage behavior remain milestone/release gates. No writer leak is claimed.
+
+
+## Safe selected-explanation rerecording (2026-10-17)
+
+A selected clip can be rerecorded at its original insertion position without
+first deleting it. The original audio, frozen frame, pen events, ID and order
+remain authoritative until the new audio decodes successfully. New pen events
+replace the old ones only on successful completion. Cancel, recorder failure or
+background interruption retain the original clip and any previous output. A
+successful replacement invalidates the old composition and requires a new export;
+newly added clips follow the same result-validity rule.
+
+The existing two-insert saved-media test now uses transactional rerecording rather
+than delete-then-record. It retains insertion position and clip ID even if the
+source seek position changed. Deletion is checked after saved-file validation.
+Existing recorder-failure cases cover rerecord failure, cancellation, background
+interruption and retry. The existing last-good-output case checks identical saved
+bytes after cancellation and invalidation only after a successful replacement.
+No native/long test or dependency is added for this editing transaction.

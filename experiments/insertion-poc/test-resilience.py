@@ -103,7 +103,7 @@ def recording_failure(page, url, source, out, kind):
     load(page, url, source)
     record_note(page)
     before = note_snapshot(page)
-    page.locator('#startNote').click()
+    page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()
     page.wait_for_timeout(400)
     if kind == 'unexpected_stop':
@@ -116,13 +116,29 @@ def recording_failure(page, url, source, out, kind):
           __testRecorders.at(-1).dispatchEvent(event);
         }""")
     assert_recovered(page, before)
+    if kind == 'unexpected_stop':
+        for interrupted in ['cancel', 'background']:
+            page.locator('#rerecord').click()
+            expect(page.locator('#finishNote')).to_be_visible()
+            page.wait_for_timeout(250)
+            if interrupted == 'cancel':
+                page.locator('#cancelNote').click()
+                expect(page.locator('#finishNote')).to_be_hidden()
+                expect(page.locator('#captureStatus')).to_contain_text('cancelled')
+                assert note_snapshot(page) == before
+            else:
+                page.evaluate("() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}")
+                assert_recovered(page, before)
+                page.evaluate("delete document.hidden")
+            assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
     # Prove retry is usable, rather than merely painting enabled controls.
-    page.locator('#startNote').click()
+    page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()
     page.wait_for_timeout(750)
     page.locator('#finishNote').click()
-    expect(page.locator('#noteList .note-item')).to_have_count(2, timeout=25000)
-    assert page.locator('#noteList .note-item').first.inner_text() == before['items'][0]
+    page.wait_for_function("old => document.getElementById('notePlayer').src !== old", arg=before['audio'])
+    expect(page.locator('#noteList .note-item')).to_have_count(1, timeout=25000)
+    assert page.locator('#noteList .note-item').first.inner_text().split(' · ')[0] == before['items'][0].split(' · ')[0]
     assert page.evaluate("__testTracks.every(track => track.readyState === 'ended')")
 
 
@@ -265,6 +281,25 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         assert page.locator('#resultVideo').get_attribute('src') != fallback_url
         page.wait_for_function("() => {const v=document.getElementById('resultVideo');return v.readyState >= 2 && v.videoWidth > 0;}")
         expect(page.locator('#error')).to_be_empty()
+        current_url=page.locator('#resultVideo').get_attribute('src')
+        current_hash=download(page,out/'before-rerecord.webm')
+        page.locator('#rerecord').click()
+        expect(page.locator('#finishNote')).to_be_visible()
+        page.wait_for_timeout(250)
+        page.locator('#cancelNote').click()
+        expect(page.locator('#finishNote')).to_be_hidden()
+        assert note_snapshot(page)==notes
+        assert page.locator('#resultVideo').get_attribute('src')==current_url
+        assert download(page,out/'after-cancelled-rerecord.webm')==current_hash
+        page.locator('#rerecord').click()
+        expect(page.locator('#finishNote')).to_be_visible()
+        page.wait_for_timeout(750)
+        page.locator('#finishNote').click()
+        expect(page.locator('#finishNote')).to_be_hidden()
+        expect(page.locator('#result')).to_be_hidden()
+        expect(page.locator('#export')).to_be_enabled()
+        expect(page.locator('#noteList .note-item')).to_have_count(1)
+        assert page.locator('#notePlayer').get_attribute('src')!=notes['audio']
 
 
 def failed_start(page, url, source, out):

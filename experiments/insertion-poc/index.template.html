@@ -40,6 +40,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <div class="row">
 <button id="playSource" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
 <button id="startNote" class="primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
+<button id="cancelNote" hidden data-ja="この録音を取り消す" data-en="Cancel this recording">この録音を取り消す</button>
 <button id="finishNote" hidden data-ja="説明の録音を終了" data-en="Finish explanation">説明の録音を終了</button>
 </div>
 <p class="muted" id="captureStatus" aria-live="polite"></p>
@@ -49,8 +50,10 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <h2 data-ja="3. 説明区間を確認して書き出す" data-en="3. Review and export">3. 説明区間を確認して書き出す</h2>
 <p id="noteSummary" class="note"></p>
 <div id="noteList" class="note-list" role="group" aria-label="Recorded explanation segments"></div>
+<p class="muted" data-ja="録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。" data-en="Rerecord at the same insertion position. The original is replaced only after the new audio is validated; failure or cancellation keeps it. Compose the video again after replacement.">録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。</p>
 <audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
 <div class="row" style="margin-top:12px">
+<button id="rerecord" data-ja="選択した説明を録り直す" data-en="Rerecord selected explanation">選択した説明を録り直す</button>
 <button id="discard" data-ja="選択した説明を削除" data-en="Delete selected explanation">選択した説明を削除</button>
 <button class="primary" id="export" data-ja="説明を差し込んで動画を作成" data-en="Compose video with insertion">説明を差し込んで動画を作成</button>
 </div>
