@@ -181,6 +181,79 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
     assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0'), 'Previous result no longer decodes'
 
 
+    if output_format == 'webm':
+        # Shared storage transaction, exercised once in the short suite, not again
+        # in every native codec milestone. Never consume disk to induce a quota.
+        page.evaluate("""() => {
+          window.__testEncodeFailure = false;
+          window.__storageFaults = [];
+          const create = FileSystemFileHandle.prototype.createWritable;
+          FileSystemFileHandle.prototype.createWritable = async function(...args) {
+            const mode = window.__storageFault;
+            if (mode === 'create') {
+              __storageFaults.push(mode);
+              throw new DOMException('Injected creation quota', 'QuotaExceededError');
+            }
+            const stream = await create.apply(this, args);
+            if (!mode) return stream;
+            const getWriter = stream.getWriter.bind(stream);
+            stream.getWriter = () => {
+              const writer = getWriter();
+              const write = writer.write.bind(writer);
+              writer.write = async chunk => {
+                await write(chunk); // Real partial output, then an errored stream.
+                const error = new DOMException('Injected storage '+mode,
+                  mode === 'quota' ? 'QuotaExceededError' : 'UnknownError');
+                __storageFaults.push(mode);
+                await writer.abort(error);
+                throw error;
+              };
+              return writer;
+            };
+            return stream;
+          };
+          window.__tempNames = async () => {
+            const dir = await navigator.storage.getDirectory();
+            const names = [];
+            for await (const name of dir.keys())
+              if (name.startsWith('pause-and-tell-temp-')) names.push(name);
+            return names.sort();
+          };
+        }""")
+        baseline = page.evaluate('__tempNames()')
+        assert len(baseline) == 1, baseline
+        for mode in ['quota', 'write']:
+            page.evaluate('(mode) => {window.__storageFault=mode;}', mode)
+            page.locator('#export').click()
+            expect(page.locator('#error')).to_contain_text('Injected storage '+mode, timeout=30000)
+            expect(page.locator('#export')).to_be_enabled(timeout=15000)
+            assert page.evaluate('__tempNames()') == baseline, 'Partial temporary file leaked'
+            assert note_snapshot(page) == notes
+            assert page.locator('#resultVideo').get_attribute('src') == first_url
+            assert page.locator('#resultInfo').inner_text() == first_info
+            assert download(page, out / ('after-storage-'+mode+'.webm')) == first_hash
+            assert page.locator('#resultVideo').evaluate('(v) => v.readyState >= 2 && v.videoWidth > 0')
+        # Creation failure should use the already bounded RAM fallback, and
+        # remove its empty temp file plus the superseded successful temp result.
+        page.evaluate("window.__storageFault='create'")
+        page.locator('#export').click()
+        expect(page.locator('#exportStatus')).to_contain_text('Composition complete', timeout=30000)
+        expect(page.locator('#export')).to_be_enabled()
+        assert page.locator('#result').get_attribute('data-storage') == 'memory'
+        page.wait_for_function('async () => (await __tempNames()).length === 0')
+        assert note_snapshot(page) == notes
+        assert download(page, out/'after-storage-fallback.webm')
+        page.evaluate("window.__storageFault=null")
+        page.locator('#export').click()
+        expect(page.locator('#exportStatus')).to_contain_text('Composition complete', timeout=30000)
+        expect(page.locator('#export')).to_be_enabled()
+        assert page.locator('#result').get_attribute('data-storage') == 'temporary-file'
+        assert len(page.evaluate('__tempNames()')) == 1
+        assert note_snapshot(page) == notes
+        assert page.evaluate('__storageFaults') == ['quota', 'write', 'create']
+        assert download(page, out/'after-storage-retry.webm')
+
+
 def failed_start(page, url, source, out):
     load(page, url, source)
     page.evaluate("() => { MediaRecorder.prototype.start = function() {throw new Error('Injected start failure');}; }")
