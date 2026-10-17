@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Pause &amp; Tell — Choose a mode</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#202723;background:#f5f6f3}*{box-sizing:border-box}body{margin:0}main{max-width:820px;margin:auto;padding:24px 16px 48px}h1{font-size:1.6rem}h2{font-size:1.25rem;margin-top:0}p,li{line-height:1.65}section{background:white;border:1px solid #ccd5cf;border-radius:16px;padding:20px;margin:20px 0}a{color:#14533e}a:focus-visible{outline:3px solid #16624f;outline-offset:4px}.open{display:inline-block;padding:12px 18px;border-radius:10px;background:#16624f;color:white;font-weight:700;text-decoration:none;min-height:44px}.en{color:#536259;font-size:.95rem}.tag{font-weight:700;color:#775a17}.notice{border-left:4px solid #ad8226;padding-left:12px}
+</style>
+</head>
+<body><main>
+<h1>Pause &amp; Tell｜モードを選ぶ</h1>
+<p class="tag">Draft・非本番プレビュー / Draft preview</p>
+<p>通常版はそのまま使えます。目的に合わせて選んでください。どちらも別タブで開きます。編集中の動画や録音はモード間で移しません。</p>
+<p class="en" lang="en">Choose the workflow you need. Both open in a new tab; existing recordings and edits are not transferred between modes.</p>
+<section aria-labelledby="normal">
+<h2 id="normal">通常録画モード <span class="en">v0.9.3</span></h2>
+<p>元動画を再生・停止しながら、その場の画面と説明を連続録画します。ペン・指差し・丸・矢印を使えます。飛ばした元動画の場面は完成動画に入りません。</p>
+<p class="en" lang="en">Continuous recording: play, pause and explain with pen, pointer, circle or arrow. Footage you skip is omitted from the recorded output.</p>
+<a class="open" href="/" target="_blank" rel="noopener noreferrer">通常版を開く / Open normal mode ↗</a>
+</section>
+<section aria-labelledby="insertion">
+<h2 id="insertion">差し込み編集モード <span class="tag">実験版</span></h2>
+<p>説明音声とペンを別録りし、元動画全体へ差し込みます。複数の説明を追加・選択・録り直しでき、元音声は説明の前後に残ります。</p>
+<p class="en" lang="en">Insertion editing: record narration and pen annotations separately, then insert them into the whole source video. Select and rerecord individual explanations; the source soundtrack remains around them.</p>
+<ul><li>WebM が標準。native AVC/AAC 対応端末では MP4 も試せます。MP4 は完成30秒までです。</li><li lang="en">WebM is the default. Experimental native AVC/AAC MP4 requires compatible encoders and is limited to 30 seconds of completed output.</li><li>対応形式・保存方法はブラウザーで異なります。短いMP4の確認例はありますが、iPhone／Android全般や長時間の動作保証ではありません。</li><li lang="en">Codec and saving support vary. Short MP4 results have been checked on limited configurations; this is not general iPhone/Android or long-video acceptance.</li></ul>
+<a class="open" href="/insertion-poc/" target="_blank" rel="noopener noreferrer">差し込み版を開く / Open insertion mode ↗</a>
+</section>
+<p class="notice">どちらも保存後の動画を開いて確認してください。未保存の作業はページを閉じたり再読み込みすると失われることがあります。<br><span class="en" lang="en">Reopen the saved video to verify it. Closing or reloading an editor may lose unsaved work.</span></p>
+</main></body></html>

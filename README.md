@@ -6,6 +6,18 @@
 
 > **v0.9.3 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
 
+## Choose a workflow (Draft preview)
+
+[Choose a mode](https://r1418429453-pr-1-bk-previews.ttomohisa.workers.dev/modes/):
+- **Normal v0.9.3** keeps the continuous recording workflow below.
+- **Experimental insertion editor** records explanations separately and inserts
+  them into the whole source video. WebM is default; native AVC/AAC MP4 requires
+  compatible encoders and is limited to 30 seconds of completed output.
+
+Both open in separate tabs; work is not transferred between them. Check saved
+files before relying on them. Broad phone compatibility remains unverified.
+See [current insertion usage and evidence](experiments/insertion-poc/README.md).
+
 ## How to use
 
 1. Choose a video.
@@ -16,7 +28,7 @@
 
 The hero and three-step progress remain visible during recording and preview. Video controls remain directly beneath the video.
 
-**This is still one continuous canvas recording, not non-destructive insertion into the original video.** A future insertion-oriented workflow would need to record independently timestamped narration segments and compose them with the entire source (and original audio) at export.
+**This is still one continuous canvas recording, not non-destructive insertion into the original video.** The separate experimental insertion editor records independent narration segments and composes them with the entire source video and its soundtrack at export. It does not replace this normal mode.
 
 Use **Ctrl+Z / Cmd+Z** to undo and **Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z** to redo current drawings, including Clear within a paused segment. Text-entry fields retain their normal editing shortcuts.
 

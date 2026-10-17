@@ -60,6 +60,10 @@ jobs:
           Copy-Item ./experiments/insertion-poc/dist/index.html ./dist/insertion-poc/index.html
           New-Item -ItemType Directory -Force ./dist/insertion-poc/native-mp4 | Out-Null
           Copy-Item ./experiments/insertion-poc/dist/native-mp4.html ./dist/insertion-poc/native-mp4/index.html
+          node ./experiments/insertion-poc/test-preview-modes.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Mode guide regression failed." }
+          node ./experiments/insertion-poc/prepare-preview-modes.mjs ./dist
+          if ($LASTEXITCODE -ne 0) { throw "Mode guide staging failed." }
           if ((Get-FileHash ./dist/index.html -Algorithm SHA256).Hash -ne $normalHash) {
             throw "Normal app changed while preparing PoC preview."
           }
@@ -191,7 +195,11 @@ jobs:
                 if ($native.StatusCode -ne 200 -or $native.Content -notmatch 'Native MP4 laboratory' -or $native.Content -notmatch 'noindex,nofollow') {
                   throw "Native diagnostic preview is missing or wrong."
                 }
-                Write-Host "Normal, insertion and native diagnostic previews returned HTTP 200."
+                $modes = Invoke-WebRequest -Uri ($env:PREVIEW_URL.TrimEnd('/') + '/modes/') -MaximumRedirection 5 -TimeoutSec 30
+                if ($modes.StatusCode -ne 200 -or $modes.Content -notmatch 'Choose a mode' -or $modes.Content -notmatch 'noindex,nofollow') {
+                  throw "Mode guide preview is missing or wrong."
+                }
+                Write-Host "Normal, insertion, mode guide and native diagnostic previews returned HTTP 200."
                 exit 0
               }
 
@@ -218,7 +226,9 @@ jobs:
           $body = @"
           ## Browser Kitty PR Preview
 
-          **[Previewを開く]($env:PREVIEW_URL)**
+          **[モードを選ぶ / Choose a mode]($($env:PREVIEW_URL.TrimEnd('/') + '/modes/'))**
+
+          **[通常版を開く]($env:PREVIEW_URL)**
 
           **[差し込みPoCを開く（Draft・実験版）]($pocUrl)**
 
