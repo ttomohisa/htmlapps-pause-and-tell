@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {exportFormat, resultFilename} from './export-format.js';
+import {exportFormat, resultFilename, compositionBudget} from './export-format.js';
 assert.equal(exportFormat('webm').video,'vp8');assert.equal(exportFormat('webm').audio,'opus');
 assert.equal(exportFormat('mp4').video,'avc');assert.equal(exportFormat('mp4').audio,'aac');
 assert.equal(exportFormat('mp4').mime,'video/mp4');assert.equal(exportFormat('mp4').maxSeconds,30);
@@ -9,3 +9,14 @@ assert.equal(resultFilename('name.mp4','video/webm'),'name.webm');
 assert.equal(resultFilename('../bad:name','video/mp4'),'..-bad-name.mp4');
 assert.equal(resultFilename('','video/webm'),'video-explained.webm');
 console.log('PASS output profiles and filenames follow successful blob MIME, not selected format');
+
+const exact=compositionBudget(30,[],'mp4',15);
+assert.equal(exact.duration,30);assert.equal(exact.remaining,0);assert.equal(exact.exceeded,false);
+assert.equal(compositionBudget(30.04,[],'mp4',15).exceeded,true);
+const rounded=compositionBudget(29,Array.from({length:10},(_,id)=>({id,position:0,duration:.1})),'mp4',15);
+assert.equal(rounded.duration,455/15);assert.equal(rounded.exceeded,true);
+assert.equal(compositionBudget(29,[],'mp4',15).remaining,1);
+assert.equal(compositionBudget(31,[],'webm',15).exceeded,false);
+assert.equal(compositionBudget(600,[],'webm',15).exceeded,false);
+assert.equal(compositionBudget(600.04,[],'webm',15).exceeded,true);
+console.log('PASS composition budget uses export frame rounding and unchanged format limits');

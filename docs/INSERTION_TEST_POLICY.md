@@ -111,3 +111,27 @@ Existing recorder-failure cases cover rerecord failure, cancellation, background
 interruption, injected audio-decoder/preview-URL failure and retry. The existing last-good-output case checks identical saved
 bytes after cancellation and invalidation only after a successful replacement.
 No native/long test or dependency is added for this editing transaction.
+
+
+## Non-destructive output-duration preflight (2026-10-17)
+
+The recording panel displays the frame-rounded duration of currently completed
+clips, the selected format's experimental ceiling, and approximate remaining
+narration room. Over-limit compositions disable only export, with guidance to
+choose a supported format or shorter material. Recording/editing and an existing
+valid download remain available; format changes never delete or relabel it.
+MP4 remains 30 seconds and WebM 600 seconds. These are attempt limits, not device
+performance guarantees; the exporter still checks its freshly decoded timeline.
+
+Existing output-profile Node tests cover exact boundaries, frame rounding and
+unchanged WebM limits. The existing failure suite loads a 31-second/1fps synthetic
+source solely to verify Japanese/English preflight; it never exports that source
+and requests no microphone. This is not an endurance or native-MP4 encode test.
+
+
+Starting a recording now pauses source, narration and completed-video previews
+before requesting the microphone, without rewinding narration/result players or
+automatically resuming them after cancellation/failure. The existing rerecord
+case starts all three players and verifies they are paused and preview positions
+retained. This prevents app-generated playback feedback; it is not a physical
+microphone/acoustic echo-cancellation certification.

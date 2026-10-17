@@ -3,7 +3,7 @@ import {
   Output, WebMOutputFormat, Mp4OutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
 } from 'mediabunny';
 import { buildTimeline, sourceSampleTime } from './timeline.js';
-import { exportFormat, resultFilename } from './export-format.js';
+import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
 import { queryNativeCodecSupport } from './native-codec-support.js';
 
 (() => {
@@ -50,12 +50,33 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     $('startNote').disabled = value || !state.file || Boolean(state.recorder) || !state.capabilities?.record || !state.capabilities?.encode;
     $('playSource').disabled = value || !state.file || Boolean(state.recorder);
     $('seek').disabled = value || Boolean(state.recorder);
-    $('export').disabled = value || Boolean(state.recorder) || !state.notes.length || !state.capabilities?.encode;
+    const budget=renderDurationBudget();
+    $('export').disabled = value || Boolean(state.recorder) || !state.notes.length || !state.capabilities?.encode || Boolean(budget?.exceeded);
     $('discard').disabled = value || Boolean(state.recorder) || !state.note;
     $('finishNote').disabled = value;
     $('cancelNote').disabled = value;
     $('rerecord').disabled = value || Boolean(state.recorder) || !state.note || !state.capabilities?.record || !state.capabilities?.encode;
     for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
+  }
+  function renderDurationBudget() {
+    const budget=state.file ? compositionBudget(state.duration,state.notes,$('exportFormat').value,FPS) : null;
+    $('durationBudget').hidden=!budget;
+    $('exportBudget').hidden=!budget?.exceeded;
+    if(!budget)return null;
+    const format=exportFormat($('exportFormat').value).extension.toUpperCase();
+    const text=l('現在確定分の完成見込み '+fmt(budget.duration)+' / '+format+' 試験上限 '+fmt(budget.limit)+
+      '。追加できる説明の目安 '+fmt(budget.remaining)+'。',
+      'Estimated output from completed clips '+fmt(budget.duration)+' / '+format+' experimental limit '+fmt(budget.limit)+
+      '. Approximate narration room '+fmt(budget.remaining)+'.');
+    const remedy=format==='MP4' ? l('対応していればWebMを選ぶか、元動画・説明を短くしてください。','Choose WebM if supported, or use a shorter source/explanations.') :
+      l('元動画・説明を短くしてください。','Use a shorter source/explanations.');
+    const warning=budget.exceeded ? l(' 上限を超えるため書き出せません。',' Export exceeds this limit. ')+remedy+
+      l('録音済みの説明と前回の保存結果は変更していません。',' Recorded clips and any previous result are unchanged.') :
+      l(' 処理成功の保証値ではありません。',' This is not a device performance guarantee.');
+    $('durationBudget').textContent=text+warning;
+    $('durationBudget').classList.toggle('alert',budget.exceeded);
+    $('exportBudget').textContent=text+warning;
+    return budget;
   }
   function translate() {
     document.documentElement.lang = lang;
@@ -64,7 +85,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();renderNativeSupport();
+    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -405,6 +426,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
     if(replacing && !state.notes.includes(replacing))return;
     errorNode.textContent='';
+    // Prevent existing narration/output previews from feeding the microphone.
+    // Pause without rewinding; failure/cancellation must not auto-resume sound.
+    $('notePlayer').pause();playback.pause();
     sourceVideo.pause();
     if(replacing)sourceVideo.currentTime=Math.min(replacing.position,Math.max(0,state.duration-.01));
     setBusy(true);
@@ -481,9 +505,10 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       return;
     }
     const total=state.notes.reduce((n,item)=>n+item.duration,0);
+    const composed=buildTimeline(state.duration,state.notes,FPS).duration;
     $('noteSummary').textContent=l(
-      state.notes.length+'件の説明（合計 '+fmt(total)+'）。元動画 '+fmt(state.duration)+'、完成見込み '+fmt(state.duration+total),
-      state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(state.duration+total)
+      state.notes.length+'件の説明（合計 '+fmt(total)+'）。元動画 '+fmt(state.duration)+'、完成見込み '+fmt(composed),
+      state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(composed)
     );
     renderNotes();
   }

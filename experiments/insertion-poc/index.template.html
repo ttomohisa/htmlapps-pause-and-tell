@@ -37,6 +37,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <p class="muted" id="sourceInfo"></p>
 <div class="stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden aria-label="Draw a pen annotation"></canvas></div>
 <label class="seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+<p id="durationBudget" class="note" aria-live="polite" hidden></p>
 <div class="row">
 <button id="playSource" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
 <button id="startNote" class="primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
@@ -57,6 +58,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <button id="discard" data-ja="選択した説明を削除" data-en="Delete selected explanation">選択した説明を削除</button>
 <button class="primary" id="export" data-ja="説明を差し込んで動画を作成" data-en="Compose video with insertion">説明を差し込んで動画を作成</button>
 </div>
+<p id="exportBudget" class="note alert" aria-live="polite" hidden></p>
 <p class="muted" id="exportStatus" aria-live="polite"></p>
 </section>
 <section class="panel result" id="result" hidden>

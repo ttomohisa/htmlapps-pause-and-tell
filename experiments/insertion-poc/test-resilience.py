@@ -171,7 +171,24 @@ def download(page, destination):
 
 
 def failed_export_preserves_result(page, url, source, out, output_format="webm"):
+    if output_format == 'webm':
+        # Metadata-only preflight: this 31s, 1fps synthetic input is never
+        # exported, and does not add an endurance encode to routine CI.
+        over_limit=out/'preflight-31s.webm'
+        subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',
+          'color=c=blue:size=96x54:rate=1:duration=31','-an','-c:v','libvpx',
+          '-deadline','realtime','-cpu-used','8',str(over_limit)],check=True)
+        load(page,url,over_limit)
+        expect(page.locator('#durationBudget')).to_contain_text('WEBM experimental limit 600.0s')
+        page.locator('#exportFormat').select_option('mp4')
+        expect(page.locator('#durationBudget')).to_contain_text('31.0s / MP4 experimental limit 30.0s')
+        expect(page.locator('#durationBudget')).to_contain_text('Export exceeds this limit')
+        expect(page.locator('#export')).to_be_disabled()
+        page.locator('#language').click()
+        expect(page.locator('#durationBudget')).to_contain_text('上限を超えるため')
+        assert not page.evaluate('__testTracks.length'), 'Preflight requested microphone'
     load(page, url, source, output_format)
+    expect(page.locator('#durationBudget')).to_contain_text('Approximate narration room')
     record_note(page)
     notes = note_snapshot(page)
     page.locator('#export').click()
@@ -304,14 +321,21 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         expect(page.locator('#error')).to_be_empty()
         current_url=page.locator('#resultVideo').get_attribute('src')
         current_hash=download(page,out/'before-rerecord.webm')
+        page.evaluate("async () => {await Promise.all(['notePlayer','resultVideo','sourceVideo'].map(id=>document.getElementById(id).play()));}")
+        page.wait_for_timeout(100)
+        preview_times=page.evaluate("['notePlayer','resultVideo'].map(id=>document.getElementById(id).currentTime)")
         page.locator('#rerecord').click()
         expect(page.locator('#finishNote')).to_be_visible()
+        assert page.evaluate("['notePlayer','resultVideo','sourceVideo'].every(id=>document.getElementById(id).paused)")
+        after_times=page.evaluate("['notePlayer','resultVideo'].map(id=>document.getElementById(id).currentTime)")
+        assert all(after>=before and after<before+.25 for before,after in zip(preview_times,after_times))
         page.wait_for_timeout(250)
         page.locator('#cancelNote').click()
         expect(page.locator('#finishNote')).to_be_hidden()
         assert note_snapshot(page)==notes
         assert page.locator('#resultVideo').get_attribute('src')==current_url
         assert download(page,out/'after-cancelled-rerecord.webm')==current_hash
+        assert page.evaluate("['notePlayer','resultVideo','sourceVideo'].every(id=>document.getElementById(id).paused)")
         page.locator('#rerecord').click()
         expect(page.locator('#finishNote')).to_be_visible()
         page.wait_for_timeout(750)
