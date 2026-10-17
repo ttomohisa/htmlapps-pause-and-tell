@@ -11,10 +11,14 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--url',default='http://127.0.0.1:8765/codec-probe.html');parser.add_argument('--chromium',default='/usr/bin/chromium');parser.add_argument('--out',type=Path,required=True);parser.add_argument('--require-aac',action='store_true');a=parser.parse_args();a.out.mkdir(parents=True,exist_ok=True)
     with sync_playwright() as p:
         browser=p.chromium.launch(executable_path=a.chromium,headless=True,args=['--no-sandbox'])
-        context=browser.new_context();page=context.new_page();errors=[];external=[]
-        page.on('pageerror',lambda e:errors.append(str(e)))
-        context.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) and not r.url.startswith('http://127.0.0.1:') else None)
-        page.goto(a.url,wait_until='load');report=page.evaluate("Promise.race([runCodecProbe(),new Promise(resolve=>setTimeout(()=>resolve({status:'ENCODE_FAILED',error:'30-second laboratory timeout'}),30000))])");browser.close()
+        try:
+            context=browser.new_context();page=context.new_page();errors=[];external=[]
+            page.on('pageerror',lambda e:errors.append(str(e)))
+            context.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) and not r.url.startswith('http://127.0.0.1:') else None)
+            page.goto(a.url,wait_until='load')
+            report=page.evaluate("Promise.race([runCodecProbe(),new Promise(resolve=>setTimeout(()=>resolve({status:'ENCODE_FAILED',error:'30-second laboratory timeout'}),30000))])")
+        finally:
+            browser.close()
     encoded=report.pop('base64',None);report.update(pageErrors=errors,externalRequests=external)
     if encoded:
         path=a.out/'probe.mp4';path.write_bytes(base64.b64decode(encoded))
@@ -34,12 +38,22 @@ def main():
         if report['aac']:
             assert streams['audio']['codec_name']=='aac' and streams['audio']['channels']==2
             pcm=array('h');pcm.frombytes(command(['ffmpeg','-v','error','-i',str(path),'-vn','-ac','2','-ar','48000','-f','s16le','-']))
-            mono=pcm[::2];rms=lambda x:math.sqrt(sum(v*v for v in x)/len(x))/32768
-            assert rms(mono[12000:24000])<.01;assert rms(mono[60000:72000])>.1
-            # Audio onset and video color transition should both lie at one second.
-            onsets=[i/48000 for i in range(47000,50000,240) if rms(mono[i:i+240])>.05]
-            assert onsets and abs(onsets[0]-report['videoTransitionSeconds'])<.08,onsets
-            report['audioOnsetSeconds']=onsets[0]
+            rms=lambda x:math.sqrt(sum(v*v for v in x)/len(x))/32768
+            def tone(samples,hz):
+                values=samples[60000:72000]
+                real=sum(v*math.cos(2*math.pi*hz*i/48000) for i,v in enumerate(values))
+                imag=sum(v*math.sin(2*math.pi*hz*i/48000) for i,v in enumerate(values))
+                return 2*math.hypot(real,imag)/len(values)/32768
+            channel_onsets=[]
+            for index,expected,other in ((0,440,660),(1,660,440)):
+                channel=pcm[index::2]
+                assert rms(channel[12000:24000])<.01 and rms(channel[60000:72000])>.1
+                assert tone(channel,expected)>.15 and tone(channel,other)<.03,(index,tone(channel,expected),tone(channel,other))
+                onsets=[i/48000 for i in range(47000,50000,240) if rms(channel[i:i+240])>.05]
+                assert onsets and abs(onsets[0]-report['videoTransitionSeconds'])<.08,onsets
+                channel_onsets.append(onsets[0])
+            report['audioOnsetSeconds']=channel_onsets[0]
+            report['channelOnsetsSeconds']=channel_onsets
         else:assert 'audio' not in streams
     (a.out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps({k:v for k,v in report.items() if k!='ffprobe'}))
     assert not errors and not external

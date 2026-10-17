@@ -151,3 +151,24 @@ not runtime memory evidence. A result must independently decode H.264/AAC,
 measure the video transition and audio onset, and contain no external requests
 before the synthetic test is considered successful. Product MP4 support remains
 unimplemented regardless of this laboratory result.
+
+### First sandbox result: synthetic AVC/AAC MP4 PASS at 2c4559c
+
+https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39006907030
+
+Official optional AAC plus native AVC produced a 16,342-byte two-second MP4 on
+Linux Google Chrome 155 in the approved CI-only sandbox. FFprobe/FFmpeg decoded
+H.264 video and two-channel AAC. The decoded video transition was 1.000s and the
+left-channel audio onset 1.01917s (about 19ms later). Measured encoding took
+259ms in that runner; this is not a phone/performance guarantee. Browser errors
+and external requests were zero. Artifact 12091715103 contains the synthetic
+MP4 and diagnostics, not the AAC HTML/WASM bundle.
+
+Independent scope review found no blocker. The final assertion follow-up adds
+right-channel tone/onset checks and guarantees browser.close in finally even on
+navigation/evaluation exceptions. Its rerun will be recorded in the PR.
+
+This is a small synthetic encoding result only. The insertion app still outputs
+WebM; MP4 composition, OPFS MP4 behavior, phone memory/performance and actual OS
+save/share are unverified. The exact FFmpeg source correspondence/distribution
+gate also remains unresolved.
