@@ -1,0 +1,93 @@
+{
+  "scope": "One synthetic Windows native MP4 VFR/stereo two-insertion export; not phone or long-duration certification",
+  "commit": "4599d005ea36c688221bb928ce4c9dbe32d0cf56",
+  "run": "https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39015497400",
+  "artifact": "https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39015497400/artifacts/12093709468",
+  "browser": "Google Chrome 155.0.8059.40 on windows-latest runner",
+  "outputSha256": "a81efb2f9e73640447ab83fa0106567c58a1582a8049679e7f62e0100ee37de6",
+  "outputBytes": 454354,
+  "video": {
+    "codec": "h264",
+    "dimensions": [
+      320,
+      180
+    ],
+    "fps": 15,
+    "frames": 102,
+    "durationSeconds": 6.8,
+    "insertBoundaryFrames": [
+      30,
+      60,
+      75,
+      87
+    ],
+    "boundarySeconds": [
+      2,
+      4,
+      5,
+      5.8
+    ]
+  },
+  "audio": {
+    "codec": "aac",
+    "sampleRate": 48000,
+    "channels": 2,
+    "durationSeconds": 6.805333,
+    "sourceSampleRate": 44100,
+    "leftNarrationTransitionSeconds": [
+      2.005,
+      4,
+      5.005,
+      5.8
+    ],
+    "rightNarrationTransitionSeconds": [
+      2.005,
+      4,
+      5.005,
+      5.8
+    ]
+  },
+  "measurement": {
+    "method": "Decode ffmpeg RGB at 80x45 and stereo float PCM48k; video boundary frame differences; 20ms Hann tone magnitude windows at 5ms center steps. Classify narration when800Hz amplitude>0.08 and>2x source440Hz(left)/660Hz(right).",
+    "windowSeconds": 0.02,
+    "stepSeconds": 0.005,
+    "interpretation": "Approximately5ms narration onset difference in this fixture; no accumulating second-insert difference at this resolution. Not sample-exact or long-drift proof."
+  },
+  "storage": "OPFS temporary-file",
+  "failedReexport": {
+    "beforeSha256": "9246140493b092dddc4b3bd97357eb41b0fa7747ca6c6a7a16eb6c739892796a",
+    "afterSha256": "9246140493b092dddc4b3bd97357eb41b0fa7747ca6c6a7a16eb6c739892796a",
+    "identical": true
+  },
+  "originalReport": {
+    "status": "PASS",
+    "input": 4,
+    "output": 6.805333,
+    "video": "h264",
+    "audio": "aac",
+    "narrationRms": 0.21273875334102038,
+    "sourceBytes": 269731,
+    "outputBytes": 454354,
+    "openingFrameError": 8.461180555555556,
+    "tailFrameError": 19.060376157407408,
+    "sourceHasAudio": true,
+    "portrait": false,
+    "multiple": true,
+    "vfrStereo": true,
+    "sourceFrameDeltas": [
+      0.033,
+      0.034,
+      0.066,
+      0.083,
+      0.084
+    ],
+    "storage": "temporary-file",
+    "expectedOutput": 6.8,
+    "originalToneBefore": 0.1256010723051959,
+    "originalToneDuring": 4.229388550903839e-06,
+    "originalToneAfter": 0.12554287520201893,
+    "narrationToneDuring": 0.301906882655074,
+    "networkRequests": [],
+    "pageErrors": []
+  }
+}
