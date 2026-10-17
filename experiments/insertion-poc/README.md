@@ -58,3 +58,8 @@ No changes to the default v0.9.3 continuous recording application, and no Browse
 - [Saved 30-second rotated MP4 and output WebM](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277/artifacts/12068911322) · [portrait output WebM and screenshots](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38951138278/artifacts/12069241050).
 
 These are **synthetic desktop browser acceptance tests only**; real iPhone video capture, iOS Safari/Android save, variable frame rate, HEVC, wider media formats, long portrait exports and device behavior remain unverified. No changes to the default v0.9.3 app; Draft remains unmerged.
+
+
+### v0.11.5 compatibility preparation
+
+The page reports recording and WebM encoding capabilities before narration. MP4/AAC **audio** may be selected for the microphone when WebM is unavailable; composed **video** is still WebM only. Phone support is not yet verified. Interrupted audio can be saved separately as unverified recovery data. Previously completed explanations and a prior successful export survive failed retries. Download names are editable and file sharing appears only when supported. Save/share cancellation keeps the result; a browser save request does not prove the file reached device storage. Reload or closing the page can still lose unsaved work.

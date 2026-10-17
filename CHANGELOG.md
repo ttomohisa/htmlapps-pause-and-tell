@@ -1,3 +1,10 @@
+## Insertion PoC v0.11.5 (2026-10-17; isolated experiment)
+
+- Probe microphone MIME candidates (WebM/Opus and MP4/AAC audio), source decoders and VP8/Opus output encoders before recording. This is not MP4 video output or verified phone support.
+- Finalize interrupted/error recordings with a bounded stop wait, release the microphone, retain completed explanations and offer explicitly unverified recovered audio separately.
+- Keep the previous successful output during a failed re-export. Add editable download filenames and capability-detected file sharing; cancellation retains the output.
+- Add short injected-failure browser regressions. Physical iPhone/Android checks, VFR and extended media remain separate release gates. The normal v0.9.3 app is unchanged.
+
 # Changelog
 
 ## [Unreleased]

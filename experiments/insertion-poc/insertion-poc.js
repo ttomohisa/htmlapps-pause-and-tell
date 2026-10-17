@@ -1,6 +1,6 @@
 import {
   Input, BlobSource, ALL_FORMATS, VideoSampleSink, AudioBufferSink,
-  Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality
+  Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
 } from 'mediabunny';
 import { buildTimeline } from './timeline.js';
 
@@ -20,7 +20,8 @@ import { buildTimeline } from './timeline.js';
     sourceUrl: null, noteUrl: null, resultUrl: null, resultTemp: null,
     note: null, notes: [], nextNoteId: 1, recorder: null, mic: null, chunks: [],
     startedAt: 0, drawing: false, pointerId: null, activeStroke: null,
-    events: [], strokes: [], freeze: null, busy: false
+    events: [], strokes: [], freeze: null, busy: false,
+    session: null, recoveryBlobs: [], resultBlob: null, capabilities: null
   };
   const sourceVideo = $('sourceVideo');
   const canvas = $('drawCanvas');
@@ -41,11 +42,12 @@ import { buildTimeline } from './timeline.js';
   function setBusy(value) {
     state.busy = value;
     $('sourceFile').disabled = value || Boolean(state.recorder);
-    $('startNote').disabled = value || !state.file || Boolean(state.recorder);
+    $('startNote').disabled = value || !state.file || Boolean(state.recorder) || !state.capabilities?.record || !state.capabilities?.encode;
     $('playSource').disabled = value || !state.file || Boolean(state.recorder);
     $('seek').disabled = value || Boolean(state.recorder);
-    $('export').disabled = value || !state.notes.length;
-    $('discard').disabled = value || !state.note;
+    $('export').disabled = value || Boolean(state.recorder) || !state.notes.length || !state.capabilities?.encode;
+    $('discard').disabled = value || Boolean(state.recorder) || !state.note;
+    $('finishNote').disabled = value;
   }
   function translate() {
     document.documentElement.lang = lang;
@@ -54,11 +56,37 @@ import { buildTimeline } from './timeline.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
+    renderCapabilities();renderRecovery();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
     translate();
   });
+  function recordingType() {
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
+    return ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4']
+      .find(type => MediaRecorder.isTypeSupported(type)) || null;
+  }
+  function renderCapabilities() {
+    const c=state.capabilities;
+    $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : [
+      c.record ? l('録音候補: ','Recording candidate: ')+c.type : l('この環境ではマイク録音APIまたは対応形式を利用できません。HTTPS・権限・ブラウザを確認してください。','Microphone recording API or format unavailable. Check HTTPS, permissions and browser.'),
+      c.encode ? l('WebM VP8/Opus書き出し候補あり。','WebM VP8/Opus encoding available to try.') : l('WebM VP8/Opusの動画・音声書き出し機能が不足しています。別のブラウザで試してください。','WebM VP8/Opus video/audio encoding is unavailable. Try another browser.'),
+      l('機能検出は実機での録音・保存成功を保証しません。MP4動画出力は未実装です。','Feature detection does not prove recording or saving on this device. MP4 video output is not implemented.')
+    ].join(' ');
+  }
+  async function inspectCapabilities() {
+    const type=recordingType();
+    let encode=false;
+    try {
+      encode=typeof VideoDecoder!=='undefined' && typeof AudioDecoder!=='undefined'
+        && typeof OfflineAudioContext!=='undefined'
+        && await canEncodeVideo('vp8',{width:canvas.width || 320,height:canvas.height || 180,frameRate:FPS,bitrate:900000})
+        && await canEncodeAudio('opus',{numberOfChannels:2,sampleRate:48000,bitrate:96000});
+    } catch { /* Capability probes are advisory; unsupported environments fail closed. */ }
+    state.capabilities={type,record:Boolean(type),encode};
+    renderCapabilities();setBusy(state.busy);
+  }
   function releaseUrl(key) {
     if (state[key]) URL.revokeObjectURL(state[key]);
     state[key] = null;
@@ -70,6 +98,7 @@ import { buildTimeline } from './timeline.js';
     releaseUrl('resultUrl');
     const expired=state.resultTemp;
     state.resultTemp=null;
+    state.resultBlob=null;
     if(expired) void expired.directory.removeEntry(expired.name).catch(()=>{});
     $('result').hidden = true;
     $('resultInfo').textContent = '';
@@ -77,6 +106,7 @@ import { buildTimeline } from './timeline.js';
   function resetNotes() {
     if (state.recorder) return;
     clearResult();
+
     releaseUrl('noteUrl');
     $('notePlayer').removeAttribute('src');
     $('notePlayer').load();
@@ -143,9 +173,9 @@ import { buildTimeline } from './timeline.js';
   }
   async function loadSource(file) {
     if (!file || state.recorder || state.busy) return;
-    if (state.notes.length && !window.confirm(l(
-      '元動画を変更すると、現在の説明区間はすべて削除されます。変更しますか？',
-      'Changing the source video will discard all recorded explanations. Continue?'
+    if ((state.notes.length || state.recoveryBlobs.length) && !window.confirm(l(
+      '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
+      'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
     ))) return;
     errorNode.textContent = '';
     const token = ++uploadGeneration;
@@ -154,12 +184,16 @@ import { buildTimeline } from './timeline.js';
     let url = null;
     let changedPreview = false;
     const oldTime=sourceVideo.currentTime;
+    const oldGeometry={width:canvas.width,height:canvas.height};
     try {
       if (file.size === 0 || file.size > MAX_SOURCE_BYTES) throw new Error(l('動画は250MiB以内を選んでください。','Choose a video up to 250 MiB.'));
       input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
       const track = await input.getPrimaryVideoTrack();
       if (!track) throw new Error(l('映像トラックがありません。','Source has no video track.'));
       const audio = await input.getPrimaryAudioTrack();
+      if (!await track.canDecode() || (audio && !await audio.canDecode())) {
+        throw new Error(l('元動画の映像または音声をこのブラウザで変換できません。','This browser cannot decode the source video or soundtrack for composition.'));
+      }
       // Source audio is preserved outside inserted explanations at export.
       const duration = await input.computeDuration();
       if (!(duration > 0 && duration <= MAX_SOURCE_SECONDS))
@@ -219,7 +253,11 @@ import { buildTimeline } from './timeline.js';
       state.sourceUrl = url;
       url = null;
       input = null;
-      resetNotes();
+      resetNotes();setBusy(true);
+      state.recoveryBlobs=[];$('recovery').hidden=true;
+      await inspectCapabilities();
+      if(token!==uploadGeneration)return;
+      $('outputName').value=file.name.replace(/\.[^.]+$/,'')+'-explained';
       $('editor').hidden = false;
       $('seek').value = '0';
       $('position').textContent = fmt(0);
@@ -228,6 +266,8 @@ import { buildTimeline } from './timeline.js';
       info(l('元動画の再生では音声も聞けます。説明の録音を始めると元動画は停止します。',
         'Playing the original also plays its soundtrack. Starting narration pauses the source.'));
     } catch (e) {
+      canvas.width=oldGeometry.width;canvas.height=oldGeometry.height;
+      canvas.parentElement.style.setProperty('--media-ratio',String(canvas.width/canvas.height));
       if(changedPreview) {
         sourceVideo.pause();
         if(state.sourceUrl) {
@@ -331,7 +371,7 @@ import { buildTimeline } from './timeline.js';
   canvas.addEventListener('pointercancel',finishStroke);
 
   async function beginExplanation() {
-    if(!state.file||state.busy||state.recorder) return;
+    if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
     errorNode.textContent='';
     sourceVideo.pause();
     setBusy(true);
@@ -363,8 +403,8 @@ import { buildTimeline } from './timeline.js';
       const freezeCtx=freeze.getContext('2d',{alpha:false});
       if(sourceVideo.readyState<2) throw new Error(l('動画のフレームを準備できません。','Source frame not available.'));
       freezeCtx.drawImage(sourceVideo,0,0,freeze.width,freeze.height);
-      const type=['audio/webm;codecs=opus','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t));
-      if(!type) throw new Error(l('このブラウザはOpusの録音に対応していません。','Opus audio recording is not supported.'));
+      const type=recordingType();
+      if(!type) throw new Error(l('対応する録音形式がありません。','No supported narration recording format.'));
       mic=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true }, video:false });
       const recorder=new MediaRecorder(mic,{mimeType:type});
       const chunks=[];
@@ -372,8 +412,20 @@ import { buildTimeline } from './timeline.js';
       state.freeze=freeze;state.events=[];state.strokes=[];state.pointerId=null;state.activeStroke=null;
       state.startedAt=performance.now();
       state.insertAt=position;
+      const session={recorder,chunks,stopped:false,finishing:false,error:null,requested:false};
+      state.session=session;
+      session.done=new Promise(resolve=>{session.resolve=resolve;});
       recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
-      recorder.onerror=e=>{showError(e.error||new Error('MediaRecorder failure'));};
+      recorder.addEventListener('stop',()=>{
+        session.stopped=true;session.resolve();
+        if(!session.requested && !session.error) session.error=new Error(l('録音が中断されました。回収データは未検証です。','Recording was interrupted. Recovered audio is unverified.'));
+        if(state.session===session) void endExplanation();
+      },{once:true});
+      recorder.onerror=e=>{
+        if(state.session!==session)return;
+        session.error=e.error||new Error('MediaRecorder failure');
+        void endExplanation();
+      };
       recorder.start(250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
       $('finishNote').hidden=false;$('startNote').hidden=true;
@@ -381,7 +433,7 @@ import { buildTimeline } from './timeline.js';
       recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
-      state.mic=null;state.recorder=null;showError(e);
+      state.mic=null;state.recorder=null;state.session=null;showError(e);
     } finally { setBusy(false); }
   }
   function updateSummary() {
@@ -398,21 +450,28 @@ import { buildTimeline } from './timeline.js';
     renderNotes();
   }
   async function endExplanation() {
-    const recorder=state.recorder;
-    if(!recorder||state.busy) return;
+    const session=state.session;
+    const recorder=session?.recorder;
+    if(!recorder||session.finishing) return;
+    session.finishing=true;session.requested=true;
     setBusy(true);
     clearTimeout(recordingTimeout);recordingTimeout=null;
     try {
-      const stopped = new Promise(resolve => recorder.addEventListener('stop',resolve,{once:true}));
       if(recorder.state!=='inactive') recorder.stop();
-      await stopped;
-      const blob=new Blob(state.chunks,{type:recorder.mimeType||'audio/webm'});
+      let timer;
+      try {
+        await Promise.race([session.done,new Promise((_,reject)=>{
+          timer=setTimeout(()=>reject(new Error(l('録音終了を確認できませんでした。','Recorder did not finish.'))),5000);
+        })]);
+      } finally { clearTimeout(timer); }
+      const blob=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
+      if(session.error) throw session.error;
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
       if(blob.size<500) throw new Error(l('音声データが保存されませんでした。','No usable audio was recorded.'));
       const input=new Input({source:new BlobSource(blob),formats:ALL_FORMATS});
       try {
         const audio=await input.getPrimaryAudioTrack();
-        if(!audio) throw new Error(l('録音の音声を読み取れません。','Could not parse narration audio.'));
+        if(!audio || !await audio.canDecode()) throw new Error(l('録音の音声を読み取れません。','Could not decode narration audio.'));
         const duration=await audio.computeDuration();
         if(!(duration>.15 && duration<=MAX_NOTE_SECONDS+1))
           throw new Error(l('録音時間が不正です。','Narration duration is invalid.'));
@@ -425,8 +484,12 @@ import { buildTimeline } from './timeline.js';
         info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
       } finally { input.dispose(); }
     } catch(e) {
+      const partial=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
+      if(partial.size) {state.recoveryBlobs.push(partial);renderRecovery();}
       showError(e);
+      info(l('録音は完了していません。既存の説明区間は保持しています。','Recording did not complete. Existing explanations are retained.'));
     } finally {
+      state.session=null;
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
       $('finishNote').hidden=true;$('startNote').hidden=false;
       state.pointerId=null;state.activeStroke=null;
@@ -439,21 +502,25 @@ import { buildTimeline } from './timeline.js';
   $('discard').addEventListener('click',()=>{if(state.note)confirmRemoveNote(state.note);});
 
   async function checkResultPlayable(url) {
-    const video=$('resultVideo');
-    video.src=url;video.load();
-    await new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>reject(new Error('Output preview timed out')),15000);
-      video.addEventListener('loadeddata',()=>{clearTimeout(timer);resolve();},{once:true});
-      video.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Output failed to decode'));},{once:true});
-    });
-    if(!(video.videoWidth>0 && video.videoHeight>0))throw new Error('Output has no video frames');
+    const video=document.createElement('video');
+    video.muted=true;video.playsInline=true;
+    try {
+      await new Promise((resolve,reject)=>{
+        const cleanup=()=>{clearTimeout(timer);video.removeEventListener('loadeddata',ready);video.removeEventListener('error',failed);};
+        const ready=()=>{cleanup();resolve();};
+        const failed=()=>{cleanup();reject(new Error('Output failed to decode'));};
+        const timer=setTimeout(()=>{cleanup();reject(new Error('Output preview timed out'));},15000);
+        video.addEventListener('loadeddata',ready);video.addEventListener('error',failed);
+        video.src=url;video.load();
+      });
+      if(!(video.videoWidth>0 && video.videoHeight>0))throw new Error('Output has no video frames');
+    } finally {video.removeAttribute('src');video.load();}
   }
   async function exportVideo() {
     if(!state.notes.length||state.busy||state.recorder||!state.file)return;
     errorNode.textContent='';
-    clearResult();
     setBusy(true);
-    let videoInput=null,output=null,temporaryResult=null;
+    let videoInput=null,output=null,temporaryResult=null,candidateUrl=null;
     const audioInputs=[];
     try {
       if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined') {
@@ -464,10 +531,10 @@ import { buildTimeline } from './timeline.js';
       const originalAudio=await videoInput.getPrimaryAudioTrack();
       if(!vt)throw new Error(l('元動画の映像を読み込めません。','Source video track is unavailable.'));
       const duration=await vt.computeDuration();
-      const ordered=state.notes.slice().sort((a,b)=>a.position-b.position || a.id-b.id);
+      const ordered=state.notes.map(note=>({...note})).sort((a,b)=>a.position-b.position || a.id-b.id);
       for(const note of ordered) {
         const input=new Input({source:new BlobSource(note.blob),formats:ALL_FORMATS});
-        audioInputs.push(input);
+        audioInputs.push({input});
         const track=await input.getPrimaryAudioTrack();
         if(!track)throw new Error(l('説明音声を読み込めません。','An explanation has no decoded audio.'));
         const actual=await track.computeDuration();
@@ -626,8 +693,14 @@ import { buildTimeline } from './timeline.js';
       const encoded=temporaryResult ? await temporaryResult.handle.getFile() : output.target.buffer;
       const resultBlob=encoded && new Blob([encoded],{type:'video/webm'});
       if(!resultBlob||resultBlob.size<2048)throw new Error('Encoded output is empty');
-      state.resultUrl=URL.createObjectURL(resultBlob);
-      await checkResultPlayable(state.resultUrl);
+      candidateUrl=URL.createObjectURL(resultBlob);
+      await checkResultPlayable(candidateUrl);
+      // Commit only after the candidate passes decode. A failed retry keeps the prior output.
+      clearResult();
+      state.resultBlob=resultBlob;
+      state.resultUrl=candidateUrl;candidateUrl=null;
+      playback.src=state.resultUrl;playback.load();
+      updateShare();
       state.resultTemp=temporaryResult;
       temporaryResult=null;
       $('result').dataset.storage=state.resultTemp ? 'temporary-file' : 'memory';
@@ -639,13 +712,13 @@ import { buildTimeline } from './timeline.js';
         'Composition complete. Play the entire output to check it.');
     }catch(error){
       showError(error);
-      $('exportStatus').textContent=l('書き出しできませんでした。説明区間は保持しています。',
-        'Export failed. Your separate explanations are still available.');
-      clearResult();
+      $('exportStatus').textContent=l('書き出しできませんでした。説明区間と前回の完成動画（ある場合）は保持しています。',
+        'Export failed. Your explanations and previous successful output (if any) are retained.');
       if(output && output.state!=='finalized' && output.state!=='canceled'){
         try {await output.cancel();}catch{}
       }
     }finally{
+      if(candidateUrl) URL.revokeObjectURL(candidateUrl);
       if(temporaryResult) {
         try {await temporaryResult.directory.removeEntry(temporaryResult.name);}catch{}
       }
@@ -655,11 +728,56 @@ import { buildTimeline } from './timeline.js';
     }
   }
   $('export').addEventListener('click',()=>void exportVideo());
+  function outputName() {
+    const name=$('outputName').value.replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'-').replace(/[. ]+$/g,'').replace(/\.webm$/i,'').trim();
+    return (name || 'video-explained')+'.webm';
+  }
+  function outputFile() {return new File([state.resultBlob],outputName(),{type:'video/webm'});}
+  function updateShare() {
+    let supported=false;
+    try {supported=Boolean(state.resultBlob && navigator.share && navigator.canShare?.({files:[outputFile()]}));}catch{}
+    $('share').hidden=!supported;
+  }
+  $('outputName').addEventListener('input',updateShare);
   $('save').addEventListener('click',()=>{
     if(!state.resultUrl)return;
-    const a=document.createElement('a');a.href=state.resultUrl;
-    a.download=(state.file?.name||'video').replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'-explained.webm';
-    a.click();
+    const a=document.createElement('a');a.href=state.resultUrl;a.download=outputName();
+    document.body.append(a);a.click();a.remove();
+    $('saveStatus').textContent=l('保存操作を開始しました。端末の保存先を確認してください。結果は再保存できます。','Save requested. Check your device for the file; the result remains available to save again.');
+  });
+  $('share').addEventListener('click',async()=>{
+    if(!state.resultBlob)return;
+    try {
+      await navigator.share({files:[outputFile()]});
+      $('saveStatus').textContent=l('共有操作を終了しました。結果は保持しています。','Share action completed. The result is retained.');
+    }catch(e){
+      $('saveStatus').textContent=e.name==='AbortError'
+        ? l('共有を取り消しました。結果は保持しています。','Sharing cancelled. The result is retained.')
+        : l('共有できませんでした。保存を試してください。結果は保持しています。','Sharing failed. Try Save; the result is retained.');
+    }
+  });
+  function renderRecovery() {
+    $('recovery').hidden=!state.recoveryBlobs.length;
+    $('recoveryFiles').replaceChildren();
+    state.recoveryBlobs.forEach((blob,index)=>{
+      const button=document.createElement('button');button.type='button';
+      button.textContent=l('未検証の音声を保存 ','Save unverified audio ')+(index+1);
+      button.addEventListener('click',()=>{
+        const url=URL.createObjectURL(blob),a=document.createElement('a');
+        a.href=url;a.download='unverified-narration-'+(index+1)+'.'+(blob.type.includes('mp4')?'m4a':'webm');
+        document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      });
+      $('recoveryFiles').append(button);
+    });
+  }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && state.session && !state.session.finishing) {
+      state.session.error=new Error(l('画面が非表示になり録音を中断しました。','Recording interrupted because the page became hidden.'));
+      void endExplanation();
+    }
+  });
+  window.addEventListener('beforeunload',event=>{
+    if(state.notes.length || state.recorder || state.recoveryBlobs.length) {event.preventDefault();event.returnValue='';}
   });
   async function cleanupStaleTemporaryOutput() {
     // OPFS is persistent across abnormal shutdowns. Remove only this app's own
@@ -683,5 +801,5 @@ import { buildTimeline } from './timeline.js';
     clearResult();
     for(const k of ['sourceUrl','noteUrl'])releaseUrl(k);
   });
-  translate();setBusy(false);
+  translate();setBusy(false);void inspectCapabilities();
 })();

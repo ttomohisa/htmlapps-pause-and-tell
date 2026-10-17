@@ -124,3 +124,20 @@ A 4-second, 180×320 VP8/Opus portrait source received a timestamped Pen and mic
 **MP4 track rotation proof**: [Google Chrome CI run 38950823277](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277), [input/output media and report](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/38950823277/artifacts/12068911322). A 30-second 320×180 H.264/AAC MP4 with an actual 90° display matrix (verified with ffprobe) was imported, annotated, and exported to a 31.14-second **180×320** VP8/Opus WebM. Original tail video remained recognizable (mean absolute RGB difference 11.367) and audio intervals preserved. This is **MP4 input to WebM output**, not MP4 output or lossless passthrough.
 
 **Limitations:** Both desktop tests use 15 FPS synthetic media, supported WebCodecs, and an available microphone signal simulator. They do not establish end-to-end physical smartphone support, rotate metadata correctness for every MOV/HEVC file, VFR timing/accurate timestamp handling, differing aspect ratios or audio channel layouts, or actual 5-minute mobile output acceptance.
+
+
+## v0.11.5 smartphone preparation and failure safety (2026-10-17)
+
+Scope is the isolated PoC only. Runtime feature detection selects a supported microphone MIME candidate (WebM/Opus first, MP4/AAC audio second), checks source decode capability and checks VP8/Opus encoder configurations. A positive probe is not a successful device recording/export test. Composed video remains 15fps VP8/Opus WebM; MP4 microphone audio does not imply MP4 video output.
+
+Interrupted recording, an encoder error, or a missing stop event must restore controls, release microphone tracks and preserve completed explanations. Partial narration is offered as **unverified** audio, never silently inserted. Multiple recovery items are retained until confirmed source replacement. Reload/crash recovery is not implemented. Visibility loss deliberately interrupts narration; background capture is not promised.
+
+Export builds and validates a candidate before replacing the prior successful output. Failed retry keeps the prior preview and downloadable bytes. Save uses an editable sanitized filename; file sharing is offered only after canShare checks the actual File. A save request is not proof of OS storage completion; share cancellation/failure keeps the result.
+
+Local build, JavaScript parse and timeline tests pass. Local Chromium could not start because the execution sandbox disallows its Unix socket; local browser suites therefore did **not** run. CI evidence for the new resilience suite is recorded separately once complete. No physical-phone, long-duration, MP4-output or VFR pass is claimed.
+
+### MP4 video output feasibility and next gate
+
+The pinned Mediabunny API contains Mp4OutputFormat and AVC/AAC encoder probes; this provides a candidate implementation path, not evidence that every phone supplies both encoders. Before exposing MP4, probe the exact AVC dimensions/profile and AAC channel/sample-rate configuration, encode a short real MP4, independently decode its audio/video, verify insert boundaries and device save/share, and review distribution/license requirements. Do not rename a WebM extension or transcode through an external service.
+
+VFR remains a separate milestone: the current renderer samples source timestamps onto a 15fps output clock; it does not preserve source frame rate. Test irregular timestamps with audible/visible boundary markers, 44.1kHz stereo source audio and multiple insertion points. Measure duration, original head/tail, boundary drift and narration alignment on the actual saved file. None of these cases is marked verified by this change.

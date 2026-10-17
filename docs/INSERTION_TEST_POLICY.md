@@ -56,3 +56,8 @@ Source replacement after recording independent explanation clips is destructive 
 - Short PR regression contains **one portrait video case**, asserting width/height, visible canvas aspect and saved-file Pen presence near the expected normalized pointer position. This is a P0 interaction check, but does **not** require every resolution/device per commit.
 - Opt-in extended media regression checks a 90° **MP4 display matrix**, original vs output dimensions, saved-file tail video and audio. Rotation metadata must be asserted on the original fixture; an FFmpeg text-only `rotate` tag is not equivalent to a real display matrix.
 - Keep physically rotated MOV/HEVC footage, front camera, VFR, non-square sample aspect ratios and device-specific captures for release compatibility gates, not short per-PR smoke.
+
+
+## v0.11.5 short failure-path regression
+
+`test-resilience.py` injects missing MediaRecorder, unexpected native recorder stop, recorder error and failed re-export into short synthetic desktop-browser flows. It checks preserved explanation state, released microphone tracks, usable retry controls and byte-identical re-download of the previous successful output. These run with ordinary short CI; they do not simulate physical-phone permissions, storage completion, device audio interruptions or actual OS sharing. Existing short media decode checks and v0.9.3 tests remain required; long/VFR/device gates remain opt-in milestones.

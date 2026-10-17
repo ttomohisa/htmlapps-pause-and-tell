@@ -15,11 +15,12 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 </style>
 </head>
 <body>
-<header><div><h1>Pause &amp; Tell <small>v0.11.4 insertion PoC</small></h1></div><button id="language" aria-label="Switch language">EN</button></header>
+<header><div><h1>Pause &amp; Tell <small>v0.11.5 insertion PoC</small></h1></div><button id="language" aria-label="Switch language">EN</button></header>
 <main>
 <section class="panel" id="sourcePanel">
 <h2 data-ja="1. 元動画を選ぶ" data-en="1. Choose a source video">1. 元動画を選ぶ</h2>
 <p class="muted" data-ja="この技術検証では5分・250MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。" data-en="This experiment supports source videos up to 5 minutes and 250 MiB. Original audio plays before and after the inserted explanation, not during it.">この技術検証では5分・250MiB以内の短い動画を扱います。元動画の音声は説明区間の前後に保持し、説明中は停止します。</p>
+<p id="capabilities" class="note" aria-live="polite"></p>
 <input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="Select source video">
 </section>
 <section class="panel" id="editor" hidden>
@@ -34,6 +35,7 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 </div>
 <p class="muted" id="captureStatus" aria-live="polite"></p>
 </section>
+<section class="panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
 <section class="panel" id="notePanel" hidden>
 <h2 data-ja="3. 説明区間を確認して書き出す" data-en="3. Review and export">3. 説明区間を確認して書き出す</h2>
 <p id="noteSummary" class="note"></p>
@@ -48,7 +50,9 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <section class="panel result" id="result" hidden>
 <h2 data-ja="4. 完成動画を確認する" data-en="4. Verify output">4. 完成動画を確認する</h2>
 <video id="resultVideo" controls playsinline></video>
-<div class="row" style="margin-top:12px"><button id="save" class="primary" data-ja="WebMを保存" data-en="Save WebM">WebMを保存</button></div>
+<label><span data-ja="保存名" data-en="Filename">保存名</span> <input id="outputName" value="video-explained" maxlength="150" style="max-width:100%"> .webm</label>
+<div class="row" style="margin-top:12px"><button id="save" class="primary" data-ja="WebMを保存" data-en="Save WebM">WebMを保存</button><button id="share" hidden data-ja="共有" data-en="Share">共有</button></div>
+<p id="saveStatus" class="muted" aria-live="polite"></p>
 <p class="muted" id="resultInfo"></p>
 </section>
 <section class="panel"><p class="muted" data-ja="技術検証専用です。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。" data-en="Experimental only. The source file is unchanged. Trial upper bounds: 5-minute source, 250 MiB input, 2-minute narration per clip and 10-minute output. Device support is not guaranteed. Only narration and pen events are captured, not the whole source. Export decodes and re-encodes source frames (not lossless). Data stays in the browser and is not uploaded. Compatible devices use a local temporary file for export and remove it on normal cleanup; a crash may leave the temporary file.">技術検証専用です。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。</p>

@@ -51,6 +51,8 @@ jobs:
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/source-audio --source-audio
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/multiple-source-audio --source-audio --multiple
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/portrait-source-audio --source-audio --portrait
+      - name: Run short failure protection regressions
+        run: python experiments/insertion-poc/test-resilience.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/resilience
       - name: Archive PoC output and inspection report
         if: always()
         uses: actions/upload-artifact@v7
