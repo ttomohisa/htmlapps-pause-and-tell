@@ -164,7 +164,7 @@ def failed_export_preserves_result(page, url, source, out):
 
 def failed_start(page, url, source, out):
     load(page, url, source)
-    page.evaluate("MediaRecorder.prototype.start = function() {throw new Error('Injected start failure');}")
+    page.evaluate("() => { MediaRecorder.prototype.start = function() {throw new Error('Injected start failure');}; }")
     page.locator('#startNote').click()
     expect(page.locator('#error')).to_contain_text('Injected start failure')
     expect(page.locator('#startNote')).to_be_enabled()
