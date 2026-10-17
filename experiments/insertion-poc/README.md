@@ -88,3 +88,7 @@ isConfigSupported only, with a five-second timeout; no fallback/WASM is loaded.
 ### Native-only synthetic MP4 test (Draft preview)
 
 Open `/insertion-poc/native-mp4/` on the PR preview. Tap **合成2秒を生成**; no file or microphone is needed. A successful result exposes playback and a separate **生成したMP4を保存** link. Lower the volume before playback: the first second is red/silent; the second is green with stereo tones. Report the result text and, if available, device/OS/browser. Generation, playback and saving/reopening are separate checks. This diagnostic does not enable MP4 output in the insertion app. Failed regeneration keeps the previous result until the page closes.
+
+### Experimental native MP4 insertion
+
+WebM remains the default. Select **MP4 AVC/AAC (実験 / experimental)** only to try native encoders; completed MP4 output is limited to 30 seconds. If the device cannot encode AVC and AAC at the actual output dimensions, recording/export are disabled for that selection. Return to WebM without losing existing explanations or the previous output. The successful result determines its filename and MIME even after changing the selector. No WASM fallback is included. Owner-reported native 2-second generation/playback/save succeeded on one unspecified device; actual insertion MP4 compatibility is still under evaluation.

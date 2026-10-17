@@ -24,10 +24,12 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <p id="capabilities" class="note" aria-live="polite"></p>
 <details id="nativeSupportPanel">
 <summary data-ja="端末のMP4候補を確認（生成しません）" data-en="Check native MP4 candidates (no encoding)">端末のMP4候補を確認（生成しません）</summary>
-<p class="muted" data-ja="AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4動画出力は未実装です。" data-en="AVC: 320×180, 15fps, 900kbps / AAC: 48kHz, stereo, 96kbps. Permission-free support queries only. This does not test MP4 encoding, sync or saving. A candidate does not prove iPhone/Android support. MP4 video export is not implemented.">AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4動画出力は未実装です。</p>
+<p class="muted" data-ja="AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。" data-en="AVC: 320×180, 15fps, 900kbps / AAC: 48kHz, stereo, 96kbps. Permission-free support queries only. This does not test MP4 encoding, sync or saving. A candidate does not prove iPhone/Android support. MP4 insertion export is experimental, limited to 30 seconds of output.">AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。</p>
 <button id="checkNativeSupport" type="button" data-ja="候補を確認" data-en="Check candidates">候補を確認</button>
 <p id="nativeSupportResult" class="muted" aria-live="polite" data-ready="false"></p>
 </details>
+<label><span data-ja="書き出し形式" data-en="Export format">書き出し形式</span> <select id="exportFormat"><option value="webm">WebM VP8/Opus</option><option value="mp4">MP4 AVC/AAC (実験 / experimental)</option></select></label>
+<p class="muted" data-ja="MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。" data-en="MP4: up to 30 seconds of output. Insertion/audio/device saving are under device evaluation. WebM limits are unchanged.">MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。</p>
 <input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="Select source video">
 </section>
 <section class="panel" id="editor" hidden>
@@ -57,8 +59,8 @@ main{max-width:800px;margin:auto;padding:16px 12px 40px}.panel{background:white;
 <section class="panel result" id="result" hidden>
 <h2 data-ja="4. 完成動画を確認する" data-en="4. Verify output">4. 完成動画を確認する</h2>
 <video id="resultVideo" controls playsinline></video>
-<label><span data-ja="保存名" data-en="Filename">保存名</span> <input id="outputName" value="video-explained" maxlength="150" style="max-width:100%"> .webm</label>
-<div class="row" style="margin-top:12px"><button id="save" class="primary" data-ja="WebMを保存" data-en="Save WebM">WebMを保存</button><button id="share" hidden data-ja="共有" data-en="Share">共有</button></div>
+<label><span data-ja="保存名" data-en="Filename">保存名</span> <input id="outputName" value="video-explained" maxlength="150" style="max-width:100%"> <span id="resultExtension">.webm</span></label>
+<div class="row" style="margin-top:12px"><button id="save" class="primary" data-ja="動画を保存" data-en="Save video">動画を保存</button><button id="share" hidden data-ja="共有" data-en="Share">共有</button></div>
 <p id="saveStatus" class="muted" aria-live="polite"></p>
 <p class="muted" id="resultInfo"></p>
 </section>

@@ -33,6 +33,7 @@ jobs:
           node test-timeline.mjs
           node test-native-codec-support.mjs
           node test-native-sample.mjs
+          node test-export-format.mjs
           node build-native-sample.mjs
           node build-native-sample-test.mjs
           test -f dist/index.html

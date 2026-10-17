@@ -50,6 +50,7 @@ INSTRUMENT = """(() => {
 
 def load(page, url, source):
     page.goto(url, wait_until='domcontentloaded')
+    expect(page.locator('#exportFormat')).to_be_visible()  # Must be selectable before recording on MP4-only devices.
     page.locator('#language').click()  # English gives readable diagnostic checks.
     page.locator('#sourceFile').set_input_files(str(source))
     expect(page.locator('#editor')).to_be_visible(timeout=25000)
@@ -150,6 +151,22 @@ def failed_export_preserves_result(page, url, source, out):
     assert page.evaluate('__sharedFiles[0].name === "my-video-.webm" && __sharedFiles[0].type === "video/webm" && __sharedFiles[0].size > 2048')
     first_hash = download(page, out / 'before-failed-export.webm')
     assert (out / 'before-failed-export.webm').stat().st_size > 2048
+    # Selecting an unavailable native MP4 path must not relabel the old WebM.
+    page.evaluate('''() => {
+      const original = AudioEncoder.isConfigSupported.bind(AudioEncoder);
+      AudioEncoder.isConfigSupported = async config => config.codec.startsWith('mp4a')
+        ? {supported:false,config} : original(config);
+    }''')
+    page.locator('#exportFormat').select_option('mp4')
+    expect(page.locator('#capabilities')).to_contain_text('encoders unavailable')
+    expect(page.locator('#export')).to_be_disabled()
+    assert page.locator('#resultExtension').inner_text()=='.webm'
+    assert page.locator('#resultVideo').get_attribute('src')==first_url
+    assert download(page,out/'after-mp4-selection.webm')==first_hash
+    page.locator('#share').click()
+    assert page.evaluate('__sharedFiles[0].type === "video/webm" && __sharedFiles[0].name.endsWith(".webm")')
+    page.locator('#exportFormat').select_option('webm')
+    expect(page.locator('#export')).to_be_enabled()
     page.evaluate('window.__testEncodeFailure = true')
     page.locator('#export').click()
     expect(page.locator('#error')).to_contain_text('Injected encoding failure', timeout=30000)

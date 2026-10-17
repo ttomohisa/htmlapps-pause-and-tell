@@ -35,6 +35,7 @@ def main():
     ap.add_argument('--memory-target',action='store_true',help='Disable OPFS to exercise the memory fallback')
     ap.add_argument('--expanded-input',action='store_true',help='Verify loading an input longer than the old 15-second prototype cap')
     ap.add_argument('--vfr-stereo',action='store_true',help='Opt-in irregular video timestamps plus 44.1 kHz stereo Vorbis source')
+    ap.add_argument('--output-format',choices=['webm','mp4'],default='webm',help='MP4 requires a real native AAC-capable browser; no fallback is injected')
     a=ap.parse_args()
     if a.vfr_stereo:a.source_audio=True
     a.out.mkdir(parents=True,exist_ok=True)
@@ -88,6 +89,7 @@ def main():
                 'getDirectory',{configurable:true,value:undefined});
             })()""")
         page.goto(a.url,wait_until='domcontentloaded')
+        page.locator('#exportFormat').select_option(a.output_format)
         if a.memory_target:
             page.locator('#nativeSupportPanel summary').click()
             page.locator('#checkNativeSupport').click()
@@ -199,6 +201,8 @@ def main():
         notes=page.locator('#noteList .note-item button:first-child').all_inner_texts()
         durations=[float(re.search(r'·\s*([0-9]+\.[0-9]+)s',item).group(1)) for item in notes]
         expected_output=4.0+sum(durations)
+        page.locator('#exportFormat').select_option(a.output_format)
+        wait_for(lambda:page.locator('#export').is_enabled())
         page.locator('#export').click()
         try:
             page.locator('#result').wait_for(state='visible',timeout=100000)
@@ -213,13 +217,13 @@ def main():
             raise AssertionError(json.dumps(data,ensure_ascii=False))
         with page.expect_download(timeout=15000) as d:
             page.locator('#save').click()
-        result=a.out/'inserted.webm'
+        result=a.out/('inserted.'+a.output_format)
         d.value.save_as(result)
         probe=ffprobe(result)
         streams={s['codec_type']:s for s in probe['streams']}
         assert set(streams)>={'audio','video'},probe
-        assert streams['video']['codec_name']=='vp8',streams
-        assert streams['audio']['codec_name']=='opus',streams
+        assert streams['video']['codec_name']==('h264' if a.output_format=='mp4' else 'vp8'),streams
+        assert streams['audio']['codec_name']==('aac' if a.output_format=='mp4' else 'opus'),streams
         assert int(streams['video']['width'])==width and int(streams['video']['height'])==height,(
             'Output orientation or dimensions changed',streams['video'])
         duration=float(probe['format']['duration'])

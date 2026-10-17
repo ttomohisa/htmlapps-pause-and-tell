@@ -1,8 +1,9 @@
 import {
   Input, BlobSource, ALL_FORMATS, VideoSampleSink, AudioBufferSink,
-  Output, WebMOutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
+  Output, WebMOutputFormat, Mp4OutputFormat, BufferTarget, StreamTarget, CanvasSource, AudioBufferSource, Quality, canEncodeVideo, canEncodeAudio
 } from 'mediabunny';
 import { buildTimeline, sourceSampleTime } from './timeline.js';
+import { exportFormat, resultFilename } from './export-format.js';
 import { queryNativeCodecSupport } from './native-codec-support.js';
 
 (() => {
@@ -45,6 +46,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   function setBusy(value) {
     state.busy = value;
     $('sourceFile').disabled = value || Boolean(state.recorder);
+    $('exportFormat').disabled = value || Boolean(state.recorder);
     $('startNote').disabled = value || !state.file || Boolean(state.recorder) || !state.capabilities?.record || !state.capabilities?.encode;
     $('playSource').disabled = value || !state.file || Boolean(state.recorder);
     $('seek').disabled = value || Boolean(state.recorder);
@@ -90,24 +92,27 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     const c=state.capabilities;
     $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : [
       c.record ? l('録音候補: ','Recording candidate: ')+c.type : l('この環境ではマイク録音APIまたは対応形式を利用できません。HTTPS・権限・ブラウザを確認してください。','Microphone recording API or format unavailable. Check HTTPS, permissions and browser.'),
-      c.encode ? l('WebM VP8/Opus書き出し候補あり。','WebM VP8/Opus encoding available to try.') : l('WebM VP8/Opusの動画・音声書き出し機能が不足しています。別のブラウザで試してください。','WebM VP8/Opus video/audio encoding is unavailable. Try another browser.'),
-      l('機能検出は実機での録音・保存成功を保証しません。MP4動画出力は未実装です。','Feature detection does not prove recording or saving on this device. MP4 video output is not implemented.')
+      exportFormat($('exportFormat').value).label + (c.encode ? l(' 書き出し候補あり。',' encoding candidate available.') : l(' 動画・音声エンコーダーを利用できません。形式を変更してください。',' video/audio encoders unavailable. Choose another format.')),
+      l('機能検出は実機での録音・保存成功を保証しません。MP4は完成30秒までの実験です。','Feature detection does not prove recording or saving. MP4 is experimental, limited to 30 seconds of output.')
     ].join(' ');
   }
   async function inspectCapabilities() {
     const generation=++capabilityGeneration;
     const type=recordingType();
+    const profile=exportFormat($('exportFormat').value);
+    state.capabilities=null;renderCapabilities();setBusy(state.busy);
     let encode=false;
     try {
       encode=typeof VideoDecoder!=='undefined' && typeof AudioDecoder!=='undefined'
         && typeof OfflineAudioContext!=='undefined'
-        && await canEncodeVideo('vp8',{width:canvas.width || 320,height:canvas.height || 180,frameRate:FPS,bitrate:900000})
-        && await canEncodeAudio('opus',{numberOfChannels:2,sampleRate:48000,bitrate:96000});
+        && await canEncodeVideo(profile.video,{width:canvas.width || 320,height:canvas.height || 180,frameRate:FPS,quality:new Quality({bitrate:900000})})
+        && await canEncodeAudio(profile.audio,{numberOfChannels:2,sampleRate:48000,quality:new Quality({bitrate:96000})});
     } catch { /* Capability probes are advisory; unsupported environments fail closed. */ }
     if(generation!==capabilityGeneration)return;
     state.capabilities={type,record:Boolean(type),encode};
     renderCapabilities();setBusy(state.busy);
   }
+  $('exportFormat').addEventListener('change',()=>void inspectCapabilities());
   function releaseUrl(key) {
     if (state[key]) URL.revokeObjectURL(state[key]);
     state[key] = null;
@@ -541,7 +546,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     } finally {video.removeAttribute('src');video.load();}
   }
   async function exportVideo() {
-    if(!state.notes.length||state.busy||state.recorder||!state.file)return;
+    if(!state.notes.length||state.busy||state.recorder||!state.file||!state.capabilities?.encode)return;
+    const profile=exportFormat($('exportFormat').value);
     errorNode.textContent='';
     setBusy(true);
     let videoInput=null,output=null,temporaryResult=null,candidateUrl=null;
@@ -569,7 +575,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       }
       const timeline=buildTimeline(duration,ordered,FPS);
       const fullDuration=timeline.duration;
-      if(fullDuration>MAX_OUTPUT_SECONDS)throw new Error(l('完成動画は試験上限10分を超えています。','Experimental output exceeds the 10-minute limit.'));
+      if(fullDuration>Math.min(MAX_OUTPUT_SECONDS,profile.maxSeconds))throw new Error(profile.extension==='mp4' ? l('MP4の試験上限は完成30秒です。説明を短くするかWebMを選んでください。','MP4 experimental output limit is 30 seconds. Shorten the composition or choose WebM.') : l('完成動画は試験上限10分を超えています。','Experimental output exceeds the 10-minute limit.'));
       const renderCanvas=document.createElement('canvas');
       renderCanvas.width=canvas.width;renderCanvas.height=canvas.height;
       const renderCtx=renderCanvas.getContext('2d',{alpha:false});
@@ -579,7 +585,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       if(navigator.storage?.getDirectory && crypto.randomUUID) {
         try {
           const directory=await navigator.storage.getDirectory();
-          const name='pause-and-tell-temp-'+crypto.randomUUID()+'.webm';
+          const name='pause-and-tell-temp-'+crypto.randomUUID()+'.'+profile.extension;
           const handle=await directory.getFileHandle(name,{create:true});
           temporaryResult={directory,handle,name};
           const writable=await handle.createWritable();
@@ -600,9 +606,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         }
         outputTarget=new BufferTarget();
       }
-      output=new Output({format:new WebMOutputFormat(),target:outputTarget});
-      const videoSource=new CanvasSource(renderCanvas,{codec:'vp8',quality:new Quality({bitrate:900000})});
-      const audioSource=new AudioBufferSource({codec:'opus',quality:new Quality({bitrate:96000})});
+      output=new Output({format:profile.extension==='mp4'?new Mp4OutputFormat():new WebMOutputFormat(),target:outputTarget});
+      const videoSource=new CanvasSource(renderCanvas,{codec:profile.video,quality:new Quality({bitrate:900000})});
+      const audioSource=new AudioBufferSource({codec:profile.audio,quality:new Quality({bitrate:96000})});
       output.addVideoTrack(videoSource,{frameRate:FPS});
       output.addAudioTrack(audioSource);
       $('exportStatus').textContent=l('元音声と説明音声を合成しています…','Composing source audio and explanations…');
@@ -612,7 +618,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       // AudioBufferSource.add() appends each 2-second rendered block with
       // encoder backpressure; we no longer allocate one movie-long PCM buffer.
       const sampleRate=48000;
-      const channels=originalAudio ? Math.min(2,Math.max(1,await originalAudio.getNumberOfChannels())) : 1;
+      const channels=profile.extension==='mp4' ? 2 : originalAudio ? Math.min(2,Math.max(1,await originalAudio.getNumberOfChannels())) : 1;
       const maxAudioBlockSamples=sampleRate*2;
       const sinks=new Map();
       const seenAudio=new Set();
@@ -716,7 +722,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       }
       await output.finalize();
       const encoded=temporaryResult ? await temporaryResult.handle.getFile() : output.target.buffer;
-      const resultBlob=encoded && new Blob([encoded],{type:'video/webm'});
+      const resultBlob=encoded && new Blob([encoded],{type:profile.mime});
       if(!resultBlob||resultBlob.size<2048)throw new Error('Encoded output is empty');
       candidateUrl=URL.createObjectURL(resultBlob);
       await checkResultPlayable(candidateUrl);
@@ -725,13 +731,14 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       state.resultBlob=resultBlob;
       state.resultUrl=candidateUrl;candidateUrl=null;
       playback.src=state.resultUrl;playback.load();
+      $('resultExtension').textContent='.'+profile.extension;
       updateShare();
       state.resultTemp=temporaryResult;
       temporaryResult=null;
       $('result').dataset.storage=state.resultTemp ? 'temporary-file' : 'memory';
       $('result').hidden=false;
       $('resultInfo').textContent=l('完成動画 ','Output ')+fmt(fullDuration)
-        +' · WebM VP8/Opus · '+Math.round(resultBlob.size/1024)+' KiB'
+        +' · '+profile.label+' · '+Math.round(resultBlob.size/1024)+' KiB'
         +' · '+ordered.length+l('件の説明',' inserted explanation(s)');
       $('exportStatus').textContent=l('完成動画を生成しました。最後まで再生して確認してください。',
         'Composition complete. Play the entire output to check it.');
@@ -753,11 +760,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     }
   }
   $('export').addEventListener('click',()=>void exportVideo());
-  function outputName() {
-    const name=$('outputName').value.replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'-').replace(/[. ]+$/g,'').replace(/\.webm$/i,'').trim();
-    return (name || 'video-explained')+'.webm';
-  }
-  function outputFile() {return new File([state.resultBlob],outputName(),{type:'video/webm'});}
+  function outputName() {return resultFilename($('outputName').value,state.resultBlob?.type);}
+  function outputFile() {return new File([state.resultBlob],outputName(),{type:state.resultBlob.type});}
   function updateShare() {
     let supported=false;
     try {supported=Boolean(state.resultBlob && navigator.share && navigator.canShare?.({files:[outputFile()]}));}catch{}
@@ -820,7 +824,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     try {
       const directory=await navigator.storage.getDirectory();
       for await (const [name,handle] of directory.entries()) {
-        if(handle.kind!=='file' || !/^pause-and-tell-temp-[0-9a-f-]+\.webm$/.test(name)) continue;
+        if(handle.kind!=='file' || !/^pause-and-tell-temp-[0-9a-f-]+\.(webm|mp4)$/.test(name)) continue;
         try {
           const file=await handle.getFile();
           if(Date.now()-file.lastModified>24*60*60*1000) await directory.removeEntry(name);
