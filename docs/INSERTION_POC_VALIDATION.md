@@ -174,5 +174,4 @@ real error after a stop request. Cleanup is deliberately held to assert the UI l
 then released to check exact temporary-file inventory, old download SHA, explanation
 retention, and retry via the existing storage/retry cases. These are synthetic
 browser tests, not physical-device interruption or storage-exhaustion evidence.
-Local syntax, build and timeline/profile tests pass; browser CI is pending for this
-revision. The preceding bb261ac revision passed all four routine CI jobs.
+Local syntax, build and timeline/profile tests pass. [Browser CI 39027054306](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39027054306) passed at 39fa4c4, including all four media scenarios and seven resilience cases. All four routine workflows passed. The first run stopped at a test-only string-predicate/CSP error; changing the wait to a function fixed it without relaxing CSP. Independent code review found no remaining blocker after writable ownership and error-versus-cancellation fixes.
