@@ -187,6 +187,17 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         page.locator('#language').click()
         expect(page.locator('#durationBudget')).to_contain_text('上限を超えるため')
         assert not page.evaluate('__testTracks.length'), 'Preflight requested microphone'
+        mismatched=out/'preflight-video29-audio31.webm'
+        subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i',
+          'color=c=blue:size=96x54:rate=1:duration=29','-f','lavfi','-i',
+          'sine=frequency=440:duration=31','-c:v','libvpx','-deadline','realtime',
+          '-cpu-used','8','-c:a','libopus',str(mismatched)],check=True)
+        load(page,url,mismatched)
+        page.locator('#exportFormat').select_option('mp4')
+        expect(page.locator('#durationBudget')).to_contain_text('29.0s / MP4 experimental limit 30.0s')
+        expect(page.locator('#durationBudget')).to_contain_text('narration room 1.0s')
+        assert page.locator('#exportBudget').evaluate('(e)=>e.hidden')
+        assert not page.evaluate('__testTracks.length')
     load(page, url, source, output_format)
     expect(page.locator('#durationBudget')).to_contain_text('Approximate narration room')
     record_note(page)

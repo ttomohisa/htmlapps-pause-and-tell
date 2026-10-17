@@ -124,8 +124,10 @@ MP4 remains 30 seconds and WebM 600 seconds. These are attempt limits, not devic
 performance guarantees; the exporter still checks its freshly decoded timeline.
 
 Existing output-profile Node tests cover exact boundaries, frame rounding and
-unchanged WebM limits. The existing failure suite loads a 31-second/1fps synthetic
-source solely to verify Japanese/English preflight; it never exports that source
+unchanged WebM limits. The budget uses the same video-track duration as export,
+not a potentially longer container/audio endpoint. The existing failure suite
+loads a 31-second/1fps source and a 29-second video with a 31-second soundtrack
+solely to verify Japanese/English preflight and unequal-track endpoints; it never exports that source
 and requests no microphone. This is not an endurance or native-MP4 encode test.
 
 
@@ -133,7 +135,8 @@ Starting a recording now pauses source, narration and completed-video previews
 before requesting the microphone, without rewinding narration/result players or
 automatically resuming them after cancellation/failure. The existing rerecord
 case starts all three players and verifies they are paused and preview positions
-retained. This prevents app-generated playback feedback; it is not a physical
+not rewound (normal playback may advance until the click is handled). This
+prevents app-generated playback feedback; it is not a physical
 microphone/acoustic echo-cancellation certification.
 
 

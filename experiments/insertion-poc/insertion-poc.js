@@ -18,7 +18,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   const MAX_RAM_EXPORT_ESTIMATE = 96 * 1024 * 1024;
   let lang = 'ja';
   const state = {
-    file: null, input: null, track: null, duration: 0,
+    file: null, input: null, track: null, duration: 0, exportSourceDuration: 0,
     sourceUrl: null, noteUrl: null, resultUrl: null, resultTemp: null,
     note: null, notes: [], nextNoteId: 1, recorder: null, mic: null, chunks: [],
     startedAt: 0, drawing: false, pointerId: null, activeStroke: null,
@@ -59,7 +59,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
   }
   function renderDurationBudget() {
-    const budget=state.file ? compositionBudget(state.duration,state.notes,$('exportFormat').value,FPS) : null;
+    const budget=state.file ? compositionBudget(state.exportSourceDuration,state.notes,$('exportFormat').value,FPS) : null;
     $('durationBudget').hidden=!budget;
     $('exportBudget').hidden=!budget?.exceeded;
     if(!budget)return null;
@@ -248,6 +248,8 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       }
       // Source audio is preserved outside inserted explanations at export.
       const duration = await input.computeDuration();
+      const exportSourceDuration=await track.computeDuration();
+      if(!(exportSourceDuration>0 && Number.isFinite(exportSourceDuration)))throw new Error('Video duration is invalid');
       if (!(duration > 0 && duration <= MAX_SOURCE_SECONDS))
         throw new Error(l('元動画は5分以内を選択してください。','Choose a source up to five minutes.'));
       const width = await track.getDisplayWidth();
@@ -302,6 +304,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       state.input = input;
       state.track = track;
       state.duration = duration;
+      state.exportSourceDuration=exportSourceDuration;
       state.sourceUrl = url;
       url = null;
       input = null;
@@ -505,7 +508,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       return;
     }
     const total=state.notes.reduce((n,item)=>n+item.duration,0);
-    const composed=buildTimeline(state.duration,state.notes,FPS).duration;
+    const composed=buildTimeline(state.exportSourceDuration,state.notes,FPS).duration;
     $('noteSummary').textContent=l(
       state.notes.length+'件の説明（合計 '+fmt(total)+'）。元動画 '+fmt(state.duration)+'、完成見込み '+fmt(composed),
       state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(composed)
