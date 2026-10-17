@@ -236,7 +236,7 @@ Local Node fault tests cover repeated rejection, deferred settlement, ownership
 and NotFound, and the bundle builds successfully. The existing browser failed-export
 case adds real temporary files plus injected deletion failure, no-new-allocation
 checks, cancellation/retry, old download SHA and note preservation, and excluded
-last-good deletion targets. Browser CI is pending for this change. Local Chromium
+last-good deletion targets. Browser CI passed at `a8f8f8d`: [PoC run 39069488464](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39069488464), including the extended `failed_export` case and all ordinary composition/recording regressions. Normal-app smoke, standalone validation, and preview deployment also passed. The normal template remains byte-identical to the v0.9.3 handoff baseline `07d044a`. Local Chromium
 could not start because its singleton socket was denied by this execution environment;
 that is an unrun local browser test, not an application failure or a device pass.
 Physical device storage exhaustion remains unverified.
