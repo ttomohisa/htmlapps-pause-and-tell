@@ -31,6 +31,18 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
   const playback = $('resultVideo');
   const errorNode = $('error');
   let recordingTimeout = null;
+  let exportTask = null;
+  const exportCancelled = new Error('Export cancelled');
+  function checkExportCancelled() { if(exportTask?.cancelled) throw exportCancelled; }
+  function exportProgress(text) {
+    $('exportStatus').textContent=exportTask?.cancelled ? l('中止を待っています。一時ファイルの片付けが終わるまでお待ちください…','Stopping requested. Waiting for processing and temporary-file cleanup…') : text;
+  }
+  $('cancelExport').addEventListener('click',()=>{
+    if(!exportTask)return;
+    exportTask.cancelled=true;
+    $('cancelExport').disabled=true;
+    exportProgress('');
+  });
   let uploadGeneration = 0;
   let capabilityGeneration = 0;
   let nativeSupport=null,nativeSupportPending=false;
@@ -621,8 +633,11 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     if(!state.notes.length||state.busy||state.recorder||!state.file||!state.capabilities?.encode)return;
     const profile=exportFormat($('exportFormat').value);
     errorNode.textContent='';
+    exportTask={cancelled:false};
+    $('cancelExport').hidden=false;
+    $('cancelExport').disabled=false;
     setBusy(true);
-    let videoInput=null,output=null,temporaryResult=null,candidateUrl=null;
+    let videoInput=null,output=null,temporaryResult=null,candidateUrl=null,cancelled=false;
     const audioInputs=[];
     try {
       if(typeof VideoEncoder==='undefined'||typeof AudioEncoder==='undefined') {
@@ -645,6 +660,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         note.duration=actual;
         audioInputs[audioInputs.length-1]={input,note,track};
       }
+      checkExportCancelled();
       const timeline=buildTimeline(duration,ordered,FPS);
       const fullDuration=timeline.duration;
       if(fullDuration>Math.min(MAX_OUTPUT_SECONDS,profile.maxSeconds))throw new Error(profile.extension==='mp4' ? l('MP4の試験上限は完成30秒です。説明を短くするかWebMを選んでください。','MP4 experimental output limit is 30 seconds. Shorten the composition or choose WebM.') : l('完成動画は試験上限10分を超えています。','Experimental output exceeds the 10-minute limit.'));
@@ -683,8 +699,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       const audioSource=new AudioBufferSource({codec:profile.audio,quality:new Quality({bitrate:96000})});
       output.addVideoTrack(videoSource,{frameRate:FPS});
       output.addAudioTrack(audioSource);
-      $('exportStatus').textContent=l('元音声と説明音声を合成しています…','Composing source audio and explanations…');
+      exportProgress(l('元音声と説明音声を合成しています…','Composing source audio and explanations…'));
       await output.start();
+      checkExportCancelled();
 
       // Bound peak audio memory independently of completed movie length.
       // AudioBufferSource.add() appends each 2-second rendered block with
@@ -705,6 +722,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         const segmentSourceStart=seg.kind==='original' ? seg.sourceStart/FPS : 0;
         const trackId=seg.kind==='original' ? 'original' : seg.note.id;
         for (let offset=0;offset<totalSamples;offset+=maxAudioBlockSamples) {
+          checkExportCancelled();
           const count=Math.min(maxAudioBlockSamples,totalSamples-offset);
           const start=segmentSourceStart+offset/sampleRate;
           const end=start+count/sampleRate;
@@ -724,11 +742,15 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
             const preceding=await sink.getBuffer(start);
             if(preceding) addAudioSlice(preceding);
             for await(const item of sink.buffers(start,end)) {
+              checkExportCancelled();
               if(preceding&&Math.abs(item.timestamp-preceding.timestamp)<1e-7) continue;
               addAudioSlice(item);
             }
           }
-          await audioSource.add(await context.startRendering());
+          const rendered=await context.startRendering();
+          checkExportCancelled();
+          await audioSource.add(rendered);
+          checkExportCancelled();
           audioSamplesWritten+=count;
         }
       }
@@ -741,7 +763,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       for(const item of audioInputs) {
         if(!seenAudio.has(item.note.id))throw new Error('Explanation audio missing: '+item.note.id);
       }
-      $('exportStatus').textContent=l('元動画と説明を結合しています…','Composing original frames and explanations…');
+      exportProgress(l('元動画と説明を結合しています…','Composing original frames and explanations…'));
 
       const sink=new VideoSampleSink(vt);
       const firstVideoTimestamp=await vt.getFirstTimestamp();
@@ -749,6 +771,7 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       const clipEvents=new Map();
       const clipDrawings=new Map();
       for(let frame=0;frame<timeline.frames;frame++) {
+        checkExportCancelled();
         while(frame>=timeline.segments[segIndex].outputStart+timeline.segments[segIndex].length)segIndex++;
         const seg=timeline.segments[segIndex];
         if(!seg)throw new Error('Timeline segment not found at output frame '+frame);
@@ -786,18 +809,23 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
           try {sample.draw(renderCtx,0,0,renderCanvas.width,renderCanvas.height);}
           finally {sample.close();}
         }
+        checkExportCancelled();
         await videoSource.add(frame/FPS,1/FPS,{keyFrame:frame===seg.outputStart});
         if(frame%15===0){
-          $('exportStatus').textContent=l('書き出し中 ','Encoding ')+Math.round((frame+1)/timeline.frames*100)+'%';
+          exportProgress(l('書き出し中 ','Encoding ')+Math.round((frame+1)/timeline.frames*100)+'%');
           await new Promise(resolve=>setTimeout(resolve,0));
         }
       }
+      checkExportCancelled();
       await output.finalize();
+      checkExportCancelled();
       const encoded=temporaryResult ? await temporaryResult.handle.getFile() : output.target.buffer;
+      checkExportCancelled();
       const resultBlob=encoded && new Blob([encoded],{type:profile.mime});
       if(!resultBlob||resultBlob.size<2048)throw new Error('Encoded output is empty');
       candidateUrl=URL.createObjectURL(resultBlob);
       await checkResultPlayable(candidateUrl);
+      checkExportCancelled();
       // Commit only after the candidate passes decode. A failed retry keeps the prior output.
       clearResult();
       state.resultBlob=resultBlob;
@@ -815,7 +843,10 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       $('exportStatus').textContent=l('完成動画を生成しました。最後まで再生して確認してください。',
         'Composition complete. Play the entire output to check it.');
     }catch(error){
-      showError(error);
+      cancelled=error===exportCancelled;
+      if(!cancelled) showError(error);
+      if(error===exportCancelled) exportProgress('');
+      else
       $('exportStatus').textContent=l('書き出しできませんでした。説明区間と前回の完成動画（ある場合）は保持しています。前回の動画を先に保存してください。このページを開いたまま、端末の空き容量を確認して再試行できます。ページの再読み込みやサイトデータの削除は避けてください。',
         'Export failed. Your explanations and previous successful output (if any) are retained. Save the previous output first. Keep this page open, check available device storage and retry. Avoid reloading or clearing site data.');
       if(output && output.state!=='finalized' && output.state!=='canceled'){
@@ -828,6 +859,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       }
       videoInput?.dispose();
       for(const item of audioInputs) item.input?.dispose();
+      exportTask=null;
+      $('cancelExport').hidden=true;
+      if(cancelled) $('exportStatus').textContent=l('書き出しを中止しました。説明と前回の完成動画は保持しています。再試行できます。','Export cancelled. Explanations and the previous output are retained. You can retry.');
       setBusy(false);
     }
   }

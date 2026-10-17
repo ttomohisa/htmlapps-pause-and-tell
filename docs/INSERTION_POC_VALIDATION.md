@@ -157,3 +157,22 @@ VFR remains a separate milestone: the current renderer samples source timestamps
 - Evidence: https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39005916146/artifacts/12091127151
 - Not verified: real phone VFR, longer drift, native phone codecs, microphone
   interruptions/OS saving. See INSERTION_CODEC_PROBE.md for exact probe limits.
+
+## Cooperative export cancellation (2026-10-17)
+
+The insertion PoC offers Cancel export during composition. Cancellation is checked
+between bounded audio blocks/video frames and after finalization, file retrieval,
+and candidate playback validation. It cannot interrupt an in-flight codec call;
+controls remain locked until cancellation and temporary-file cleanup settle.
+Completed explanations and the previous successful download are retained. A real
+encoding/storage failure after a stop request remains a failure, not a successful
+cancellation. No native codec, timeline, public CSP, or normal-app behavior changes.
+
+The existing short failed-export regression now injects cancellation at writable
+creation, the first encoded frame, and finalized-file retrieval; it also injects a
+real error after a stop request. Cleanup is deliberately held to assert the UI lock,
+then released to check exact temporary-file inventory, old download SHA, explanation
+retention, and retry via the existing storage/retry cases. These are synthetic
+browser tests, not physical-device interruption or storage-exhaustion evidence.
+Local syntax, build and timeline/profile tests pass; browser CI is pending for this
+revision. The preceding bb261ac revision passed all four routine CI jobs.

@@ -260,6 +260,10 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
               throw new DOMException('Injected creation quota', 'QuotaExceededError');
             }
             const stream = await create.apply(this, args);
+            if(window.__cancelPhase === 'opened') {
+              window.__cancelPhase=null;
+              document.getElementById('cancelExport').click();
+            }
             if (!mode) return stream;
             const getWriter = stream.getWriter.bind(stream);
             stream.getWriter = () => {
@@ -287,6 +291,63 @@ def failed_export_preserves_result(page, url, source, out, output_format="webm")
         }""")
         baseline = page.evaluate('__tempNames()')
         assert len(baseline) == 1, baseline
+        # Cancel real partial encoding and a finalized candidate independently.
+        # Neither path may publish the candidate or unlock before cleanup.
+        page.evaluate("""() => {
+          const encode = VideoEncoder.prototype.encode;
+          VideoEncoder.prototype.encode = function(...args) {
+            const result = encode.apply(this,args);
+            if(window.__cancelPhase === 'frame' || window.__cancelPhase === 'reject') {
+              const reject=window.__cancelPhase === 'reject';
+              window.__cancelPhase=null;
+              document.getElementById('cancelExport').click();
+              if(reject) throw new Error('Injected failure after cancel request');
+            }
+            return result;
+          };
+          const getFile = FileSystemFileHandle.prototype.getFile;
+          FileSystemFileHandle.prototype.getFile = async function(...args) {
+            const file = await getFile.apply(this,args);
+            if(window.__cancelPhase === 'finalized') {
+              window.__cancelPhase=null;
+              document.getElementById('cancelExport').click();
+            }
+            return file;
+          };
+          const remove = FileSystemDirectoryHandle.prototype.removeEntry;
+          FileSystemDirectoryHandle.prototype.removeEntry = async function(...args) {
+            if(window.__delayCancelCleanup) {
+              window.__cleanupPending=true;
+              await new Promise(resolve=>window.__releaseCleanup=resolve);
+              window.__cleanupPending=false;
+            }
+            return remove.apply(this,args);
+          };
+        }""")
+        for phase in ['opened','frame','finalized','reject']:
+            page.evaluate('(phase)=>{window.__cancelPhase=phase;window.__delayCancelCleanup=true;}',phase)
+            page.locator('#export').click()
+            page.wait_for_function('window.__cleanupPending === true')
+            expect(page.locator('#export')).to_be_disabled()
+            expect(page.locator('#startNote')).to_be_disabled()
+            expect(page.locator('#sourceFile')).to_be_disabled()
+            expect(page.locator('#cancelExport')).to_be_disabled()
+            expect(page.locator('#exportStatus')).to_contain_text('Export failed' if phase=='reject' else 'Waiting for processing')
+            assert page.evaluate('__cancelPhase') is None
+            assert page.locator('#resultVideo').get_attribute('src') == first_url
+            page.evaluate('()=>{window.__delayCancelCleanup=false;window.__releaseCleanup();}')
+            expect(page.locator('#export')).to_be_enabled(timeout=15000)
+            expect(page.locator('#cancelExport')).to_be_hidden()
+            if phase=='reject':
+                expect(page.locator('#exportStatus')).to_contain_text('Export failed')
+                expect(page.locator('#error')).to_contain_text('Injected failure after cancel request')
+            else:
+                expect(page.locator('#exportStatus')).to_contain_text('Export cancelled')
+                expect(page.locator('#error')).to_be_empty()
+            assert page.evaluate('__tempNames()') == baseline
+            assert note_snapshot(page) == notes
+            assert page.locator('#resultInfo').inner_text() == first_info
+            assert download(page,out/('after-cancel-'+phase+'.webm')) == first_hash
         for mode in ['quota', 'write']:
             page.evaluate('(mode) => {window.__storageFault=mode;}', mode)
             page.locator('#export').click()
