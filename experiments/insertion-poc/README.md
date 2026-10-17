@@ -84,3 +84,7 @@ microphone permission or actual encode is needed. The exact queried configuratio
 is shown. “Candidate available” is not proof of recording, MP4 muxing, sync or OS
 saving, and does not enable an MP4 export option. Queries use native WebCodecs
 isConfigSupported only, with a five-second timeout; no fallback/WASM is loaded.
+
+### Native-only synthetic MP4 test (Draft preview)
+
+Open `/insertion-poc/native-mp4/` on the PR preview. Tap **合成2秒を生成**; no file or microphone is needed. A successful result exposes playback and a separate **生成したMP4を保存** link. Lower the volume before playback: the first second is red/silent; the second is green with stereo tones. Report the result text and, if available, device/OS/browser. Generation, playback and saving/reopening are separate checks. This diagnostic does not enable MP4 output in the insertion app. Failed regeneration keeps the previous result until the page closes.

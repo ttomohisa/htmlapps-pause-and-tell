@@ -202,3 +202,11 @@ FFmpeg's own checklist stresses exact binary/source correspondence and build
 instructions: https://ffmpeg.org/legal.html . Emscripten provides version-selectable
 SDK installation: https://emscripten.org/docs/getting_started/downloads.html .
 Alternative encoder replacement is deferred rather than expanding this probe.
+
+## Native-only device sample follow-up (2026-10-17)
+
+Owner reported `Native AVC: 候補あり / Native AAC: 候補あり`. Device model, OS and browser were not specified. This is a support-query result only, not encoding, sync, playback or save validation.
+
+A dedicated non-production PR-preview page `/insertion-poc/native-mp4/` now offers an explicit synthetic 2-second generation button, separate playback and download. AVC and AAC must both be available; it never presents silent-only MP4 as a successful result. It uses only core Mediabunny/native codecs, copies the existing PoC CSP unchanged, and does not access user media, microphone or network. No optional AAC extension, Worker or WASM is included. The previous successful result remains available after a failed or timed-out retry. A 30-second response deadline requests cancellation and permanently disables retries on that page; late completion cannot replace the saved result. Mediabunny cancel is a no-op during finalization, so this is not a guaranteed encoder termination deadline. Save any previous result before reloading to retry. This prevents accumulating timed-out attempts in one page.
+
+Verification is split: Node tests cover transactional result retention, empty output, double-click/busy, timeout and late completion. The short CI browser test checks actual native unsupported handling and uses an explicitly synthetic test dependency for UI-only success/save/failure retention. That fixture is not evidence of real native AAC encoding; its generated test HTML is excluded from the preview allowlist. Real smartphone encoding remains pending, followed separately by playback, perceived 1-second color/audio transition and saving/reopening the MP4. No long-duration sync, insertion MP4, VFR MP4 or OS-save guarantee follows from a 2-second success.

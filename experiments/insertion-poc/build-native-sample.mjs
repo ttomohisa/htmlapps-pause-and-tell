@@ -1,0 +1,12 @@
+import {fileURLToPath} from 'node:url';
+import {dirname,resolve} from 'node:path';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {build} from 'esbuild';
+const root=dirname(fileURLToPath(import.meta.url));
+const template=await readFile(resolve(root,'index.template.html'),'utf8');
+const csp=template.match(/<meta http-equiv="Content-Security-Policy"[^>]+>/)[0];
+const license=(await readFile(resolve(root,'licenses/mediabunny-MPL-2.0.txt'),'utf8')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const js=await build({entryPoints:[resolve(root,'native-sample-page.js')],bundle:true,platform:'browser',format:'iife',target:['es2022'],minify:true,write:false});
+await mkdir(resolve(root,'dist'),{recursive:true});
+await writeFile(resolve(root,'dist/native-mp4.html'),`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">${csp}<title>Native MP4 laboratory — Draft</title><style>body{font-family:system-ui;max-width:680px;margin:auto;padding:20px;line-height:1.6;background:#f5f6f3;color:#202723}button,a{font:inherit}button,.save{display:inline-block;padding:12px;border:1px solid #16624f;border-radius:8px;background:white;color:#16624f}video{display:block;width:100%;margin:16px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}[hidden]{display:none!important}</style><h1>Native MP4 合成テスト</h1><p>Draft・実験専用。端末内で合成2秒だけを生成します。ファイル・マイク・通信は使いません。通常アプリのMP4書き出し対応を意味しません。</p><p>320×180 / 15fps / AVC + AAC 48kHz stereo。最初の1秒は赤・無音、その後は緑・左440Hz／右660Hzです。音量を下げて再生してください。</p><button id="generate">合成2秒を生成</button><p id="status" role="status">未実行。候補判定が両方ありでも生成が失敗する場合があります。</p><video id="video" controls playsinline preload="metadata" hidden></video><a id="save" class="save" download="pause-tell-native-synthetic-2s.mp4" hidden>生成したMP4を保存</a><p id="saveStatus" role="status"></p><p>失敗した再生成では前回成功を保持します。30秒で応答がない場合は再生成を停止し、再試行にはページの再読み込みが必要です。ページを閉じると結果は消えるので、必要なら先に保存してください。長時間・差し込み編集・VFR・端末保存はこの試験の合格範囲に含まれません。</p><details><summary>Mediabunny 1.61.5 license/source</summary><p>Copyright (c) 2026-present, Vanilagy and contributors. <a href="https://registry.npmjs.org/mediabunny/-/mediabunny-1.61.5.tgz">Exact unmodified source package</a></p><pre>${license}</pre></details><script>${js.outputFiles[0].text.replace(/<\/script/gi,String.raw`\x3c/script`)}</script></html>`);
+console.log('Built native-only synthetic MP4 page; app CSP unchanged');
