@@ -42,3 +42,22 @@ Run: https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/390055921
 - A bounded correction holds the first frame for the initial timestamp gap without shifting the source clock or audio. Pure clock tests cover positive/negative first PTS, later frame timestamps and tail clamp. Browser rerun is required before marking the fixture verified.
 
 AAC fallback remains a separate investigation. The immediate next goal is to pass the actual VFR/stereo insertion fixture and test the HTTPS PoC on physical iOS/Android; no unverified MP4 option is shown.
+
+### Corrected VFR case: PASS at d51aab7
+
+https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39005916146
+
+The same fixture passes after the first-PTS correction: four-second input with
+frame intervals 33/34/66/83/84ms and 44.1kHz stereo audio becomes a 6.74-second
+VP8/Opus file with two narration inserts. Independent decode checks original
+head/tail frames, left 440Hz/right 660Hz separation before/after, narration on
+both channels and no original soundtrack during explanation. OPFS output was
+used; browser errors and external HTTP requests were zero. Artifact 12091127151
+contains the synthetic source, saved output, screenshot and report. This verifies
+one irregular-timestamp fixture, not arbitrary VFR cameras or long-term drift.
+Native codec results were unchanged: Chromium unsupported AVC/AAC; Chrome
+video-only AVC MP4 because AAC was unavailable.
+
+The Windows PR-preview build also exposed URL pathname handling (`D:/D:/...`);
+`fileURLToPath(import.meta.url)` now resolves build entries on Windows and Linux.
+The generated Linux app bytes did not change from this portability correction.

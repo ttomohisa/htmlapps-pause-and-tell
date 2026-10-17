@@ -141,3 +141,19 @@ Local build, JavaScript parse and timeline tests pass. Local Chromium could not 
 The pinned Mediabunny API contains Mp4OutputFormat and AVC/AAC encoder probes; this provides a candidate implementation path, not evidence that every phone supplies both encoders. Before exposing MP4, probe the exact AVC dimensions/profile and AAC channel/sample-rate configuration, encode a short real MP4, independently decode its audio/video, verify insert boundaries and device save/share, and review distribution/license requirements. Do not rename a WebM extension or transcode through an external service.
 
 VFR remains a separate milestone: the current renderer samples source timestamps onto a 15fps output clock; it does not preserve source frame rate. Test irregular timestamps with audible/visible boundary markers, 44.1kHz stereo source audio and multiple insertion points. Measure duration, original head/tail, boundary drift and narration alignment on the actual saved file. None of these cases is marked verified by this change.
+
+## 2026-10-17 — bounded native MP4 and VFR/stereo probe
+
+- Native MP4 laboratory at d51aab7: Linux Chromium 155 AVC/AAC unavailable;
+  Google Chrome 155 AVC available, AAC unavailable. A video-only two-second
+  MP4 independently decoded. Narration-capable MP4 output remains unverified
+  and unavailable in the app.
+- VFR/stereo RED → GREEN: first video PTS +3ms caused timestamp-zero retrieval
+  to return null. Holding the first visible frame before its positive start,
+  without shifting the rest of the source/audio clock, fixed this fixture.
+- Saved 6.74s VP8/Opus file from 4s irregular-timestamp 44.1kHz stereo input:
+  two insertions, delete/rerecord, source head/tail, separate left/right source
+  tones and narration verified; OPFS, zero page errors/external requests.
+- Evidence: https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39005916146/artifacts/12091127151
+- Not verified: real phone VFR, longer drift, native phone codecs, microphone
+  interruptions/OS saving. See INSERTION_CODEC_PROBE.md for exact probe limits.
