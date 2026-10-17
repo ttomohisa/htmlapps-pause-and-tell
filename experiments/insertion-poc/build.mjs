@@ -1,7 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-const base = dirname(new URL(import.meta.url).pathname);
+const base = dirname(fileURLToPath(import.meta.url));
 const js = await build({
   entryPoints: [resolve(base, 'insertion-poc.js')],
   bundle: true, platform: 'browser', format: 'iife', target: ['es2022'],

@@ -1,7 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import {build} from 'esbuild';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {dirname,resolve} from 'node:path';
-const root=dirname(new URL(import.meta.url).pathname);
+const root=dirname(fileURLToPath(import.meta.url));
 const result=await build({entryPoints:[resolve(root,'probe-codecs.js')],bundle:true,platform:'browser',format:'iife',write:false,minify:true});
 await mkdir(resolve(root,'dist'),{recursive:true});
 const license=(await readFile(resolve(root,'licenses/mediabunny-MPL-2.0.txt'),'utf8')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
