@@ -131,6 +131,27 @@ def recording_failure(page, url, source, out, kind):
                 assert_recovered(page, before)
                 page.evaluate("delete document.hidden")
             assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
+    if kind == 'recorder_error':
+        for fault in ['decode', 'url']:
+            page.locator('#rerecord').click()
+            expect(page.locator('#finishNote')).to_be_visible()
+            page.wait_for_timeout(350)
+            page.evaluate("""fault => {
+              if(fault === 'decode') {
+                window.__originalDecode=AudioDecoder.prototype.decode;
+                AudioDecoder.prototype.decode=function(){throw new Error('Injected narration decode failure');};
+              } else {
+                window.__originalCreateUrl=URL.createObjectURL;
+                URL.createObjectURL=function(){throw new Error('Injected narration URL failure');};
+              }
+            }""",fault)
+            page.locator('#finishNote').click()
+            assert_recovered(page, before)
+            expect(page.locator('#error')).to_contain_text('Injected narration')
+            page.evaluate("""fault => {
+              if(fault === 'decode')AudioDecoder.prototype.decode=__originalDecode;
+              else URL.createObjectURL=__originalCreateUrl;
+            }""",fault)
     # Prove retry is usable, rather than merely painting enabled controls.
     page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()

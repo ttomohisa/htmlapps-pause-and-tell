@@ -96,7 +96,9 @@ storage behavior remain milestone/release gates. No writer leak is claimed.
 
 A selected clip can be rerecorded at its original insertion position without
 first deleting it. The original audio, frozen frame, pen events, ID and order
-remain authoritative until the new audio decodes successfully. New pen events
+remain authoritative until the new audio fully decodes sequentially (30-second
+validation deadline) and its preview URL is allocated successfully. PCM chunks
+are not retained as a whole-note buffer. New pen events
 replace the old ones only on successful completion. Cancel, recorder failure or
 background interruption retain the original clip and any previous output. A
 successful replacement invalidates the old composition and requires a new export;
@@ -106,6 +108,6 @@ The existing two-insert saved-media test now uses transactional rerecording rath
 than delete-then-record. It retains insertion position and clip ID even if the
 source seek position changed. Deletion is checked after saved-file validation.
 Existing recorder-failure cases cover rerecord failure, cancellation, background
-interruption and retry. The existing last-good-output case checks identical saved
+interruption, injected audio-decoder/preview-URL failure and retry. The existing last-good-output case checks identical saved
 bytes after cancellation and invalidation only after a successful replacement.
 No native/long test or dependency is added for this editing transaction.

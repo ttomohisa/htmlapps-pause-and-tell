@@ -152,11 +152,12 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
     info(l('説明を追加する位置を選べます。', 'Choose a source position for narration.'));
     setBusy(false);
   }
-  function selectNote(note) {
+  function selectNote(note,preparedUrl=null) {
     if (!note || state.recorder) return;
+    const nextUrl=preparedUrl || URL.createObjectURL(note.blob);
     state.note=note;
     releaseUrl('noteUrl');
-    state.noteUrl=URL.createObjectURL(note.blob);
+    state.noteUrl=nextUrl;
     $('notePlayer').src=state.noteUrl;
     updateSummary();
   }
@@ -510,15 +511,34 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
       if(blob.size<500) throw new Error(l('音声データが保存されませんでした。','No usable audio was recorded.'));
       const input=new Input({source:new BlobSource(blob),formats:ALL_FORMATS});
+      let candidateNoteUrl=null;
       try {
         const audio=await input.getPrimaryAudioTrack();
         if(!audio || !await audio.canDecode()) throw new Error(l('録音の音声を読み取れません。','Could not decode narration audio.'));
         const duration=await audio.computeDuration();
         if(!(duration>.15 && duration<=MAX_NOTE_SECONDS+1))
           throw new Error(l('録音時間が不正です。','Narration duration is invalid.'));
+        // A capability query and container duration do not prove payload validity.
+        // Decode sequentially without retaining a whole-note PCM buffer. A slow
+        // or broken decoder fails closed, leaving the original clip untouched.
+        let validationTimer;
+        try {
+          await Promise.race([(async()=>{
+            let decodedSeconds=0;
+            for await(const item of new AudioBufferSink(audio).buffers()) {
+              if(!(item.buffer.length>0 && item.buffer.sampleRate>0))throw new Error('Empty decoded narration');
+              decodedSeconds+=item.buffer.length/item.buffer.sampleRate;
+              if(decodedSeconds>MAX_NOTE_SECONDS+2)throw new Error('Decoded narration exceeds limit');
+            }
+            if(decodedSeconds<Math.max(.15,duration-.15))throw new Error('Narration audio is incomplete');
+          })(),new Promise((_,reject)=>{
+            validationTimer=setTimeout(()=>reject(new Error(l('録音音声の確認が時間切れになりました。元の説明は保持しています。','Narration validation timed out. The original is retained.'))),30000);
+          })]);
+        }finally{clearTimeout(validationTimer);}
         const exactPosition=Math.round(state.insertAt*FPS)/FPS;
         const note={id:session.replacing?.id ?? state.nextNoteId++,position:exactPosition,duration,blob,
           events:state.events.slice(),freeze:state.freeze};
+        candidateNoteUrl=URL.createObjectURL(blob);
         if(session.replacing) {
           const index=state.notes.indexOf(session.replacing);
           if(index<0)throw new Error('Original explanation changed during rerecording');
@@ -529,9 +549,9 @@ import { queryNativeCodecSupport } from './native-codec-support.js';
         clearResult();
         $('exportStatus').textContent='';
         $('notePanel').hidden=false;
-        selectNote(note);
+        selectNote(note,candidateNoteUrl);candidateNoteUrl=null;
         info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
-      } finally { input.dispose(); }
+      } finally { if(candidateNoteUrl)URL.revokeObjectURL(candidateNoteUrl);input.dispose(); }
     } catch(e) {
       session.failed=true;retainRecovery(session);
       showError(e);
