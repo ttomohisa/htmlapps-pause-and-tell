@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {preparePreviewModes} from './prepare-preview-modes.mjs';
 const dir=await mkdtemp(join(tmpdir(),'pause-entry-'));
 try {
- const app='<title>Insertion editor</title><select id="exportFormat"></select>';
+ const app='<button id="startNote"></button><select id="exportFormat"></select>';
  await writeFile(join(dir,'index.html'),app);
  await preparePreviewModes(dir);
  assert.equal(await readFile(join(dir,'index.html'),'utf8'),app);

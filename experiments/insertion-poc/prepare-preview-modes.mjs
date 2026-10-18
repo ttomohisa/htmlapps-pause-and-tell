@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 const here=dirname(fileURLToPath(import.meta.url));
 export async function preparePreviewModes(dist) {
   const normal=await readFile(join(dist,'index.html'),'utf8');
-  if(!normal.includes('Insertion editor')||!normal.includes('id="exportFormat"'))throw new Error('Expected default insertion editor');
+  if(!normal.includes('id="startNote"')||!normal.includes('id="exportFormat"'))throw new Error('Expected default insertion editor');
   await mkdir(join(dist,'insertion-poc'),{recursive:true});
   // Keep previously shared URLs usable; never substitute the legacy live recorder.
   await writeFile(join(dist,'insertion-poc/index.html'),normal);

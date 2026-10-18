@@ -103,7 +103,7 @@ def main():
         page.screenshot(path=str(a.out/'help-ja-mobile.png'),full_page=True)
         page.keyboard.press('Escape')
         assert not page.locator('#helpDialog').is_visible()
-        assert not page.evaluate("document.documentElement.classList.contains('pt-help-locked')")
+        page.wait_for_function("() => !document.documentElement.classList.contains('pt-help-locked') && !document.body.classList.contains('pt-help-locked')")
         page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
         assert not page.locator('#helpDialog').is_visible()
         page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)

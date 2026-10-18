@@ -88,7 +88,7 @@ def capture_variant(browser, url, variant, source, out, report):
         'hero': '.page-intro', 'localBadge': '.local-badge', 'steps': '#ptSteps',
         'inputPanel': '#ptInputPanel' if old else '#sourcePanel',
         'editor': '#ptStudioPanel' if old else '#editor',
-        'drawTools': '.pt-draw-tools' if old else '.drawing-tools',
+        'drawPanel': '.pt-draw-panel', 'drawTools': '.pt-draw-tools',
         'stage': '#ptStage' if old else '.stage',
         'transport': '#ptTransport' if old else '.pt-transport',
         'help': '#helpDialog', 'helpBody': '#helpDialog .dialog-body',
@@ -158,8 +158,8 @@ def main():
     if os.environ.get('GITHUB_ACTIONS') != 'true':
         raise SystemExit('CI-only visual comparison: run in the authorized GitHub Actions job.')
     assert args.url == 'http://127.0.0.1:8765/index.html', 'Use the existing CI localhost server only.'
-    font = subprocess.check_output(['fc-match', '-f', '%{family}\n', ':lang=ja'], text=True).strip()
-    assert 'Noto Sans CJK' in font, 'Install fonts-noto-cjk before visual capture: ' + font
+    font = subprocess.check_output(['fc-match', '-f', '%{family}\n', 'Noto Sans CJK JP'], text=True).strip()
+    assert 'Noto Sans CJK JP' in font, 'Install fonts-noto-cjk before visual capture: ' + font
     root = Path(__file__).resolve().parents[2]
     dist = Path(__file__).resolve().parent / 'dist'
     baseline = dist / BASELINE_FILENAME

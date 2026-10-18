@@ -60,6 +60,7 @@ jobs:
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/multiple-source-audio --source-audio --multiple
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/portrait-source-audio --source-audio --portrait
       - name: Compare original and restored Japanese shell
+        if: ${{ !cancelled() }}
         run: python experiments/insertion-poc/test-shell-visual.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/shell-visual
       - name: Verify native diagnostic UI and unsupported codecs
         run: python experiments/insertion-poc/test-native-sample.py --out insertion-evidence/native-sample
