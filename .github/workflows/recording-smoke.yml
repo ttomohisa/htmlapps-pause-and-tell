@@ -1,0 +1,74 @@
+name: Pause & Tell default distribution smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'experiments/insertion-poc/**'
+      - 'build-standalone.ps1'
+      - 'app.config.json'
+      - '.github/workflows/recording-smoke.yml'
+      - 'tests/recording-ux-smoke.py'
+      - 'tests/g9-browser-regression.py'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Expose Unix tar for the Windows-origin build script
+        shell: bash
+        run: |
+          ln -s "$(command -v tar)" "$RUNNER_TEMP/tar.exe"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Build single HTML (no extra runtime dependencies)
+        shell: pwsh
+        run: ./build-standalone.ps1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install only Python test driver
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.58.0'
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
+          test -x /usr/bin/chromium
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+
+      - name: Record and decode WebM with a synthetic microphone
+        shell: bash
+        run: |
+          python -m http.server 8766 --bind 127.0.0.1 --directory dist >/tmp/root-insertion-http.log 2>&1 &
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8766/index.html --out smoke-output/readable --source-audio
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8766/index.self-extract.html --out smoke-output/self-extract --memory-target
+
+
+      - name: Upload synthetic test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pause-and-tell-browser-smoke
+          path: smoke-output/
+          if-no-files-found: ignore
+          retention-days: 7

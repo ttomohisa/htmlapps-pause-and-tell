@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {TemporaryCleanup} from './temporary-cleanup.js';
+const queue=new TemporaryCleanup();
+const files=new Set(['last-good','failed-candidate']);
+let failure='UnknownError',calls=0,release;
+const candidate={name:'failed-candidate',directory:{async removeEntry(name){
+  calls++; assert.equal(name,'failed-candidate');
+  if(failure==='wait') await new Promise(r=>release=r);
+  else if(failure)throw Object.assign(new Error('injected'),{name:failure});
+  files.delete(name);
+}}};
+assert.equal(await queue.remove(candidate),false);
+assert.equal(queue.size,1);
+assert.equal(await queue.retry(),false);
+assert.equal(queue.size,1);assert.equal(calls,2);
+assert(files.has('last-good'));assert(files.has('failed-candidate'));
+failure='wait';let settled=false;const waiting=queue.retry().then(x=>{settled=true;return x});
+await Promise.resolve();assert.equal(settled,false);assert.equal(queue.size,1);
+release();assert.equal(await waiting,true);assert.equal(queue.size,0);
+assert(files.has('last-good'));assert(!files.has('failed-candidate'));
+failure='NotFoundError';assert.equal(await queue.remove(candidate),true);assert.equal(queue.size,0);
+assert.equal(await queue.retry(),true);
+console.log('PASS cleanup: bounded candidate ownership, repeated failure, settled retry, NotFound');

@@ -3,6 +3,7 @@ param(
   [string]$Path,
   [bool]$RequireNetworkBlock = $true,
   [bool]$RequireCanonicalIcon = $true,
+  [bool]$RequireInsertionEditor = $false,
   [string[]]$ForbiddenPlaceholders = @(
     "__APP_CONFIG_JSON__",
     "__BUILD_MANIFEST_JSON__",
@@ -50,6 +51,20 @@ if ($RequireCanonicalIcon) {
   if ($faviconMatch.Groups["uri"].Value -ne $brandIconMatch.Groups["uri"].Value) {
     throw "Header brand icon must use the exact same embedded SVG asset as the favicon"
   }
+}
+
+if ($RequireInsertionEditor) {
+  foreach ($token in @('id="sourceFile"', 'id="startNote"', 'id="noteList"', 'id="export"', 'id="outputName"', 'Mozilla Public License')) {
+    if (-not $html.Contains($token)) { throw "Normal distribution is missing insertion editor content: $token" }
+  }
+  $manifestMatch = [regex]::Match($html, '<script id="build-manifest" type="application/json">(?<json>.*?)</script>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+  if (-not $manifestMatch.Success) { throw "Embedded insertion build manifest is missing." }
+  $embeddedManifest = $manifestMatch.Groups['json'].Value | ConvertFrom-Json
+  $mediabunny = @($embeddedManifest.dependencies | Where-Object { $_.package -eq 'mediabunny' })
+  if ($mediabunny.Count -ne 1 -or [string]$mediabunny[0].license -ne 'MPL-2.0' -or [string]::IsNullOrWhiteSpace([string]$mediabunny[0].npmIntegrity)) {
+    throw "Bundled Mediabunny license/integrity manifest is invalid."
+  }
+  if ($html.Contains('id="ptStudioPanel"')) { throw "Archived recorder must not remain the normal distribution." }
 }
 
 foreach ($check in $checks) {

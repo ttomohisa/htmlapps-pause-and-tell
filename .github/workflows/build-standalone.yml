@@ -6,6 +6,9 @@ on:
     branches:
       - main
     paths:
+      - 'experiments/insertion-poc/**'
+      - 'build-standalone.ps1'
+      - 'app.config.json'
       - "src/**"
       - "scripts/**"
       - "app.config.json"
@@ -29,6 +32,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
       - name: Validate PowerShell syntax and encoding
         shell: powershell

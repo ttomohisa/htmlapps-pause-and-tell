@@ -113,14 +113,10 @@ foreach ($requiredDependencyId in @("qrcode-generator", "jsqr")) {
   }
 }
 
-$sourceText = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "src\index.template.html")
-if (-not $sourceText.Contains("__EMBEDDED_ASSET_BUNDLE_JSON__")) { throw "src\index.template.html must embed the asset bundle JSON directly." }
-if ($sourceText.Contains("__EMBEDDED_ASSET_BUNDLE_BASE64__")) { throw "Legacy double-Base64 asset bundle placeholder must not return." }
-$iconPlaceholderCount = ([regex]::Matches($sourceText, [regex]::Escape("__APP_ICON_DATA_URI__"))).Count
-if ($iconPlaceholderCount -ne 2) { throw "src\index.template.html must use __APP_ICON_DATA_URI__ exactly twice: favicon and header icon." }
-if (-not $sourceText.Contains('id="appBrandIcon"')) { throw "src\index.template.html is missing the canonical header brand icon marker." }
-foreach ($token in @("bytesAsync", "blobUrlAsync", "outputFilename", "window.AppToast")) {
-  if (-not $sourceText.Contains($token)) { throw "src\index.template.html is missing required template behavior marker: $token" }
+# The archived recorder template is retained as history, not the release entry.
+# The insertion source graph is checked by check-pause-and-tell.ps1 below.
+foreach ($relative in @("experiments\insertion-poc\index.template.html", "experiments\insertion-poc\insertion-poc.js", "experiments\insertion-poc\build.mjs", "experiments\insertion-poc\package-lock.json", "experiments\insertion-poc\licenses\mediabunny-MPL-2.0.txt")) {
+  if (-not (Test-Path (Join-Path $Root $relative))) { throw "Required insertion source missing: $relative" }
 }
 
 $builderText = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "build-standalone.ps1")
@@ -223,6 +219,9 @@ try {
 } finally {
   Remove-Item -Force -ErrorAction SilentlyContinue $tempVerifyPath
 }
+
+# Product-level contract check, in addition to the inherited template validation.
+& (Join-Path $Root "scripts\check-pause-and-tell.ps1")
 
 $app = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "app.config.json") | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace([string]$app.name)) { throw "app.config.json: name is required" }

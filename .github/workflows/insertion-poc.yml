@@ -1,0 +1,80 @@
+name: Insertion mode PoC (offline composition)
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'experiments/insertion-poc/*.js'
+      - 'experiments/insertion-poc/*.mjs'
+      - 'experiments/insertion-poc/*.py'
+      - 'experiments/insertion-poc/*.json'
+      - 'experiments/insertion-poc/index.template.html'
+      - '.github/workflows/insertion-poc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  insertion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned build dependencies and generate offline PoC
+        working-directory: experiments/insertion-poc
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          node test-timeline.mjs
+          node test-native-codec-support.mjs
+          node test-native-sample.mjs
+          node test-export-format.mjs
+          node test-preview-modes.mjs
+          node test-temporary-cleanup.mjs
+          node test-drawing.mjs
+          node build-native-sample.mjs
+          node build-native-sample-test.mjs
+          test -f dist/index.html
+          # The bundle is embedded directly; no runtime script download is required.
+          test "$(wc -c < dist/index.html)" -gt 10000
+      - name: Test dependencies for local Chromium
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.58.0'
+          if ! command -v ffmpeg >/dev/null || ! fc-match -f '%{family}' 'Noto Sans CJK JP' | grep -q 'Noto Sans CJK'; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg fonts-noto-cjk
+          fi
+          test -x /usr/bin/chromium
+          ffprobe -version | head -n 1
+      - name: Run offline media composition regression
+        shell: bash
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory experiments/insertion-poc/dist >/tmp/insertion-http.log 2>&1 &
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/silent --memory-target --expanded-input
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/source-audio --source-audio
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/multiple-source-audio --source-audio --multiple
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/portrait-source-audio --source-audio --portrait
+      - name: Compare original and restored Japanese shell
+        if: ${{ !cancelled() }}
+        run: python experiments/insertion-poc/test-shell-visual.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/shell-visual
+      - name: Verify native diagnostic UI and unsupported codecs
+        run: python experiments/insertion-poc/test-native-sample.py --out insertion-evidence/native-sample
+      - name: Verify preserved drawing tools in saved frames
+        run: python experiments/insertion-poc/test-drawing-browser.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/drawing
+      - name: Run short failure protection regressions
+        run: python experiments/insertion-poc/test-resilience.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/resilience
+      - name: Archive PoC output and inspection report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: insertion-poc-evidence
+          path: |
+            insertion-evidence/
+            experiments/insertion-poc/dist/index.html
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f5f2">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src 'none'; worker-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link rel="icon" href="__APP_ICON_DATA_URI__">
+<title>Pause &amp; Tell</title>
+<style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f2;
+      --surface: #ffffff;
+      --surface-muted: #f0f0ed;
+      --surface-hover: #e9e9e5;
+      --text: #20211f;
+      --muted: #666963;
+      --line: #dadbd6;
+      --line-strong: #bfc1ba;
+      --accent: #16624f;
+      --accent-hover: #0e503f;
+      --accent-soft: #e1f0ea;
+      --danger: #b3261e;
+      --focus: #4d8bc7;
+      --shadow-sm: 0 1px 2px rgba(25, 28, 24, .08), 0 1px 6px rgba(25, 28, 24, .04);
+      --shadow-md: 0 12px 34px rgba(25, 28, 24, .10);
+      --radius: 12px;
+      --header-height: 66px;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, textarea, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 55%, transparent);
+      outline-offset: 2px;
+    }
+    .app-header {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      min-height: var(--header-height);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(16px) saturate(1.2);
+    }
+    .header-inner {
+      width: min(1180px, 100%);
+      min-height: var(--header-height);
+      margin: 0 auto;
+      padding: 10px clamp(14px, 2.8vw, 30px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark {
+      display: block;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border-radius: 11px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-mark img { width: 100%; height: 100%; display: block; }
+    .brand-copy { min-width: 0; }
+    .brand-name {
+      font-weight: 400;
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+      letter-spacing: .01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 7px;
+      padding: 1px 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface-muted);
+      font-size: 10px;
+      font-weight: 650;
+      vertical-align: 2px;
+    }
+    .brand-meta {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+    .button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .button:active { transform: translateY(1px); }
+    .language-button {
+      min-width: 0;
+      padding: 5px 1px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .02em;
+      cursor: pointer;
+      transition: color .16s ease, opacity .16s ease;
+    }
+    .language-button:hover { color: var(--text); }
+    .language-button:active { opacity: .65; }
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+    .icon-button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .icon-button:active { transform: translateY(1px); }
+    .icon-button svg { width: 18px; height: 18px; display: block; }
+    .header-icon-button {
+      width: auto;
+      height: auto;
+      padding: 5px 1px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      transition: color .16s ease, opacity .16s ease;
+    }
+    .header-icon-button:hover { border-color: transparent; background: transparent; color: var(--text); }
+    .header-icon-button:active { transform: none; opacity: .65; }
+    .header-icon-button svg { width: 20px; height: 20px; }
+    .main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 22px clamp(14px, 2.8vw, 30px) 54px;
+    }
+    .page-intro {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 2px 18px;
+    }
+    .page-intro h2 {
+      margin: 0;
+      font-size: clamp(21px, 3vw, 26px);
+      line-height: 1.3;
+      letter-spacing: -.025em;
+    }
+    .page-intro p { margin: 5px 0 0; max-width: 760px; color: var(--muted); font-size: 13px; }
+    .local-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      margin-top: 3px;
+      padding: 7px 10px;
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+      border-radius: 999px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .local-badge svg { width: 15px; height: 15px; display: block; }
+
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 12px; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .button { min-height: 40px; padding: 8px 14px; font-weight: 700; }
+    .button.primary { border-color: var(--accent); color: white; background: var(--accent); }
+    .button.primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+    .button.danger { color: var(--danger); }
+    .save-status { align-self: center; color: var(--muted); font-size: 12px; }
+    .export-row { display: flex; align-items: end; gap: 10px; margin-top: 12px; }
+    .export-field { display: grid; gap: 5px; min-width: min(100%, 320px); }
+    .export-label { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .filename-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    .filename-control:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent); }
+    .filename-input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 0; outline: 0; background: transparent; color: var(--text); }
+    .filename-extension { padding: 0 10px; color: var(--muted); font-size: 12px; user-select: none; }
+
+    footer { width: min(1180px, 100%); margin: 0 auto; padding: 0 clamp(14px, 2.8vw, 30px) 34px; color: var(--muted); font-size: 12px; }
+    details { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow-sm); }
+    summary { cursor: pointer; padding: 14px 16px; font-weight: 720; }
+    dialog {
+      width: min(640px, calc(100% - 28px));
+      max-height: min(760px, calc(100dvh - 28px));
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-md);
+    }
+    dialog::backdrop { background: rgba(15, 17, 14, .52); backdrop-filter: blur(4px); }
+    #helpDialog[open] {
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 0 0 auto;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .dialog-header h2 { margin: 0; font-size: 17px; }
+    .dialog-body {
+      min-height: 0;
+      flex: 1 1 auto;
+      padding: 20px 20px calc(28px + env(safe-area-inset-bottom));
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .dialog-body h3 {
+      margin: 25px 0 8px;
+      padding-top: 19px;
+      border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+      font-size: 14px;
+    }
+    .dialog-body h3:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    .dialog-body p, .dialog-body li { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .dialog-body p { margin: 8px 0 0; }
+    .dialog-body ul, .dialog-body ol { margin: 8px 0 0; padding-left: 22px; }
+    .dialog-body li + li { margin-top: 7px; }
+    .dialog-note {
+      margin-top: 12px;
+      padding: 11px 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--text) !important;
+    }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    @media (max-width: 820px) {
+      .page-intro { align-items: stretch; flex-direction: column; gap: 10px; }
+      .local-badge { align-self: flex-start; }
+
+    }
+    @media (max-width: 520px) {
+      :root { --header-height: 58px; }
+      .header-inner { padding-block: 8px; }
+      .brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+      .brand-name { font-size: 15px; }
+      .brand-meta { display: none; }
+      .header-actions { gap: 11px; }
+      .language-button { padding-block: 6px; }
+      .header-icon-button { padding-block: 6px; }
+      .main { padding-top: 18px; }
+      .page-intro { padding-bottom: 14px; }
+
+      .toolbar, .button-row { width: 100%; }
+      .button-row .button { flex: 1 1 auto; }
+
+      #helpDialog {
+        width: calc(100% - 20px);
+        max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      }
+      #helpDialog .dialog-body {
+        padding: 18px 18px calc(24px + env(safe-area-inset-bottom));
+      }
+
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
+    /* Pause & Tell v0.2.0: workflow and modal/background layout. */
+    .pt-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; list-style: none; padding: 0; margin: 0 0 18px; }
+    .pt-step { display: flex; align-items: center; min-width: 0; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); }
+    .pt-step-number { display: inline-grid; place-items: center; flex: 0 0 25px; width: 25px; height: 25px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 12px; font-weight: 750; }
+    .pt-step-label { font-size: 13px; font-weight: 650; min-width: 0; }
+    .pt-step[data-state="current"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-hover); }
+    .pt-step[data-state="current"] .pt-step-number { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pt-step[data-state="done"] .pt-step-number { background: var(--surface-muted); border-color: var(--accent); color: var(--accent); }
+    .pt-loading { margin: 14px 0 0; color: var(--accent); font-size: 13px; font-weight: 650; }
+    .pt-current-file { margin: 12px 0 0; padding: 10px 12px; background: var(--surface-muted); border-radius: 9px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .pt-mic-note { margin: 13px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    html.pt-help-locked { overflow: hidden; overscroll-behavior: none; }
+    body.pt-help-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+    #helpDialog .dialog-body { overscroll-behavior: contain; touch-action: pan-y; }
+    @media (max-width: 600px) {
+      .pt-step { padding: 8px 7px; gap: 5px; flex-direction: column; text-align: center; justify-content: center; min-height: 70px; }
+      .pt-step-label { font-size: 12px; line-height: 1.4; }
+    }
+    @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
+      footer { display: none; }
+    }
+
+    /* v0.3.0 annotation tools: active controls never enter the output canvas. */
+    .pt-draw-surface { position: absolute; inset: 0; z-index: 3; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+    .pt-draw-surface[aria-disabled="true"] { pointer-events: none; touch-action: auto; cursor: default; }
+    .pt-draw-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+    .pt-draw-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 9px; }
+    .pt-draw-heading { margin: 0; color: var(--text); font-size: 13px; font-weight: 750; }
+    .pt-draw-tools { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .pt-draw-tool { display: flex; justify-content: center; align-items: center; gap: 8px; min-width: 0; min-height: 44px; padding: 7px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--text); background: var(--surface); font-weight: 650; cursor: pointer; }
+    .pt-draw-tool svg, .pt-annotation-action svg { width: 18px; height: 18px; flex: 0 0 auto; stroke-width: 1.9; }
+    .pt-draw-tool[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
+    .pt-draw-tool:disabled, .pt-annotation-action:disabled, .pt-draw-color:disabled { opacity: .45; cursor: not-allowed; }
+    .pt-draw-bottom { margin-top: 10px; display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .pt-draw-colors { display: flex; align-items: center; gap: 9px; }
+    .pt-draw-color { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface); cursor: pointer; }
+    .pt-draw-color[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pt-color-swatch { display: block; width: 23px; height: 23px; border: 1px solid rgba(0,0,0,.3); border-radius: 50%; }
+    .pt-annotation-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .pt-annotation-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); font-size: 13px; font-weight: 650; cursor: pointer; }
+    .pt-draw-help { margin: 11px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    @media (max-width: 390px) {
+      .pt-draw-tool { gap: 5px; font-size: 12px; }
+      .pt-draw-bottom { gap: 12px; }
+      .pt-annotation-action { padding-inline: 9px; }
+    }
+
+    /* v0.8.0: keyboard/screen-reader access while keeping the video Canvas local. */
+    .pt-skip-link { position:fixed; z-index:99; left:12px; top:-90px; padding:11px 16px;
+      border-radius:9px; background:var(--accent); color:#fff; font-weight:700; }
+    .pt-skip-link:focus { top:12px; outline:3px solid var(--focus); outline-offset:2px; }
+    #drawCanvas:focus-visible { outline:3px solid #fff; outline-offset:-5px;
+      box-shadow:inset 0 0 0 7px #16624f; }
+    .pt-keyboard-cursor { position:absolute; z-index:5; width:28px; height:28px; border-radius:50%;
+      border:3px solid #fff; box-shadow:0 0 0 3px #111, inset 0 0 0 2px #111;
+      transform:translate(-50%,-50%); pointer-events:none; }
+    .pt-keyboard-cursor::after { content:""; display:block; position:absolute; width:5px; height:5px;
+      top:50%; left:50%; border-radius:50%; background:#fff; transform:translate(-50%,-50%); }
+    .pt-keyboard-hint { margin:9px 0 0; color:var(--muted); font-size:12px; line-height:1.65; }
+    @media (pointer:coarse) {
+      /* Screen readers still receive the description via aria-describedby. */
+      .pt-keyboard-hint { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+        overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+    }
+    .pt-panel [tabindex="-1"]:focus { outline:none; }
+    #seek:focus-visible, #ptAudioMode:focus-visible, #ptSourceGain:focus-visible {
+      outline:3px solid var(--focus); outline-offset:2px; }
+    @media (prefers-reduced-motion: reduce) {
+      .pt-skip-link { transition:none; }
+    }
+
+    /* Video-first editing. Transport is inline, not a distant fixed footer. */
+    #editor.pt-panel { padding:clamp(12px,2vw,20px); }
+    #editor .pt-control-head h2 { font-size:17px; margin:0; }
+    #sourceInfo { margin:6px 0; padding:0; background:transparent; font-size:12px;
+      white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .pt-source-change-row { margin:0 0 6px; }
+    .pt-source-change-row .pt-file-label { min-height:40px; padding:6px 11px; font-size:12px; }
+    #editor .pt-draw-panel { margin:4px 0 8px; padding:8px;
+      border:1px solid var(--line); background:var(--surface); }
+    #editor .pt-draw-header, #editor .pt-draw-help { display:none; }
+    #editor .pt-draw-tools { grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+    #editor .pt-draw-tool { min-height:44px; padding:5px 6px; gap:5px; }
+    #editor .pt-draw-bottom { margin-top:6px; gap:7px; }
+    #editor .pt-draw-colors { gap:7px; }
+    #editor .pt-draw-color { width:42px; height:42px; }
+    #editor .pt-annotation-actions { gap:5px; }
+    #editor .pt-annotation-action { min-height:44px; padding:6px 9px; }
+    #editor .pt-stage-wrap { margin:0; padding:7px; border-radius:12px; }
+    #editor .pt-stage { max-height:min(53dvh,470px); }
+    #editor .pt-stage canvas { max-height:min(52dvh,460px); border-radius:3px; }
+    #editor .pt-transport { position:static; display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch;
+      margin:7px 0 0; padding:0; border:0; background:transparent; box-shadow:none; gap:8px; }
+    #editor .pt-transport .button { width:100%; min-width:0; min-height:50px; font-size:14px; font-weight:730; }
+    #editor .pt-transport #finishNote:not([hidden]) { border-color:var(--danger);
+      background:#fff6f5; color:#99201a; }
+    #editor .pt-inline-state { margin:5px 0; padding:0; font-size:13px; min-height:0; }
+    #editor .pt-clocks { margin:6px 0 2px; gap:12px; flex-wrap:wrap; }
+    #editor .pt-clocks > div { font-size:12px; }
+    #editor .pt-seek { margin:5px 0 0; }
+    .pt-seek-note { margin:4px 0 8px; color:var(--muted); font-size:12px; line-height:1.6; }
+    #seek { min-height:44px; }
+    .pt-start-mode { display:flex; align-items:center; gap:9px; margin:5px 0 0;
+      color:var(--muted); font-size:12px; min-height:38px; cursor:pointer; }
+    .pt-start-mode input { width:18px; height:18px; accent-color:var(--accent); }
+    #editor .pt-mic-note { margin:5px 0; font-size:12px; }
+    #editor .pt-audio-options { margin:7px 0 0; }
+    @media (max-width:767px), (pointer:coarse) and (max-height:600px) {
+      #editor .pt-draw-tool { min-height:46px; padding:4px 1px; flex-direction:column; gap:2px; }
+      #editor .pt-stage { max-height:48dvh; }
+      #editor .pt-stage canvas { max-height:47dvh; }
+      #editor .pt-transport { position:static; padding:0; box-shadow:none; margin-top:7px; border:0; }
+      #editor .pt-transport .button { min-height:48px; padding:8px 5px; }
+      body:has(#editor:not([hidden])) .main { padding-bottom:18px; }
+      #editor .pt-annotation-action { min-width:44px; width:44px; padding:7px; }
+      #editor .pt-annotation-action span { display:none; }
+    }
+    @media (max-width:360px) {
+      #editor .pt-draw-colors { gap:5px; }
+      #editor .pt-draw-color { width:40px; height:40px; }
+      #editor .pt-annotation-actions { width:auto; display:flex; gap:5px; }
+      #editor .pt-annotation-action { width:42px; min-width:42px; min-height:44px; }
+    }
+
+    #editor .pt-control-head { justify-content:flex-start; }
+    #editor .pt-source-change-row { margin:0 0 0 auto; }
+    #editor .pt-current-file { margin:2px 0 6px; }
+    #editor .pt-keyboard-hint {
+      position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+      overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
+    }
+    #editor .pt-draw-bottom { flex-wrap:nowrap; }
+
+    /* 320px phones: distribute every action evenly, never orphan Clear on its own line. */
+    @media (max-width:340px) {
+      #editor .pt-draw-bottom { display:grid; grid-template-columns:minmax(0,1fr); gap:5px; }
+      #editor .pt-draw-colors,
+      #editor .pt-annotation-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; gap:5px; }
+      #editor .pt-draw-color { width:44px; height:44px; justify-self:center; }
+      #editor .pt-annotation-action { width:100%; min-width:0; padding:5px; font-size:11px; gap:4px; }
+      #editor .pt-annotation-action span { display:inline; }
+      #editor .pt-annotation-action svg { width:16px; height:16px; }
+    }
+
+    /* APP: Pause & Tell proof-of-concept. Keep the shared template UI and tokens. */
+    [hidden] { display: none !important; }
+    .pt-panel { padding: clamp(18px, 3vw, 28px); margin-bottom: 18px; }
+    .pt-panel h2 { margin: 0 0 6px; font-size: 19px; letter-spacing: -.015em; }
+    .pt-muted { color: var(--muted); margin: 0; line-height: 1.7; }
+    .pt-drop { margin-top: 18px; padding: 22px; border: 2px dashed var(--line-strong); border-radius: 14px; background: var(--surface-muted); text-align: center; }
+    .pt-drop.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+    .pt-file-label { display: inline-flex; justify-content: center; align-items: center; min-height: 46px; padding: 10px 22px; border-radius: 10px; background: var(--accent); color: white; font-weight: 650; cursor: pointer; }
+    .pt-file-label:hover { background: var(--accent-hover); }
+    .pt-controls .pt-file-label {
+      min-height: 46px; padding: 9px 16px; border: 1px solid var(--line);
+      border-radius: 10px; background: var(--surface); color: var(--text); font-size: 14px;
+    }
+    .pt-controls .pt-file-label:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+    .pt-controls .pt-file-label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
+    .pt-file-label:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .pt-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .pt-file-hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .pt-file-details { margin: 12px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+    .pt-error { margin: 14px 0 0; padding: 11px 14px; border-radius: 9px; border: 1px solid #f2c2bd; color: #8d211b; background: #fff4f2; }
+    .pt-stage-wrap { margin-top: 18px; padding: 12px; border-radius: 14px; background: #172321; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .pt-stage { position: relative; display: flex; justify-content: center; align-items: center; max-width: 100%; max-height: 62dvh; }
+    .pt-stage canvas { display: block; max-width: 100%; max-height: min(60dvh, 580px); width: auto; height: auto; background: #101514; border-radius: 4px; }
+    .pt-source-video { position: absolute; width: 100%; height: 100%; inset: 0; opacity: 0; pointer-events: none; object-fit: contain; }
+    .pt-control-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+    .pt-status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; background: var(--surface-muted); font-size: 13px; font-weight: 650; }
+    .pt-status-pill.live { background: #ffebea; color: #a61d19; }
+    .pt-status-pill.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .pt-clocks { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 16px 0 6px; font-size: 13px; }
+    .pt-clocks strong { font-size: 20px; display: block; font-variant-numeric: tabular-nums; color: var(--text); }
+    .pt-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .pt-controls .button { min-height: 46px; padding: 9px 18px; font-weight: 650; }
+    .pt-controls .button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .pt-record-stop { color: #a51e19; border-color: #c5a19d; }
+    .pt-seek { width: 100%; display: flex; gap: 10px; align-items: center; margin: 14px 0; color: var(--muted); font-size: 13px; }
+    .pt-seek input { flex: 1; min-width: 0; accent-color: var(--accent); }
+    .pt-message { min-height: 24px; color: var(--muted); margin: 12px 0 0; }
+    .pt-poc-note { margin-top: 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+    .pt-result-video { display: block; background: #141c1a; width: 100%; max-height: 55dvh; border-radius: 11px; margin: 16px 0; }
+    .pt-result-meta { overflow-wrap: anywhere; font-size: 13px; margin: 8px 0 14px; color: var(--muted); }
+    .pt-filename-row { display: flex; align-items: stretch; max-width: 440px; margin: 8px 0; }
+    .pt-filename-row input { min-width: 0; flex: 1; border: 1px solid var(--line-strong); background: white; padding: 10px; border-radius: 9px 0 0 9px; }
+    .pt-filename-ext { display: flex; align-items: center; padding: 0 14px; background: var(--surface-muted); border: 1px solid var(--line-strong); border-left: 0; border-radius: 0 9px 9px 0; font-size: 14px; }
+    .pt-diag { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Consolas, monospace; font-size: 12px; max-height: 260px; overflow: auto; }
+    .pt-intro-flag { border: 1px solid var(--line); background: var(--surface-muted); color: var(--muted); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 650; }
+    @media (max-width: 580px) {
+      .pt-panel { padding: 16px; }
+      .pt-drop { padding: 18px 12px; }
+      .pt-stage-wrap { margin-left: -6px; margin-right: -6px; padding: 6px; }
+      .pt-controls .button { flex: 1 1 130px; }
+      .pt-clocks { justify-content: space-between; gap: 12px; }
+      .pt-status-pill { font-size: 12px; }
+    }
+
+    /* The insertion engine switches between the actual video and frozen canvas.
+       Keep both visible in their active state and preserve the same media ratio. */
+    button, input, select { font: inherit; }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    select:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .panel, .stage, .note-list { min-width: 0; }
+    .muted { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .fill { flex: 1; }
+    .pt-file-label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+    .pt-format-row { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 14px; }
+    .pt-format-row label { color: var(--muted); font-size: 13px; font-weight: 650; }
+    .pt-format-row select { max-width: 100%; min-width: 0; min-height: 44px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 9px; color: var(--text); background: var(--surface); }
+    .pt-format-hint { margin: 6px 0 0; font-size: 12px; }
+    .pt-change-video { display: none; }
+    .main:has(#editor:not([hidden])) #sourcePanel { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 0 clamp(12px, 2vw, 20px); margin-bottom: 8px; }
+    .main:has(#editor:not([hidden])) #sourcePanel > h2,
+    .main:has(#editor:not([hidden])) #sourcePanel > .pt-muted,
+    .main:has(#editor:not([hidden])) #sourcePanel .pt-file-hint,
+    .main:has(#editor:not([hidden])) .pt-choose-video { display: none; }
+    .main:has(#editor:not([hidden])) .pt-change-video { display: inline; }
+    .main:has(#editor:not([hidden])) #sourceDropZone { order: 2; margin: 0 0 0 auto; padding: 0; border: 0; background: transparent; }
+    .main:has(#editor:not([hidden])) #sourceDropZone .pt-file-label { min-height: 40px; padding: 6px 11px; border: 1px solid var(--line); color: var(--text); background: var(--surface); font-size: 12px; }
+    .main:has(#editor:not([hidden])) #sourceDropZone .pt-file-label:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .main:has(#editor:not([hidden])) #sourcePanel .pt-format-row { margin: 0; }
+    .main:has(#editor:not([hidden])) #sourcePanel .pt-format-hint,
+    .main:has(#editor:not([hidden])) #sourcePanel #capabilities { order: 3; flex: 1 0 100%; margin: 0; }
+    #editor #sourceDropZone { margin: 0 0 0 auto; padding: 0; border: 0; background: transparent; }
+    #editor #sourceDropZone .pt-file-hint { display: none; }
+    #editor #formatSettings { margin-top: 10px; }
+    #capabilities { margin: 8px 0 0; overflow-wrap: anywhere; }
+    #editor .pt-draw-tools.row { display: grid; }
+    #editor .pt-draw-bottom .row { margin: 0; }
+    #editor .stage { --stage-height: min(52dvh, 460px); display: grid; place-items: center; position: relative; width: 100%; max-height: var(--stage-height); overflow: hidden; }
+    #editor .stage video, #editor .stage canvas { display: block; width: min(100%, calc(var(--stage-height) * var(--media-ratio, 1.7778))); height: auto; max-height: var(--stage-height); object-fit: contain; background: #101514; border-radius: 3px; }
+    #editor .stage canvas { touch-action: none; }
+    #editor .seek { margin: 5px 0 0; }
+    #editor .seek input { min-height: 44px; }
+    #editor .pt-transport .button { overflow-wrap: anywhere; }
+    #editor:has(#finishNote:not([hidden])) #playSource { display: none; }
+    #editor .pt-transport #finishNote:not([hidden]) { border-color: var(--danger); background: #fff6f5; color: #99201a; }
+    #captureStatus:empty, #saveStatus:empty, #exportStatus:empty, #error:empty { display: none; }
+    #sourceInfo { overflow-wrap: anywhere; }
+    #recordingClock { margin: 6px 0; }
+    #recordingElapsed { margin: 0; color: #99201a; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    #recordingBudget { margin: 5px 0 0; font-size: 12px; }
+    .note { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-muted); border-radius: 9px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+    .alert { color: #8d211b; }
+    .note.alert { border-color: #f2c2bd; background: #fff4f2; }
+    .note-list { display: grid; gap: 7px; margin: 10px 0; }
+    .note-item { display: flex; gap: 7px; min-width: 0; }
+    .note-item button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface); font-weight: 650; cursor: pointer; }
+    .note-item button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .note-item button:first-child { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+    .note-item button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-hover); }
+    .note-item button:last-child { flex: 0 0 auto; }
+    #recovery { border: 1px solid #c48c32; border-radius: 12px; background: #fff7e9; color: #704514; }
+    #notePlayer { display: block; width: 100%; margin-top: 10px; }
+    .pt-review-help { margin: 8px 0 0; }
+    .pt-session-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+    #nativeSupportPanel { margin-top: 12px; }
+    #nativeSupportPanel > .muted, #nativeSupportPanel > .button { margin: 0 16px 14px; }
+    .pt-license { margin-top: 14px; }
+    .pt-license > p, .pt-license > pre { margin: 0 16px 14px; }
+    .pt-license pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+    output, .counter { font-variant-numeric: tabular-nums; }
+    .counter { font-weight: 750; }
+    .narrow { font-size: 12px; }
+    @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
+      #editor .stage { --stage-height: 47dvh; }
+    }
+    @media (max-width: 520px) {
+      .pt-format-row { align-items: stretch; flex-direction: column; gap: 5px; }
+      .pt-format-row select { width: 100%; }
+      .pt-controls.row .button { min-width: 0; overflow-wrap: anywhere; }
+    }
+</style>
+</head>
+<body>
+  <a href="#mainContent" class="pt-skip-link" data-ja="操作エリアへ移動" data-en="Skip to controls">操作エリアへ移動</a>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
+        </div>
+        <div class="brand-copy">
+          <h1 class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v0.12.0</span></h1>
+          <p class="brand-meta" data-ja="動画を止めて話す · 端末内で録画" data-en="Pause and explain · Record on your device">動画を止めて話す · 端末内で録画</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="language-button" id="language" type="button" aria-label="Switch language">EN</button>
+        <button class="icon-button header-icon-button" id="helpButton" type="button" aria-label="使い方と注意事項" data-ja-aria-label="使い方と注意事項" data-en-aria-label="How to use &amp; notes" title="使い方と注意事項" data-ja-title="使い方と注意事項" data-en-title="How to use &amp; notes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.35 2.35 0 1 1 3.72 1.9c-.92.67-1.52 1.12-1.52 2.1"/><path d="M12 17h.01"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+  <main class="main" id="mainContent" tabindex="-1">
+    <span id="previewModeEntry"></span>
+    <section class="page-intro" aria-labelledby="heroTitle">
+      <div>
+        <h2 id="heroTitle" data-ja="動画を止めて、声で説明する" data-en="Pause a video and explain in your own voice">動画を止めて、声で説明する</h2>
+        <p data-ja="説明したい位置で声と描き込みを録り、元動画に差し込みます。" data-en="Record your voice and drawings at a chosen frame, then insert the explanation into your video.">説明したい位置で声と描き込みを録り、元動画に差し込みます。</p>
+      </div>
+      <div class="local-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-5"/></svg>
+        <span data-ja="完全ローカル処理" data-en="Entirely local processing">完全ローカル処理</span>
+      </div>
+    </section>
+    <ol class="pt-steps" id="ptSteps" aria-label="作業の進み具合" data-ja-aria-label="作業の進み具合" data-en-aria-label="Workflow progress">
+      <li class="pt-step" data-step="1" data-state="current" aria-current="step"><span class="pt-step-number" aria-hidden="true">1</span><span class="pt-step-label" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span></li>
+      <li class="pt-step" data-step="2" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">2</span><span class="pt-step-label" data-ja="説明を録る" data-en="Record explanations">説明を録る</span></li>
+      <li class="pt-step" data-step="3" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">3</span><span class="pt-step-label" data-ja="動画を保存" data-en="Save the video">動画を保存</span></li>
+    </ol>
+    <!-- APP:BEGIN Pause & Tell insertion workflow. -->
+    <section class="panel shell pt-panel" id="sourcePanel" aria-labelledby="sourceTitle">
+      <h2 id="sourceTitle" data-ja="説明したい動画を選ぶ" data-en="Choose the video you want to explain">説明したい動画を選ぶ</h2>
+      <p class="pt-muted" data-ja="短い動画を読み込み、説明したい位置で声と描き込みを録音します。" data-en="Choose a short video, then record your voice and drawings at the moments you want to explain.">短い動画を読み込み、説明したい位置で声と描き込みを録音します。</p>
+      <div class="pt-drop" id="sourceDropZone">
+        <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
+        <p class="pt-file-hint" data-ja="PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。" data-en="On a computer, you can also drag and drop a video here. Up to 5 minutes and 250 MiB.">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
+      </div>
+      <div id="formatSettings">
+      <div class="pt-format-row">
+        <label for="exportFormat" data-ja="書き出し形式" data-en="Export format">書き出し形式</label>
+        <select id="exportFormat"><option value="webm" selected>WebM VP8/Opus</option><option value="mp4" data-ja="MP4 AVC/AAC（実験）" data-en="MP4 AVC/AAC (experimental)">MP4 AVC/AAC（実験）</option></select>
+      </div>
+      <p id="formatHint" class="muted pt-format-hint" data-ja="MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。" data-en="MP4: up to 30 seconds of output. Insertion/audio/device saving are under device evaluation. WebM limits are unchanged.">MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。</p>
+      <p id="capabilities" class="muted" aria-live="polite"></p>
+      </div>
+    </section>
+    <section class="panel shell pt-panel" id="editor" aria-labelledby="editorTitle" hidden>
+      <div class="pt-control-head"><h2 id="editorTitle" data-ja="動画を見ながら説明する" data-en="Explain while viewing the video">動画を見ながら説明する</h2></div>
+      <p class="muted pt-current-file" id="sourceInfo"></p>
+      <section class="pt-draw-panel drawing-tools" aria-labelledby="ptDrawTitle">
+        <div class="pt-draw-header">
+          <h3 id="ptDrawTitle" class="pt-draw-heading" data-ja="動画に描く" data-en="Draw on the video">動画に描く</h3>
+          <span class="pt-muted" data-ja="説明の録音中に描けます" data-en="Draw while recording an explanation">説明の録音中に描けます</span>
+        </div>
+        <div class="pt-draw-tools row" role="group" data-ja-aria-label="描画ツール" data-en-aria-label="Drawing tools" aria-label="描画ツール">
+          <button type="button" class="pt-draw-tool" data-draw-tool="point" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg><span data-ja="指差し" data-en="Point">指差し</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="ellipse" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><ellipse cx="12" cy="12" rx="8.2" ry="6.7"/></svg><span data-ja="丸" data-en="Circle">丸</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="arrow" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 19 5M10 5h9v9"/></svg><span data-ja="矢印" data-en="Arrow">矢印</span></button>
+          <button type="button" class="pt-draw-tool" data-draw-tool="pen" aria-pressed="true" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 5-.9L20.1 7a2.1 2.1 0 0 0-3-3L5 16zM14 6l4 4"/></svg><span data-ja="ペン" data-en="Pen">ペン</span></button>
+        </div>
+        <div class="pt-draw-bottom">
+          <div class="pt-draw-colors row" role="group" data-ja-aria-label="描画色" data-en-aria-label="Drawing colors" aria-label="描画色">
+            <button type="button" class="pt-draw-color" data-draw-color="yellow" aria-pressed="true" data-ja-aria-label="黄色" data-en-aria-label="Yellow" aria-label="黄色" disabled><span aria-hidden="true" class="pt-color-swatch" style="background:#ffe36b"></span></button>
+            <button type="button" class="pt-draw-color" data-draw-color="white" aria-pressed="false" data-ja-aria-label="白" data-en-aria-label="White" aria-label="白" disabled><span aria-hidden="true" class="pt-color-swatch" style="background:#ffffff"></span></button>
+            <button type="button" class="pt-draw-color" data-draw-color="red" aria-pressed="false" data-ja-aria-label="赤" data-en-aria-label="Red" aria-label="赤" disabled><span aria-hidden="true" class="pt-color-swatch" style="background:#ff6262"></span></button>
+          </div>
+          <div class="pt-annotation-actions row">
+            <button type="button" id="drawUndo" aria-label="1つ戻す" class="pt-annotation-action" data-ja-aria-label="1つ戻す" data-en-aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 0 14"/></svg><span data-ja="1つ戻す" data-en="Undo">1つ戻す</span></button>
+            <button type="button" id="drawRedo" aria-label="やり直す" class="pt-annotation-action" data-ja-aria-label="やり直す" data-en-aria-label="Redo" aria-keyshortcuts="Control+Y Meta+Shift+Z" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 4 5 5-5 5M20 9h-9a7 7 0 0 0 0 14"/></svg><span data-ja="やり直す" data-en="Redo">やり直す</span></button>
+            <button type="button" id="drawClear" aria-label="線を消す" class="pt-annotation-action" data-ja-aria-label="線を消す" data-en-aria-label="Clear" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg><span data-ja="線を消す" data-en="Clear">線を消す</span></button>
+          </div>
+        </div>
+        <p class="pt-draw-help" data-ja="元に戻す・消す操作は、その時点以降に反映されます。" data-en="Undo and Clear apply from that moment onward.">元に戻す・消す操作は、その時点以降に反映されます。</p>
+        <p id="keyboardDrawHelp" class="pt-keyboard-hint" data-ja="説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while recording narration. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
+        <p id="drawingAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
+      </section>
+      <div class="pt-stage-wrap">
+        <div class="stage pt-stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden tabindex="-1" aria-describedby="keyboardDrawHelp" aria-label="Drawing on video"></canvas><span id="keyboardCursor" class="keyboard-cursor pt-keyboard-cursor" aria-hidden="true" hidden></span></div>
+      </div>
+      <div class="row pt-controls pt-transport">
+        <button id="startNote" type="button" class="button primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
+        <button id="playSource" type="button" class="button" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
+        <button id="cancelNote" type="button" class="button" hidden data-ja="この録音を取り消す" data-en="Cancel this recording">この録音を取り消す</button>
+        <button id="finishNote" type="button" class="button pt-record-stop" hidden data-ja="説明の録音を終了" data-en="Finish explanation">説明の録音を終了</button>
+      </div>
+      <p class="muted pt-inline-state" id="captureStatus" aria-live="polite"></p>
+      <div id="recordingClock" hidden><p id="recordingElapsed" role="timer" aria-live="off"></p><p class="muted" id="recordingBudget"></p></div>
+      <label class="seek pt-seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+      <p id="durationBudget" class="note" aria-live="polite" hidden></p>
+      <div id="formatDestination"></div>
+      <p class="pt-mic-note" data-ja="マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。" data-en="The microphone is used only when you choose Record explanation here. The source frame stays frozen while your voice and drawings are recorded.">マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。</p>
+    </section>
+<section class="panel shell pt-panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
+<section class="panel shell pt-panel" id="notePanel" hidden>
+<h2 data-ja="説明区間を確認して書き出す" data-en="Review and export">説明区間を確認して書き出す</h2>
+<p id="noteSummary" class="note"></p>
+<div id="noteList" class="note-list" role="group" aria-label="Recorded explanation segments"></div>
+<p class="muted pt-review-help" data-ja="録り直すときも、元の説明は新しい音声を確認できるまで保持します。" data-en="Your original explanation is kept until the new recording has been validated.">録り直すときも、元の説明は新しい音声を確認できるまで保持します。</p>
+<audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
+<div class="row pt-controls">
+<button class="button" id="rerecord" data-ja="選択した説明を録り直す" data-en="Rerecord selected explanation">選択した説明を録り直す</button>
+<button class="button" id="discard" data-ja="選択した説明を削除" data-en="Delete selected explanation">選択した説明を削除</button>
+<button class="button primary" id="export" data-ja="説明を差し込んで動画を作成" data-en="Compose video with insertion">説明を差し込んで動画を作成</button>
+</div>
+<p id="exportBudget" class="note alert" aria-live="polite" hidden></p>
+<button class="button" id="cancelExport" hidden data-ja="書き出しを中止" data-en="Cancel export">書き出しを中止</button>
+<p class="muted" id="exportStatus" aria-live="polite"></p>
+<p id="cleanupWarning" class="note alert" aria-live="polite" hidden></p>
+</section>
+<section class="panel shell pt-panel result" id="result" hidden>
+<h2 data-ja="完成動画を確認する" data-en="Verify the finished video">完成動画を確認する</h2>
+<p class="pt-muted" data-ja="保存前に、音声と説明区間が正しいか最後まで再生して確かめてください。" data-en="Before saving, play the video through to check the audio and inserted explanations.">保存前に、音声と説明区間が正しいか最後まで再生して確かめてください。</p>
+<video id="resultVideo" class="pt-result-video" controls playsinline></video>
+<label for="outputName" data-ja="保存名" data-en="Filename">保存名</label>
+<div class="pt-filename-row"><input id="outputName" value="video-explained" maxlength="150" autocomplete="off" spellcheck="false"><span id="resultExtension" class="pt-filename-ext">.webm</span></div>
+<div class="row pt-controls"><button id="save" class="button primary" data-ja="動画を保存" data-en="Save video">動画を保存</button><button class="button" id="share" hidden data-ja="共有" data-en="Share">共有</button></div>
+<p class="pt-export-hint" data-ja="保存先で実際のファイルを再生して確認してください。保存・共有の取消後も、このページの完成動画は保持します。" data-en="Check the saved file in your chosen location. Cancelling save or share keeps the finished video on this page.">保存先で実際のファイルを再生して確認してください。保存・共有の取消後も、このページの完成動画は保持します。</p>
+<p id="saveStatus" class="muted" aria-live="polite"></p>
+<p class="muted" id="resultInfo"></p>
+</section>
+    <p id="error" class="pt-error alert" role="alert" aria-live="assertive"></p>
+    <p class="pt-session-note" data-ja="説明音声はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。" data-en="Reloading or closing this page loses recorded explanations. Save any completed video you need first.">説明音声はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。</p>
+    <!-- APP:END -->
+  </main>
+  <footer>Pause &amp; Tell · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
+  <dialog id="helpDialog" aria-labelledby="helpTitle">
+    <div class="dialog-header">
+      <h2 id="helpTitle" data-ja="使い方と注意事項" data-en="How to use &amp; notes">使い方と注意事項</h2>
+      <button class="icon-button" id="closeHelpButton" type="button" aria-label="閉じる" data-ja-aria-label="閉じる" data-en-aria-label="Close" title="閉じる" data-ja-title="閉じる" data-en-title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+    </div>
+    <div class="dialog-body">
+      <!-- APP:HELP:BEGIN -->
+      <h3 data-ja="使い方" data-en="How to use">使い方</h3>
+      <ol>
+        <li data-ja="5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。" data-en="Choose a playable video up to 5 minutes and 250 MiB. Your original file is unchanged.">5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。</li>
+        <li data-ja="元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。" data-en="Play or seek through the source and choose Record explanation here. Allow the microphone to record your explanation over the frozen frame.">元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。</li>
+        <li data-ja="指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。" data-en="Use Point, Circle, Arrow or Pen with three colors. Undo, Redo and Clear affect the explanation from that moment onward.">指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。</li>
+        <li data-ja="「説明の録音を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。" data-en="Finish the explanation, check its audio, and add more at other positions. Select an explanation to delete or rerecord it.">「説明の録音を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。</li>
+        <li data-ja="「説明を差し込んで動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。" data-en="Compose the video to keep every original source interval and insert the explanations. Source audio remains before and after each explanation and pauses during it.">「説明を差し込んで動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。</li>
+        <li data-ja="完成動画を再生して確認し、保存名を付けて保存します。対応端末では共有も選べます。保存先で実際のファイルを再生して確認してください。" data-en="Play and check the completed video, edit its filename, and save it. Sharing is available on supported devices. Verify the actual file in its saved location.">完成動画を再生して確認し、保存名を付けて保存します。対応端末では共有も選べます。保存先で実際のファイルを再生して確認してください。</li>
+      </ol>
+      <h3 data-ja="録り直し・中断・保存" data-en="Rerecording, interruptions and saving">録り直し・中断・保存</h3>
+      <p class="muted" data-ja="録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。" data-en="Rerecord at the same insertion position. The original is replaced only after the new audio is validated; failure or cancellation keeps it. Compose the video again after replacement.">録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。</p>
+      <p class="muted" data-ja="書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。説明音声はページの再読み込み・終了で失われます。サイトデータを削除しないでください。" data-en="If export fails, save the previous successful output first. Keep this page open, check available device storage and retry. Reloading or closing the page loses narration. Do not clear site data.">書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。説明音声はページの再読み込み・終了で失われます。サイトデータを削除しないでください。</p>
+      <p data-ja="録音中に画面ロック・タブ移動・着信・OSの終了が起きると中断する場合があります。回収音声は未完成・未検証で、完成した説明とは区別して表示します。自動保存やプロジェクト復元はありません。" data-en="Screen locking, tab changes, calls or OS termination may interrupt recording. Recovered audio is incomplete and unverified, and is shown separately from completed explanations. There is no autosave or project recovery.">録音中に画面ロック・タブ移動・着信・OSの終了が起きると中断する場合があります。回収音声は未完成・未検証で、完成した説明とは区別して表示します。自動保存やプロジェクト復元はありません。</p>
+      <h3 data-ja="プライバシーと試験上限" data-en="Privacy and experimental limits">プライバシーと試験上限</h3>
+      <p class="muted" data-ja="差し込み方式の動画エディターです。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。" data-en="Insertion video editor. The source file is unchanged. Trial upper bounds: 5-minute source, 250 MiB input, 2-minute narration per clip and 10-minute output. Device support is not guaranteed. Only narration and drawing events are captured, not the whole source. Export decodes and re-encodes source frames (not lossless). Data stays in the browser and is not uploaded. Compatible devices use a local temporary file for export and remove it on normal cleanup; a crash may leave the temporary file.">差し込み方式の動画エディターです。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。</p>
+      <p data-ja="WebM VP8/Opusが既定です。MP4 AVC/AACは補助の実験機能で、完成30秒までです。端末・ブラウザ・入力動画によって、読み込み・録音・書き出し・保存ができない場合があります。機能検出だけでは実機での成功を保証しません。" data-en="WebM VP8/Opus is the default. MP4 AVC/AAC is an auxiliary experimental format, limited to 30 seconds of completed output. Loading, recording, export and saving depend on the device, browser and input. Capability detection does not guarantee success on a device.">WebM VP8/Opusが既定です。MP4 AVC/AACは補助の実験機能で、完成30秒までです。端末・ブラウザ・入力動画によって、読み込み・録音・書き出し・保存ができない場合があります。機能検出だけでは実機での成功を保証しません。</p>
+      <p class="dialog-note" data-ja="動画とマイク音声はブラウザ内で処理します。明示的に共有先を選ぶ場合は、その先へ完成動画が送られることがあります。" data-en="Video and microphone audio are processed in your browser. If you explicitly choose a sharing destination, the finished video may be sent there.">動画とマイク音声はブラウザ内で処理します。明示的に共有先を選ぶ場合は、その先へ完成動画が送られることがあります。</p>
+      <h3 data-ja="キーボード操作" data-en="Keyboard controls">キーボード操作</h3>
+      <p data-ja="説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while recording narration. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
+      <p data-ja="丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。Tabで操作を選び、ヘルプは閉じるボタン・Esc・背景のクリックで閉じられます。" data-en="Drawing circles, arrows and pen strokes requires a mouse, finger or stylus. Use Tab to move between controls. Close help with its close button, Esc, or a click on the backdrop.">丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。Tabで操作を選び、ヘルプは閉じるボタン・Esc・背景のクリックで閉じられます。</p>
+      <h3 data-ja="端末の対応確認" data-en="Device capability check">端末の対応確認</h3>
+      <details id="nativeSupportPanel">
+<summary data-ja="端末のMP4候補を確認（生成しません）" data-en="Check native MP4 candidates (no encoding)">端末のMP4候補を確認（生成しません）</summary>
+<p class="muted" data-ja="AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。" data-en="AVC: 320×180, 15fps, 900kbps / AAC: 48kHz, stereo, 96kbps. Permission-free support queries only. This does not test MP4 encoding, sync or saving. A candidate does not prove iPhone/Android support. MP4 insertion export is experimental, limited to 30 seconds of output.">AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。</p>
+<button id="checkNativeSupport" class="button" type="button" data-ja="候補を確認" data-en="Check candidates">候補を確認</button>
+<p id="nativeSupportResult" class="muted" aria-live="polite" data-ready="false"></p>
+</details>
+      <h3 data-ja="外部ライブラリ" data-en="Third-party library">外部ライブラリ</h3>
+      <details class="pt-license"><summary data-ja="外部ライブラリのライセンスとソース" data-en="Library license and source">外部ライブラリのライセンスとソース</summary><p>Mediabunny 1.61.5 · Copyright (c) 2026-present, Vanilagy and contributors · MPL-2.0.</p><p><a href="https://registry.npmjs.org/mediabunny/-/mediabunny-1.61.5.tgz" target="_blank" rel="noopener noreferrer" data-ja="この版のライブラリソースを取得（外部サイト）" data-en="Get this version's library source (external site)">この版のライブラリソースを取得（外部サイト）</a></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px">__MEDIABUNNY_LICENSE__</pre></details>
+      <!-- APP:HELP:END -->
+    </div>
+  </dialog>
+<script>/*__INSERTION_POC_BUNDLE__*/</script>
+</body></html>
