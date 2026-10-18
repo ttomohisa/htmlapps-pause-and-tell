@@ -356,11 +356,17 @@ try {
   Pop-Location
 }
 $insertionPackage = Get-Json (Join-Path $insertionRoot "package.json")
-$insertionLock = Get-Json (Join-Path $insertionRoot "package-lock.json")
+# npm lock packages include an empty root key, unsupported by PS5 ConvertFrom-Json.
+# Project only named records with primitive fields before PowerShell parses them.
+$lockProjection = & node -e "const fs=require('fs'); const lock=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(Object.entries(lock.packages).filter(([key])=>key).map(([path,item])=>({path,version:item.version,integrity:item.integrity}))));" (Join-Path $insertionRoot "package-lock.json")
+if ($LASTEXITCODE -ne 0) { throw "Unable to project the insertion npm lock." }
+$lockEntries = @($lockProjection | ConvertFrom-Json)
 foreach ($runtimePackage in @($insertionPackage.dependencies.PSObject.Properties)) {
   $packageName = [string]$runtimePackage.Name
   $packageVersion = [string]$runtimePackage.Value
-  $lockEntry = $insertionLock.packages.PSObject.Properties["node_modules/$packageName"].Value
+  $matchingLockEntries = @($lockEntries | Where-Object { $_.path -eq "node_modules/$packageName" })
+  if ($matchingLockEntries.Count -ne 1) { throw "Expected one npm lock entry for $packageName." }
+  $lockEntry = $matchingLockEntries[0]
   $installed = Get-Json (Join-Path $insertionRoot ("node_modules/" + $packageName + "/package.json"))
   if ([string]$lockEntry.version -ne $packageVersion -or [string]$installed.version -ne $packageVersion -or [string]::IsNullOrWhiteSpace([string]$lockEntry.integrity)) {
     throw "Bundled runtime dependency does not match its npm integrity lock: $packageName"

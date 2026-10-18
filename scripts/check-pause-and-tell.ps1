@@ -17,9 +17,15 @@ foreach ($token in @('MAX_SOURCE_SECONDS', 'MAX_SOURCE_BYTES', 'MAX_NOTE_SECONDS
   if (-not $runtime.Contains($token)) { throw "Insertion editor runtime marker missing: $token" }
 }
 $package = Get-Content -Raw -Encoding UTF8 (Join-Path $insertionRoot "package.json") | ConvertFrom-Json
-$lock = Get-Content -Raw -Encoding UTF8 (Join-Path $insertionRoot "package-lock.json") | ConvertFrom-Json
+# npm lock packages include an empty root key, unsupported by PS5 ConvertFrom-Json.
+# Project only named records with primitive fields before PowerShell parses them.
+$lockProjection = & node -e "const fs=require('fs'); const lock=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(Object.entries(lock.packages).filter(([key])=>key).map(([path,item])=>({path,version:item.version,integrity:item.integrity}))));" (Join-Path $insertionRoot "package-lock.json")
+if ($LASTEXITCODE -ne 0) { throw "Unable to project the insertion npm lock." }
+$lockEntries = @($lockProjection | ConvertFrom-Json)
 if ([string]$package.dependencies.mediabunny -ne '1.61.5') { throw "Review required for Mediabunny version changes." }
-$locked = $lock.packages.PSObject.Properties['node_modules/mediabunny'].Value
+$matchingLockEntries = @($lockEntries | Where-Object { $_.path -eq 'node_modules/mediabunny' })
+if ($matchingLockEntries.Count -ne 1) { throw 'Expected one Mediabunny npm lock entry.' }
+$locked = $matchingLockEntries[0]
 if ([string]$locked.version -ne [string]$package.dependencies.mediabunny -or [string]::IsNullOrWhiteSpace([string]$locked.integrity)) { throw "Mediabunny npm lock is missing or inconsistent." }
 $builder = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "build-standalone.ps1")
 foreach ($token in @('npm ci --ignore-scripts', 'node build.mjs', 'npmIntegrity', 'rootHtmlOutputPath')) {
