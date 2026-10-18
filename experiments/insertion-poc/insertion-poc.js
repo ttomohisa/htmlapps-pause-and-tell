@@ -62,7 +62,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     errorNode.textContent = l('処理に失敗しました: ', 'Failed: ') + message;
     console.error(error);
   }
-  function info(text) { $('captureStatus').textContent = text; }
+  function info(ja,en) {
+    const node=$('captureStatus');
+    node.dataset.ja=ja;node.dataset.en=en;
+    node.textContent=l(ja,en);
+  }
   function setBusy(value) {
     state.busy = value;
     updateSteps();
@@ -268,7 +272,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('noteList').replaceChildren();
     canvas.hidden=true;
     sourceVideo.hidden=false;
-    info(l('説明を追加する位置を選べます。', 'Choose a source position for narration.'));
+    info('説明を追加する位置を選べます。', 'Choose a source position for narration.');
     setBusy(false);
   }
   function selectNote(note,preparedUrl=null) {
@@ -419,10 +423,12 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       $('editor').hidden = false;
       $('seek').value = '0';
       $('position').textContent = fmt(0);
-      $('sourceInfo').textContent = file.name + ' · ' + fmt(duration) + ' · ' + width + '×' + height
-        + ' · ' + (audio ? l('元音声あり','Original audio present') : l('無音動画','Silent source'));
-      info(l('元動画の再生では音声も聞けます。説明の録音を始めると元動画は停止します。',
-        'Playing the original also plays its soundtrack. Starting narration pauses the source.'));
+      const metadata=file.name+' · '+fmt(duration)+' · '+width+'×'+height+' · ';
+      $('sourceInfo').dataset.ja=metadata+(audio ? '元音声あり' : '無音動画');
+      $('sourceInfo').dataset.en=metadata+(audio ? 'Original audio present' : 'Silent source');
+      $('sourceInfo').textContent=$('sourceInfo').dataset[lang];
+      info('元動画の再生では音声も聞けます。説明の録音を始めると元動画は停止します。',
+        'Playing the original also plays its soundtrack. Starting narration pauses the source.');
     } catch (e) {
       canvas.width=oldGeometry.width;canvas.height=oldGeometry.height;
       canvas.parentElement.style.setProperty('--media-ratio',String(canvas.width/canvas.height));
@@ -528,7 +534,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     return {x:Math.min(1,Math.max(0,(event.clientX-rect.left)/rect.width)),y:Math.min(1,Math.max(0,(event.clientY-rect.top)/rect.height))};
   }
   function addStroke(point) {
-    if(state.strokes.length>=120){info(l('描画は120個までです。不要な描画を消してください。','Up to 120 drawings. Clear unneeded drawings.'));return null;}
+    if(state.strokes.length>=120){info('描画は120個までです。不要な描画を消してください。','Up to 120 drawings. Clear unneeded drawings.');return null;}
     if(state.tool!=='point')state.gestureHistory=captureDrawingHistory(state);
     rememberDrawing(state);
     const stroke={tool:state.tool,color:state.color,from:point,to:point};
@@ -675,7 +681,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       recordingClock=setInterval(renderRecordingClock,250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
       $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
-      info(replacing ? l('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.') : l('説明を録音中。指差し・丸・矢印・ペンで描けます。元動画の録画はしていません。','Narration recording. Use Point, Circle, Arrow or Pen. Source footage is not being recorded.'));
+      if(replacing) info('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.');
+      else info('説明を録音中。指差し・丸・矢印・ペンで描けます。元動画の録画はしていません。','Narration recording. Use Point, Circle, Arrow or Pen. Source footage is not being recorded.');
       recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
@@ -716,7 +723,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
         })]);
       } finally { clearTimeout(timer); }
       if(session.cancelled) {
-        info(l('録音を取り消しました。元の説明と前回の完成動画は保持しています。','Recording cancelled. Original explanations and previous output are retained.'));
+        info('録音を取り消しました。元の説明と前回の完成動画は保持しています。','Recording cancelled. Original explanations and previous output are retained.');
         return;
       }
       const blob=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
@@ -763,12 +770,12 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
         $('exportStatus').textContent='';
         $('notePanel').hidden=false;
         selectNote(note,candidateNoteUrl);candidateNoteUrl=null;
-        info(l('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.'));
+        info('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.');
       } finally { if(candidateNoteUrl)URL.revokeObjectURL(candidateNoteUrl);input.dispose(); }
     } catch(e) {
       session.failed=true;retainRecovery(session);
       showError(e);
-      info(l('録音は完了していません。既存の説明区間は保持しています。','Recording did not complete. Existing explanations are retained.'));
+      info('録音は完了していません。既存の説明区間は保持しています。','Recording did not complete. Existing explanations are retained.');
     } finally {
       state.session=null;
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;

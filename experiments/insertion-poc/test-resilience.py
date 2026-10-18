@@ -137,7 +137,11 @@ def recording_failure(page, url, source, out, kind):
     assert float(clock.get_attribute('data-output')) < 3, 'Rerecord budget includes old clip twice'
     page.locator('#language').click()
     expect(page.locator('#recordingElapsed')).to_contain_text('録音 ')
+    expect(page.locator('#captureStatus')).to_contain_text('選択した説明を録り直し')
     page.locator('#language').click()
+    expect(page.locator('#captureStatus')).to_contain_text('Rerecording selected explanation.')
+    assert note_snapshot(page)==before, 'Language toggle changed the retained explanation'
+    assert page.evaluate('__testRecorders.at(-1).state')=='recording'
     if kind == 'unexpected_stop':
         # Actual native stop, without the app's explicit Finish operation.
         page.evaluate('__testRecorders.at(-1).stop()')

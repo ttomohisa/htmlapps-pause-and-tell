@@ -8,7 +8,7 @@ import subprocess
 import time
 from array import array
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 def command(args, binary=False):
     v=subprocess.run(args,capture_output=True,check=True)
@@ -183,11 +183,20 @@ def main():
         page.screenshot(path=str(a.out/'recording-ja-mobile.png'),full_page=True)
         page.set_viewport_size({'width':1180,'height':800})
         page.screenshot(path=str(a.out/'recording-ja-desktop.png'),full_page=True)
+        source_position=page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')
+        drawing_pixels=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
         page.locator('#language').click()
+        expect(page.locator('#captureStatus')).to_contain_text('Narration recording.')
+        expect(page.locator('#sourceInfo')).to_contain_text('Original audio present' if a.source_audio else 'Silent source')
         page.screenshot(path=str(a.out/'recording-en-desktop.png'),full_page=True)
         page.set_viewport_size({'width':390,'height':844})
         page.screenshot(path=str(a.out/'recording-en-mobile.png'),full_page=True)
         page.locator('#language').click()
+        expect(page.locator('#captureStatus')).to_contain_text('説明を録音中')
+        expect(page.locator('#sourceInfo')).to_contain_text('元音声あり' if a.source_audio else '無音動画')
+        assert page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')==source_position
+        assert page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')==drawing_pixels
+        expect(page.locator('#recordingClock')).to_be_visible()
         page.set_viewport_size({'width':390,'height':844})
         page.locator('#finishNote').click()
         page.locator('#notePanel').wait_for(state='visible',timeout=25000)
