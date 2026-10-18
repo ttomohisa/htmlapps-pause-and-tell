@@ -291,11 +291,17 @@ def main():
             assert lead_original<.025 and tail_original<.025, ('Silence source contains unexpected sound',lead_original,tail_original)
         if a.multiple:
             # The original soundtrack must also survive BETWEEN the two inserts.
-            middle_original=tone_amplitude(pcm,4.35,440)
-            middle_narration=tone_amplitude(pcm,4.35,800)
+            # Recording duration includes real browser work (including captures).
+            # Keep each 300 ms analysis window inside its intended interval.
+            # Rounded UI duration uncertainty is <=50 ms, plus one 15fps frame.
+            middle_center=2+durations[0]+.5
+            second_center=3+durations[0]+durations[1]/2
+            assert durations[1]>.6, 'Second narration too short for an interior tone window'
+            middle_original=tone_amplitude(pcm,middle_center,440)
+            middle_narration=tone_amplitude(pcm,middle_center,800)
             assert middle_original>.03 and middle_narration<.025, ('Middle source audio lost',middle_original,middle_narration)
-            second_voice=tone_amplitude(pcm,5.2,800)
-            second_original=tone_amplitude(pcm,5.2,440)
+            second_voice=tone_amplitude(pcm,second_center,800)
+            second_original=tone_amplitude(pcm,second_center,440)
             assert second_voice>.04 and second_original<.025,('Second inserted segment incorrect',second_voice,second_original)
         if a.vfr_stereo:
             assert streams['audio']['channels']==2,streams['audio']
@@ -304,7 +310,7 @@ def main():
             for sample in (.7,duration-.5):
                 assert tone_amplitude(left,sample,440)>.12 and tone_amplitude(left,sample,660)<.025
                 assert tone_amplitude(right,sample,660)>.12 and tone_amplitude(right,sample,440)<.025
-            for sample in (2.5,5.2):
+            for sample in ([2.5,second_center] if a.multiple else [2.5]):
                 assert tone_amplitude(left,sample,800)>.04 and tone_amplitude(right,sample,800)>.04
                 for channel in (left,right):
                     assert tone_amplitude(channel,sample,440)<.025 and tone_amplitude(channel,sample,660)<.025, 'Source stereo tone leaked into narration'
@@ -368,6 +374,7 @@ def main():
         page.locator('#helpButton').click();page.keyboard.press('Escape')
         page.wait_for_function("y=>Math.abs(scrollY-y)<2",arg=prior_scroll)
         assert not page.evaluate("document.body.classList.contains('pt-help-locked')")
+        page.evaluate('window.scrollTo(0,0)')
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         page.set_viewport_size({'width':1180,'height':800})
         page.screenshot(path=str(a.out/'saved-ja-desktop.png'),full_page=True)
@@ -380,7 +387,7 @@ def main():
           'audio':streams['audio']['codec_name'],'narrationRms':rms,'sourceBytes':source.stat().st_size,
           'outputBytes':result.stat().st_size,'openingFrameError':prefix_diff,
           'tailFrameError':suffix_diff,'sourceHasAudio':a.source_audio,
-          'portrait':a.portrait,'multiple':a.multiple,'vfrStereo':a.vfr_stereo,'sourceFrameDeltas':source_deltas,
+          'portrait':a.portrait,'multiple':a.multiple,'clipDurations':durations,'middleProbe':middle_center if a.multiple else None,'secondProbe':second_center if a.multiple else None,'vfrStereo':a.vfr_stereo,'sourceFrameDeltas':source_deltas,
           'storage':storage,'expectedOutput':expected_output,
           'originalToneBefore':lead_original,'originalToneDuring':insert_original,
           'originalToneAfter':tail_original,'narrationToneDuring':insert_narration,
