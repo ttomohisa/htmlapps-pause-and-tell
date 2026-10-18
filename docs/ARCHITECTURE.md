@@ -1,3 +1,7 @@
+# Current Pause & Tell integration
+
+Normal distribution uses `experiments/insertion-poc/` source modules, bundled by esbuild with pinned npm integrity. `build-standalone.ps1` invokes that build and reuses canonical metadata, root-copy and self-extract generation/verification. The source video is decoded/re-encoded with independent narration and timestamped drawing snapshots at export. `drawing.js` is shared by recording preview and encoded-frame rendering. Root and prior insertion preview route serve the same editor. `src/index.template.html` is historical live-recorder code, not the build entry. Earlier template architecture below remains relevant only where it does not conflict with this product entry.
+
 # Architecture
 
 ## Overview

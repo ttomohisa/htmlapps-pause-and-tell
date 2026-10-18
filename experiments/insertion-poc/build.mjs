@@ -14,7 +14,9 @@ if (!source.includes(marker)) throw new Error('HTML bundle marker missing');
 const code = js.outputFiles[0].text.replace(/<\/script/gi, String.raw`\x3c/script`);
 const license = await readFile(resolve(base,'licenses/mediabunny-MPL-2.0.txt'),'utf8');
 const escapedLicense = license.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const output = source.replace(marker, () => code).replace('__MEDIABUNNY_LICENSE__', () => escapedLicense);
+const icon = await readFile(resolve(base, '../../assets/favicon.svg'));
+const iconDataUri = 'data:image/svg+xml;base64,' + icon.toString('base64');
+const output = source.replace(marker, () => code).replace('__MEDIABUNNY_LICENSE__', () => escapedLicense).replaceAll('__APP_ICON_DATA_URI__', iconDataUri);
 // The document must preserve the complete inline bundle. HTML terminates a
 // script at a literal </script> even if it appears inside a JS string.
 const start = output.indexOf('<script>') + '<script>'.length;
@@ -40,4 +42,4 @@ catch (e) {
 const dir = resolve(base, 'dist');
 await mkdir(dir, {recursive: true});
 await writeFile(resolve(dir,'index.html'), output);
-console.log('Insertion PoC built:', Buffer.byteLength(output), 'bytes');
+console.log('Insertion editor built:', Buffer.byteLength(output), 'bytes');

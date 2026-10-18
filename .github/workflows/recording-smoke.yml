@@ -1,4 +1,4 @@
-name: Pause & Tell browser recording smoke
+name: Pause & Tell default distribution smoke
 
 on:
   workflow_dispatch:
@@ -6,6 +6,9 @@ on:
     branches:
       - main
     paths:
+      - 'experiments/insertion-poc/**'
+      - 'build-standalone.ps1'
+      - 'app.config.json'
       - '.github/workflows/recording-smoke.yml'
       - 'tests/recording-ux-smoke.py'
       - 'tests/g9-browser-regression.py'
@@ -21,6 +24,11 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Expose Unix tar for the Windows-origin build script
         shell: bash
         run: |
@@ -29,7 +37,7 @@ jobs:
 
       - name: Build single HTML (no extra runtime dependencies)
         shell: pwsh
-        run: ./build-standalone.ps1 -SkipSelfExtract
+        run: ./build-standalone.ps1
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -51,10 +59,10 @@ jobs:
       - name: Record and decode WebM with a synthetic microphone
         shell: bash
         run: |
-          python tests/recording-ux-smoke.py \
-            --html dist/index.html \
-            --output smoke-output \
-            --chromium /usr/bin/chromium
+          python -m http.server 8766 --bind 127.0.0.1 --directory dist >/tmp/root-insertion-http.log 2>&1 &
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8766/index.html --out smoke-output/readable --source-audio
+          python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8766/index.self-extract.html --out smoke-output/self-extract --memory-target
+
 
       - name: Upload synthetic test evidence
         if: always()

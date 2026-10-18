@@ -1,3 +1,28 @@
+# Pause & Tell — current insertion specification (v0.12.0)
+
+The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The existing Draft remains unmerged; no default-branch or Browser Kitty changes are authorized.
+
+## Current product contract
+
+- Select one local source video, seek to an insertion point, then record independent narration and timestamped drawings over that frozen frame. Repeat, select, delete or safely rerecord explanations. Export retains every original source interval and source audio around inserted explanations.
+- Preserve Point/Circle/Arrow/Pen (Pen default), yellow/white/red, Undo/Redo/Clear and keyboard Point operations. Drawing changes apply at their recorded explanation times. The former app had fixed widths, not a thickness picker.
+- Source playback/seek before recording chooses insertion positions. During narration the frame stays frozen. Continuous microphone capture while skipping/replaying source footage is intentionally replaced, not an available secondary mode.
+- WebM VP8/Opus is default. Native AVC/AAC MP4 remains auxiliary and experimental, limited to 30 seconds of completed output. Codec capability failure must be visible; no silent codec/WASM fallback.
+- Trial caps remain source 5min/250MiB, explanation 2min, WebM output 10min. These are not performance guarantees. Export budget derives from the actual frame-rounded timeline.
+- Finish explanation validates new audio before committing. Rerecord failure/cancel retains the old clip; successful replacement invalidates old composition. Export cancel is cooperative and locked until cleanup settles. A prior successful result is replaced only after candidate validation. Failed-candidate cleanup ownership must never include prior output or user source files.
+- Recording, export and save are separate user operations. Prior output and interrupted recovery audio remain explicitly labelled; session-only explanations can be lost on reload/close/OS termination. No persistent project recovery is claimed.
+- Root HTML, readable standalone and self-extracting distribution all build the same insertion application. Runtime dependencies and MPL notices/source information are embedded; no runtime CDN/media upload/CSP expansion. Prior preview `/insertion-poc/` remains an alias, not another workflow.
+- Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required.
+
+## Evidence and release boundary
+
+See [validation](docs/INSERTION_POC_VALIDATION.md): desktop 180-second WebM saved-file/full decode; short native Windows MP4 VFR/44.1k stereo/two inserts; owner Pixel real-video recording/save, approximately three-minute saved playback and rerecord cancellation. Device versions and broad compatibility remain unverified. This replacement does not prove iPhone, all Pixel/Android, arbitrary camera VFR/HEVC/HDR, full capacity, physical disk exhaustion or OS kill recovery. No new stress suite is required for each small UI change.
+
+---
+# Historical v0.9.3 continuous-recorder specification
+
+Retained for traceability only. Conflicting workflow, build source and default audio requirements below do not describe the current distribution.
+
 # Pause & Tell — APP_SPEC.md
 
 > **Status:** v0.9.3試験仕様（録画中シーク・初期ペン・終了確認、G1〜G9実機未検証）  

@@ -1,3 +1,10 @@
+## 0.12.0 — insertion editor becomes the normal entry (Draft)
+
+- Reuse validated independent explanation recording and offline full-source composition.
+- Preserve Point/Circle/Arrow/Pen, colors, Undo/Redo/Clear and keyboard Point with timestamped export rendering.
+- Align root/standalone/self-extract distribution, retain old preview URL as an alias, and update current help/specification.
+- WebM remains default; native MP4 remains experimental with a 30s completed-output cap. No merge or automatic production release.
+
 ## Insertion PoC v0.11.5 (2026-10-17; isolated experiment)
 
 - Probe microphone MIME candidates (WebM/Opus and MP4/AAC audio), source decoders and VP8/Opus output encoders before recording. This is not MP4 video output or verified phone support.

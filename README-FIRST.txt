@@ -1,17 +1,10 @@
-Pause & Tell / 動画解説レコーダー
+Pause & Tell — insertion editing
 ================================
-
-This repository started from the current htmlapps-template and now contains
-Pause & Tell v0.9.3, a Draft branch with longer capture, restored hero, seeking during recording, Pen selected initially, manual Finish confirmation, keyboard Undo/Redo and partial recovery. True insertion editing remains a separate design proposal.
-
-1. Read APP_SPEC.md and DEVELOPMENT_PLAN.md first.
-2. Read AGENTS.md, docs/ARCHITECTURE.md and docs/G1_VALIDATION.md through docs/G9_VALIDATION.md.
-3. Edit src/index.template.html (not generated dist HTML).
-4. Build on Windows with build-standalone.bat; it runs the PowerShell preflight.
-5. Check both dist/index.html and dist/index.self-extract.html offline.
-6. Complete G1 playback validation (still required) G2–G9 UI, recording workflow, audio, recovery, export, privacy and device validation on desktop and real Android/iPhone devices
-   before calling v0.9.3 verified. G9 is NO-GO without physical iPhone/Android recording and saved-file playback. Do not claim mobile support from CI alone.
-7. This is not yet the 1.0.0 app: audio source mixing is experimental; microphone-only recording remains the default, pending device acceptance.
-
-No runtime CDN, analytics, telemetry or automatic uploads. Local source/microphone data stay on-device unless the user explicitly chooses to share a generated output file through the OS.
-Pull requests can be created, but only the maintainer merges them.
+Read README.md / README.ja.md and APP_SPEC.md for the current workflow.
+The normal distribution now uses experiments/insertion-poc/ sources.
+The src/index.template.html live recorder and old G1-G9 reports are historical.
+Build on Windows with build-standalone.bat; Node.js is required at build time.
+Verify both dist/index.html and dist/index.self-extract.html offline.
+WebM is standard; native MP4 is experimental and capped at 30s output.
+Save completed output before closing: narration is session-only.
+No automatic media uploads. No merge or production deployment is implied.

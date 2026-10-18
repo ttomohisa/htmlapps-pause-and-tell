@@ -14,7 +14,7 @@ When adding a package to `dependencies.json`:
 
 Do not assume that a package being available from npm makes it compatible with MIT redistribution.
 
-## Isolated insertion experiment (not the normal v0.9.3 app)
+## Normal insertion editor (v0.12.0)
 
 `experiments/insertion-poc/` bundles **Mediabunny 1.61.5**, copyright (c) 2026-present, Vanilagy and contributors, licensed under the **Mozilla Public License 2.0**. The library source is not modified. Its source-file copyright/license notices are retained by the bundler. The full license is provided in `experiments/insertion-poc/licenses/mediabunny-MPL-2.0.txt`.
 

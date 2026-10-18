@@ -1,59 +1,32 @@
 # Pause & Tell
 
-[日本語](README.ja.md) · [Specification](APP_SPEC.md) · [Development plan](DEVELOPMENT_PLAN.md)
+[日本語](README.ja.md) · [Specification](APP_SPEC.md) · [Validation](docs/INSERTION_POC_VALIDATION.md)
 
-**Explain a video with your voice while pausing, pointing and drawing.** The output includes the original video frames, your drawn marks and narration. Your microphone and output recording continue while source playback is paused.
+**Record explanations at chosen positions, then insert them into the whole source video.** This Draft replaces the former continuous recorder as the normal entry. Original footage is retained; the original soundtrack plays around each inserted explanation. Export re-encodes video, so it is not lossless.
 
-> **v0.9.3 development Draft:** Full recording, saving and playback on physical iPhone Safari and Android Chrome devices remain unverified. Release decision: **NO-GO**.
-
-## Choose a workflow (Draft preview)
-
-[Choose a mode](https://r1418429453-pr-1-bk-previews.ttomohisa.workers.dev/modes/):
-- **Normal v0.9.3** keeps the continuous recording workflow below.
-- **Experimental insertion editor** records explanations separately and inserts
-  them into the whole source video. WebM is default; native AVC/AAC MP4 requires
-  compatible encoders and is limited to 30 seconds of completed output.
-
-Both open in separate tabs; work is not transferred between them. Check saved
-files before relying on them. Broad phone compatibility remains unverified.
-See [current insertion usage and evidence](experiments/insertion-poc/README.md).
+[Open the current PR preview](https://r1418429453-pr-1-bk-previews.ttomohisa.workers.dev/). The previously shared `/insertion-poc/` preview URL opens the same application. There is no need to choose another mode.
 
 ## How to use
 
-1. Choose a video.
-2. Pen is selected by default. Choose Point, Circle or Arrow if you prefer another drawing tool.
-3. Press **Record & play** directly beneath the video and allow microphone access. The original video starts playing as recording begins. Select **Explain the first frame before playback** if you want to begin on a still frame.
-4. **Pause or seek the source** while recording to talk and draw. Seeking pauses source playback automatically but does not pause microphone recording; skipped footage is **omitted** from the live-captured output. Drawings are cleared when playback resumes or you seek.
-5. Press **Finish recording**, then confirm in the dialog. The source pauses during confirmation, but recording and microphone continue. Cancel returns to the recording and resumes source playback if it had been playing. Preview and download the result after confirming.
+1. Choose a video and move **Position** to the frame you want to explain.
+2. Choose **Record explanation here** and allow the microphone. Narrate over the frozen frame; Pen is default, with Point, Circle and Arrow plus yellow/white/red drawing, Undo/Redo and Clear.
+3. Choose **Finish explanation**. Repeat at other positions if needed. Select an explanation to preview, delete or rerecord it. Cancelling a rerecording retains the old explanation.
+4. Choose **Compose video with insertion**, review the result, then **Save video**. Open the saved file separately to check playback.
 
-The hero and three-step progress remain visible during recording and preview. Video controls remain directly beneath the video.
+Source seeking selects insertion points before recording, rather than skipping original footage in a live recording. During an explanation the source stays frozen. Drawing changes are captured at their narration times; Undo/Clear do not retroactively erase earlier output frames.
 
-**This is still one continuous canvas recording, not non-destructive insertion into the original video.** The separate experimental insertion editor records independent narration segments and composes them with the entire source video and its soundtrack at export. It does not replace this normal mode.
+## Formats, safety and limits
 
-Use **Ctrl+Z / Cmd+Z** to undo and **Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z** to redo current drawings, including Clear within a paused segment. Text-entry fields retain their normal editing shortcuts.
+- **WebM is default.** Native AVC/AAC MP4 is an auxiliary experimental choice for compatible devices, limited to **30 seconds of completed output**. MP4 can be easier to open in messaging/video apps; it is not needed when WebM works for your recipient.
+- Trial ceilings: source 5 minutes/250 MiB; each explanation 2 minutes; WebM output 10 minutes. These are attempt limits, not performance guarantees. Duration guidance is shown before export.
+- Save successful output before leaving. Explanations are session-only: closing/reloading or OS process termination can lose them. Failed or cancelled in-session replacement retains the prior successful result; pending temporary-file cleanup is disclosed and retried before a new export.
+- No automatic uploads, runtime CDN, analytics or remote media processing. Explicit OS sharing sends only the generated file to the destination you choose.
+- Desktop 180-second WebM export/save/full decode and a Pixel owner's real-video recording/save, approximately three-minute playback, and rerecord-cancel preservation are documented. Pixel model/OS/browser versions were not recorded. This is not universal Android/iPhone support. Short native MP4 acceptance has separate limited evidence.
 
-## Saving and privacy
+## Build and verification
 
-Chosen videos and microphone audio are processed in this browser. There is no automatic upload, analytics, runtime CDN or background API. Only when you explicitly use **Share video** and choose an OS destination might the generated file be transferred outside the device.
+Run `build-standalone.bat` on Windows (Node.js required for the pinned build-only dependencies). The canonical editor source is `experiments/insertion-poc/`; the historical directory name does not select a second product. The standard build generates matching root HTML, `dist/index.html` and gzip self-extracting `dist/index.self-extract.html`. Runtime libraries and license notices are embedded.
 
-Exports use the **actual MP4 or WebM** produced by your browser. A browser download request does not prove a file was stored; check your Files/Downloads app. Interrupted recordings may be recoverable but are clearly marked as incomplete or unverified.
+Short media/failure regressions remain routine; long/native milestones stay opt-in. The archived `src/index.template.html` and older G1–G9 records describe the former continuous recorder, not the current distribution. See [test policy](docs/INSERTION_TEST_POLICY.md). The PR remains unmerged; integration does not authorize a production deployment.
 
-## Current provisional limits
-
-| Item | Trial limit |
-| --- | --- |
-| Source video | Up to 5 minutes |
-| Source file | Up to 250 MiB |
-| Output recording | Up to 10 minutes |
-
-These are **experimental expanded caps**, not guaranteed durations or browser-defined limits. The in-memory recording-chunk budget is 256 MiB; recording stops earlier if it is reached. Large sessions may run out of device memory sooner, especially on phones. Physical Android/iPhone long-session recording remains unverified. Check saved output before use.
-
-Microphone-only output is the default. Source-audio mixing is an **unverified opt-in experiment on desktop Chromium**. Microphone permission, screen lock and tab switching can interrupt recording.
-
-## Standalone and development
-
-Builds generate readable `dist/index.html` and gzip self-extracting `dist/index.self-extract.html`, without runtime external libraries. Edit `src/index.template.html` and run `build-standalone.bat` on Windows. Diagnostic logs are hidden from the normal UI; add `?debug=1` to the URL during development.
-
-The [G9 acceptance matrix](docs/G9_VALIDATION.md) tracks actual tests and pending device gates. **Do not merge or call this a release until physical device acceptance passes.**
-
-MIT License.
+Application code: MIT. Embedded Mediabunny: MPL-2.0; see the embedded license/source notice and [third-party notices](THIRD_PARTY_NOTICES.md).

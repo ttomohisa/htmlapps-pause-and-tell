@@ -1,3 +1,7 @@
+# Current distribution entry (v0.12.0)
+
+This source directory now builds the normal Pause & Tell insertion editor. Its historical `experiments/insertion-poc` path is retained to avoid a source move; it is not a separate selectable product. Use the repository root build for readable and self-extract distributions. The direct npm build remains a fast standalone development fixture. The old preview path is an alias to the normal entry. Current usage: [English](../../README.md) / [日本語](../../README.ja.md). Historical PoC progress below remains evidence, not current routing instructions.
+
 # v0.11.5 — experimental insertion editor
 
 This is an **isolated experimental proof of concept**, not the default Browser Kitty app or a completed release.

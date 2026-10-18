@@ -6,6 +6,7 @@ import { buildTimeline, sourceSampleTime } from './timeline.js';
 import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
 import { queryNativeCodecSupport } from './native-codec-support.js';
 import { TemporaryCleanup } from './temporary-cleanup.js';
+import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
 
 (() => {
   'use strict';
@@ -22,8 +23,8 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     file: null, input: null, track: null, duration: 0, exportSourceDuration: 0,
     sourceUrl: null, noteUrl: null, resultUrl: null, resultTemp: null,
     note: null, notes: [], nextNoteId: 1, recorder: null, mic: null, chunks: [],
-    startedAt: 0, drawing: false, pointerId: null, activeStroke: null,
-    events: [], strokes: [], freeze: null, busy: false,
+    startedAt: 0, drawing: false, pointerId: null, activeStroke: null, gestureHistory: null,
+    events: [], ...createDrawing(), freeze: null, busy: false,
     session: null, recoveryBlobs: [], resultBlob: null, capabilities: null
   };
   const sourceVideo = $('sourceVideo');
@@ -75,6 +76,7 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     $('finishNote').disabled = value;
     $('cancelNote').disabled = value;
     $('rerecord').disabled = value || Boolean(state.recorder) || !state.note || !state.capabilities?.record || !state.capabilities?.encode;
+    updateDrawingControls();
     for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
   }
   function renderRecordingClock() {
@@ -130,7 +132,7 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();renderCleanupWarning();
+    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -393,6 +395,21 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     e.target.value = '';
     void loadSource(f);
   });
+  // Keep local file drops from navigating away and losing recorded explanations.
+  for(const type of ['dragover','drop'])window.addEventListener(type,event=>{
+    if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();
+  });
+  $('sourcePanel').addEventListener('dragover',event=>{
+    if(!Array.from(event.dataTransfer?.types||[]).includes('Files'))return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect=state.busy || state.recorder?'none':'copy';
+  });
+  $('sourcePanel').addEventListener('drop',event=>{
+    event.preventDefault();
+    if(state.busy || state.recorder)return;
+    const file=event.dataTransfer?.files?.[0];
+    if(file)void loadSource(file);
+  });
   $('playSource').addEventListener('click',async ()=>{
     try {
       if (sourceVideo.paused) await sourceVideo.play();
@@ -413,62 +430,113 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     sourceVideo.currentTime = Math.min(state.duration-.01,Math.max(0, Number(e.target.value)/1000 * state.duration));
     $('position').textContent = fmt(sourceVideo.currentTime);
   });
+  const keyboardPoint={x:.5,y:.5};
+  const canDraw=()=>!state.busy && state.recorder?.state==='recording' && !state.session?.finishing;
   function snapshot() {
-    const now = Math.max(0, (performance.now() - state.startedAt)/1000);
-    const strokes = state.strokes.map(s => s.map(p=>({x:p.x,y:p.y})));
-    state.events.push({at:now,strokes});
+    const now=Math.max(0,(performance.now()-state.startedAt)/1000);
+    state.events.push({at:now,strokes:cloneStrokes(state.strokes)});
   }
-  function drawStrokes(strokes) {
-    ctx.lineCap='round';ctx.lineJoin='round';
-    for(const stroke of strokes){
-      if (!stroke.length) continue;
-      ctx.beginPath();
-      ctx.moveTo(stroke[0].x * canvas.width,stroke[0].y * canvas.height);
-      for(const point of stroke.slice(1)) ctx.lineTo(point.x*canvas.width,point.y*canvas.height);
-      ctx.lineWidth=Math.max(3,canvas.width/120);
-      ctx.strokeStyle='#141414';ctx.stroke();
-      ctx.lineWidth=Math.max(2,canvas.width/170);
-      ctx.strokeStyle='#ffe36b';ctx.stroke();
-    }
-  }
-  function showFrozen(strokes = state.strokes) {
-    if (!state.freeze) return;
+  function showFrozen(strokes=state.strokes) {
+    if(!state.freeze)return;
     ctx.drawImage(state.freeze,0,0,canvas.width,canvas.height);
-    drawStrokes(strokes);
+    paintStrokes(ctx,strokes,canvas.width,canvas.height);
   }
-  function pointerPosition(ev) {
+  function updateKeyboardCursor() {
+    const cursor=$('keyboardCursor');
+    cursor.hidden=!(canDraw() && state.tool==='point' && document.activeElement===canvas);
+    cursor.style.left=(canvas.offsetLeft+keyboardPoint.x*canvas.clientWidth)+'px';
+    cursor.style.top=(canvas.offsetTop+keyboardPoint.y*canvas.clientHeight)+'px';
+  }
+  function updateDrawingControls() {
+    const available=canDraw();
+    for(const button of document.querySelectorAll('[data-draw-tool]')) {
+      button.disabled=!available;button.setAttribute('aria-pressed',String(button.dataset.drawTool===state.tool));
+    }
+    for(const button of document.querySelectorAll('[data-draw-color]')) {
+      button.disabled=!available;button.setAttribute('aria-pressed',String(button.dataset.drawColor===state.color));
+    }
+    $('drawUndo').disabled=!available || !state.undoStack.length;
+    $('drawRedo').disabled=!available || !state.redoStack.length;
+    $('drawClear').disabled=!available || !state.strokes.length;
+    canvas.tabIndex=available && state.tool==='point'?0:-1;
+    canvas.setAttribute('role',state.tool==='point'?'button':'img');
+    canvas.setAttribute('aria-label',state.tool==='point'?l('動画上の指差し。矢印キーで位置調整、EnterまたはSpaceで配置','Point on video. Arrow keys to move; Enter or Space to place'):l('動画上の描画','Drawing on video'));
+    canvas.setAttribute('aria-disabled',String(!available));
+    updateKeyboardCursor();
+  }
+  function drawingChanged(){snapshot();showFrozen();updateDrawingControls();}
+  function pointerPosition(event) {
     const rect=canvas.getBoundingClientRect();
-    return {
-      x:Math.min(1,Math.max(0,(ev.clientX-rect.left)/rect.width)),
-      y:Math.min(1,Math.max(0,(ev.clientY-rect.top)/rect.height))
-    };
+    return {x:Math.min(1,Math.max(0,(event.clientX-rect.left)/rect.width)),y:Math.min(1,Math.max(0,(event.clientY-rect.top)/rect.height))};
+  }
+  function addStroke(point) {
+    if(state.strokes.length>=120){info(l('描画は120個までです。不要な描画を消してください。','Up to 120 drawings. Clear unneeded drawings.'));return null;}
+    if(state.tool!=='point')state.gestureHistory=captureDrawingHistory(state);
+    rememberDrawing(state);
+    const stroke={tool:state.tool,color:state.color,from:point,to:point};
+    if(state.tool==='pen')stroke.points=[point];
+    state.strokes.push(stroke);return stroke;
   }
   canvas.addEventListener('pointerdown',event=>{
-    if(!state.recorder || state.pointerId!==null) return;
+    if(!canDraw() || state.pointerId!==null || event.isPrimary===false || (event.pointerType==='mouse' && event.button!==0))return;
     event.preventDefault();
-    state.pointerId = event.pointerId;
-    canvas.setPointerCapture(event.pointerId);
-    state.activeStroke=[pointerPosition(event)];
-    state.strokes.push(state.activeStroke);
-    snapshot();showFrozen();
+    const stroke=addStroke(pointerPosition(event));if(!stroke)return;
+    if(state.tool!=='point') {
+      state.pointerId=event.pointerId;state.activeStroke=stroke;
+      try{canvas.setPointerCapture(event.pointerId);}catch{}
+    }
+    drawingChanged();
   });
-  canvas.addEventListener('pointermove',event=>{
-    if(event.pointerId!==state.pointerId || !state.activeStroke) return;
-    event.preventDefault();
-    const point=pointerPosition(event);
-    const last=state.activeStroke[state.activeStroke.length-1];
-    if(state.activeStroke.length<1000 && Math.hypot((point.x-last.x)*canvas.width,(point.y-last.y)*canvas.height)>1.5) {
-      state.activeStroke.push(point);snapshot();showFrozen();
+  function moveStroke(event) {
+    if(event.pointerId!==state.pointerId || !state.activeStroke)return;
+    const point=pointerPosition(event),stroke=state.activeStroke;
+    stroke.to=point;
+    if(stroke.tool==='pen') {
+      const last=stroke.points.at(-1);
+      if(stroke.points.length<2500 && Math.hypot((point.x-last.x)*canvas.width,(point.y-last.y)*canvas.height)>=1.8)stroke.points.push(point);
+    }
+    drawingChanged();
+  }
+  canvas.addEventListener('pointermove',event=>{if(canDraw() && event.pointerId===state.pointerId){event.preventDefault();moveStroke(event);}});
+  function finishStroke(event,cancel=false) {
+    if(state.pointerId===null || (event && event.pointerId!==state.pointerId))return;
+    event?.preventDefault();
+    if(event && !cancel && canDraw())moveStroke(event);
+    const id=state.pointerId;state.pointerId=null;state.activeStroke=null;
+    // Cancellation removes only the incomplete gesture, at its cancellation time.
+    if(cancel && state.gestureHistory)restoreDrawingHistory(state,state.gestureHistory);
+    state.gestureHistory=null;
+    drawingChanged();
+    try{canvas.releasePointerCapture(id);}catch{}
+  }
+  canvas.addEventListener('pointerup',event=>finishStroke(event));
+  canvas.addEventListener('pointercancel',event=>finishStroke(event,true));
+  canvas.addEventListener('lostpointercapture',event=>finishStroke(event,true));
+  canvas.addEventListener('focus',updateKeyboardCursor);canvas.addEventListener('blur',updateKeyboardCursor);
+  window.addEventListener('resize',updateKeyboardCursor);
+  canvas.addEventListener('keydown',event=>{
+    if(!canDraw() || state.tool!=='point')return;
+    const keys={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+    const delta=event.shiftKey?.01:.05;
+    if(keys[event.key]) {
+      event.preventDefault();event.stopPropagation();
+      keyboardPoint.x=Math.min(1,Math.max(0,keyboardPoint.x+keys[event.key][0]*delta));
+      keyboardPoint.y=Math.min(1,Math.max(0,keyboardPoint.y+keys[event.key][1]*delta));
+      $('drawingAnnouncement').textContent=l('指差し位置 ','Point position ')+Math.round(keyboardPoint.x*100)+'%, '+Math.round(keyboardPoint.y*100)+'%';updateKeyboardCursor();
+    }else if(event.key==='Enter'||event.key===' '||event.code==='Space') {
+      event.preventDefault();event.stopPropagation();
+      if(addStroke({...keyboardPoint})){drawingChanged();$('drawingAnnouncement').textContent=l('指差しリングを置きました。','Point marker placed.');}
     }
   });
-  function finishStroke(event){
-    if(event.pointerId!==state.pointerId)return;
-    event.preventDefault();
-    state.pointerId=null;state.activeStroke=null;snapshot();
-    try { canvas.releasePointerCapture(event.pointerId); } catch {}
-  }
-  canvas.addEventListener('pointerup',finishStroke);
-  canvas.addEventListener('pointercancel',finishStroke);
+  for(const button of document.querySelectorAll('[data-draw-tool],[data-draw-color]'))button.addEventListener('click',()=>{
+    if(!canDraw())return;finishStroke();
+    if(button.dataset.drawTool)state.tool=button.dataset.drawTool;
+    if(button.dataset.drawColor)state.color=button.dataset.drawColor;
+    updateDrawingControls();
+  });
+  $('drawUndo').addEventListener('click',()=>{if(canDraw()){finishStroke();if(undoDrawing(state))drawingChanged();}});
+  $('drawRedo').addEventListener('click',()=>{if(canDraw()){finishStroke();if(redoDrawing(state))drawingChanged();}});
+  $('drawClear').addEventListener('click',()=>{if(canDraw()){finishStroke();if(state.strokes.length){rememberDrawing(state);state.strokes=[];drawingChanged();}}});
 
   async function beginExplanation(replacing=null) {
     if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
@@ -516,7 +584,7 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
       const recorder=new MediaRecorder(mic,{mimeType:type});
       const chunks=[];
       state.chunks=chunks;state.mic=mic;state.recorder=recorder;
-      state.freeze=freeze;state.events=[];state.strokes=[];state.pointerId=null;state.activeStroke=null;
+      state.freeze=freeze;state.events=[];state.strokes=[];state.undoStack=[];state.redoStack=[];state.pointerId=null;state.activeStroke=null;
       state.startedAt=performance.now();
       state.insertAt=position;
       const session={recorder,chunks,replacing,cancelled:false,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
@@ -542,7 +610,7 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
       recordingClock=setInterval(renderRecordingClock,250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
       $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
-      info(replacing ? l('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。ペンは描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new pen annotations.') : l('説明を録音中。ペンで描けます。元動画の録画はしていません。','Narration recording. Draw with the pen. Source footage is not being recorded.'));
+      info(replacing ? l('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.') : l('説明を録音中。指差し・丸・矢印・ペンで描けます。元動画の録画はしていません。','Narration recording. Use Point, Circle, Arrow or Pen. Source footage is not being recorded.'));
       recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
@@ -568,6 +636,8 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
     const session=state.session;
     const recorder=session?.recorder;
     if(!recorder||session.finishing) return;
+    // End pointer ownership before asynchronous stop/validation hides the canvas.
+    finishStroke(null,Boolean(session.cancelled));
     session.finishing=true;session.requested=true;
     setBusy(true);
     clearTimeout(recordingTimeout);recordingTimeout=null;
@@ -834,21 +904,7 @@ import { TemporaryCleanup } from './temporary-cleanup.js';
           clipEvents.set(seg.note.id,index);
           clipDrawings.set(seg.note.id,strokes);
           renderCtx.drawImage(seg.note.freeze,0,0,renderCanvas.width,renderCanvas.height);
-          renderCtx.save();
-          renderCtx.lineCap='round';renderCtx.lineJoin='round';
-          for(const stroke of strokes) {
-            if(!stroke.length)continue;
-            renderCtx.beginPath();
-            renderCtx.moveTo(stroke[0].x*renderCanvas.width,stroke[0].y*renderCanvas.height);
-            for(const p of stroke.slice(1))renderCtx.lineTo(p.x*renderCanvas.width,p.y*renderCanvas.height);
-            renderCtx.lineWidth=Math.max(3,renderCanvas.width/120);
-            renderCtx.strokeStyle='#141414';
-            renderCtx.stroke();
-            renderCtx.lineWidth=Math.max(2,renderCanvas.width/170);
-            renderCtx.strokeStyle='#ffe36b';
-            renderCtx.stroke();
-          }
-          renderCtx.restore();
+          paintStrokes(renderCtx,strokes,renderCanvas.width,renderCanvas.height);
         }else{
           const originalFrame=seg.sourceStart+(frame-seg.outputStart);
           const sourceTime=sourceSampleTime(originalFrame,FPS,duration,firstVideoTimestamp);

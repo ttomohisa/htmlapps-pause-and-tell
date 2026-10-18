@@ -1,11 +1,11 @@
 {
   "$schema": "./schemas/app-config.schema.json",
   "name": "Pause & Tell",
-  "nameJa": "Pause & Tell｜動画解説レコーダー",
+  "nameJa": "Pause & Tell｜動画説明差し込みエディター",
   "slug": "pause-and-tell",
-  "version": "0.9.3",
-  "description": "Seek while recording, default pen and safe finish-confirmation dialog in a local narration recorder.",
-  "descriptionJa": "録画中の位置移動に対応。初期ツールはペン、録画終了は確認ダイアログで確定。元動画は端末内で処理。",
+  "version": "0.12.0",
+  "description": "Record and edit explanation segments, then insert them into a local video. WebM export with an experimental short MP4 option.",
+  "descriptionJa": "説明区間を録音・編集し、元動画に差し込んで保存。WebMを基本に、短尺MP4は実験機能として提供。",
   "defaultLanguage": "auto",
   "repository": {
     "owner": "ttomohisa",

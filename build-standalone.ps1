@@ -10,7 +10,8 @@ Set-StrictMode -Version Latest
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TemplatePath = Join-Path $Root "src\index.template.html"
+$insertionRoot = Join-Path $Root "experiments\insertion-poc"
+$TemplatePath = Join-Path $insertionRoot "dist\index.html"
 $AppConfigPath = Join-Path $Root "app.config.json"
 $AppIconPath = Join-Path $Root "assets\favicon.svg"
 $DependenciesPath = Join-Path $Root "dependencies.json"
@@ -235,6 +236,8 @@ if ($lockedDependencies.Count -ne $dependencies.Count) {
   throw "dependencies.lock.json does not match dependencies.json. Run .\scripts\sync-dependency-lock.ps1 after changing dependencies."
 }
 
+if ($dependencies.Count -ne 0) { throw "Insertion runtime packages must be declared in experiments/insertion-poc/package.json and its npm lock; generic asset dependencies are unsupported by this entry." }
+
 $ids = @{}
 $assetBundle = [ordered]@{ schemaVersion = 2; dependencies = [ordered]@{} }
 $manifestDependencies = @()
@@ -338,6 +341,44 @@ foreach ($dependency in $dependencies) {
   }
 }
 
+# The normal app is built from the insertion editor's maintained source graph.
+# npm ci verifies package-lock integrity; no optional native/AAC experiment is bundled.
+if (-not (Get-Command node -ErrorAction SilentlyContinue) -or -not (Get-Command npm -ErrorAction SilentlyContinue)) {
+  throw "Node.js and npm are required to bundle the insertion editor."
+}
+Push-Location $insertionRoot
+try {
+  & npm ci --ignore-scripts --no-audit --no-fund
+  if ($LASTEXITCODE -ne 0) { throw "Locked insertion dependency installation failed." }
+  & node build.mjs
+  if ($LASTEXITCODE -ne 0) { throw "Insertion editor build failed." }
+} finally {
+  Pop-Location
+}
+$insertionPackage = Get-Json (Join-Path $insertionRoot "package.json")
+$insertionLock = Get-Json (Join-Path $insertionRoot "package-lock.json")
+foreach ($runtimePackage in @($insertionPackage.dependencies.PSObject.Properties)) {
+  $packageName = [string]$runtimePackage.Name
+  $packageVersion = [string]$runtimePackage.Value
+  $lockEntry = $insertionLock.packages.PSObject.Properties["node_modules/$packageName"].Value
+  $installed = Get-Json (Join-Path $insertionRoot ("node_modules/" + $packageName + "/package.json"))
+  if ([string]$lockEntry.version -ne $packageVersion -or [string]$installed.version -ne $packageVersion -or [string]::IsNullOrWhiteSpace([string]$lockEntry.integrity)) {
+    throw "Bundled runtime dependency does not match its npm integrity lock: $packageName"
+  }
+  $manifestDependencies += [ordered]@{
+    id = $packageName
+    package = $packageName
+    version = $packageVersion
+    license = [string]$installed.license
+    homepage = "https://github.com/Vanilagy/mediabunny"
+    locked = $true
+    npmIntegrity = [string]$lockEntry.integrity
+    lockFile = "experiments/insertion-poc/package-lock.json"
+    embedding = "tree-shaken inline JavaScript"
+    assets = @()
+  }
+}
+
 $manifest = [ordered]@{
   schemaVersion = 2
   builder = "single-html-app-template/1.3"
@@ -348,31 +389,24 @@ $manifest = [ordered]@{
     version = [string]$appConfig.version
   }
   dependencies = $manifestDependencies
+  sourceBundleSha256 = Get-Sha256FileHex $TemplatePath
+  npmLockSha256 = Get-Sha256FileHex (Join-Path $insertionRoot "package-lock.json")
 }
 
 Write-Step "Generating standalone HTML"
 $template = [System.IO.File]::ReadAllText($TemplatePath, [System.Text.Encoding]::UTF8)
-$assetBundleJson = ConvertTo-SafeJson $assetBundle 50
+# Keep build metadata inert and auditable without changing the editor runtime.
+$metadata = '<script id="app-config" type="application/json">' + (ConvertTo-SafeJson $appConfig 20) + '</script>' +
+  '<script id="build-manifest" type="application/json">' + (ConvertTo-SafeJson $manifest 40) + '</script>'
+if (([regex]::Matches($template, '</head>')).Count -ne 1) { throw "Insertion build must have one head closing tag." }
+$template = $template.Replace('</head>', $metadata + '</head>')
 $replacements = [ordered]@{
-  "__APP_CONFIG_JSON__" = ConvertTo-SafeJson $appConfig 20
-  "__BUILD_MANIFEST_JSON__" = ConvertTo-SafeJson $manifest 40
-  "__EMBEDDED_ASSET_BUNDLE_JSON__" = $assetBundleJson
-  "__APP_ICON_DATA_URI__" = $appIconDataUri
-}
-$replacementExpectedCounts = @{
-  "__APP_CONFIG_JSON__" = 1
-  "__BUILD_MANIFEST_JSON__" = 1
-  "__EMBEDDED_ASSET_BUNDLE_JSON__" = 1
-  "__APP_ICON_DATA_URI__" = 2
-}
-
-foreach ($entry in $replacements.GetEnumerator()) {
-  $count = ([regex]::Matches($template, [regex]::Escape($entry.Key))).Count
-  $expectedCount = [int]$replacementExpectedCounts[$entry.Key]
-  if ($count -ne $expectedCount) {
-    throw "Template placeholder $($entry.Key) must occur exactly $expectedCount time(s); found $count."
-  }
-  $template = $template.Replace($entry.Key, [string]$entry.Value)
+  "__APP_CONFIG_JSON__" = ""
+  "__BUILD_MANIFEST_JSON__" = ""
+  "__EMBEDDED_ASSET_BUNDLE_JSON__" = ""
+  "__APP_ICON_DATA_URI__" = ""
+  "/*__INSERTION_POC_BUNDLE__*/" = ""
+  "__MEDIABUNNY_LICENSE__" = ""
 }
 
 $outputDirectory = Split-Path -Parent $OutputPath
@@ -383,6 +417,7 @@ New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 
 & $VerifyPath `
   -Path $OutputPath `
+  -RequireInsertionEditor $true `
   -RequireNetworkBlock ([bool]$appConfig.build.blockRuntimeNetwork) `
   -ForbiddenPlaceholders @($replacements.Keys)
 

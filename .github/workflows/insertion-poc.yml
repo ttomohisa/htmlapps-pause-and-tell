@@ -28,7 +28,7 @@ jobs:
       - name: Install pinned build dependencies and generate offline PoC
         working-directory: experiments/insertion-poc
         run: |
-          npm install --ignore-scripts --no-audit --no-fund --no-package-lock --no-save
+          npm ci --ignore-scripts --no-audit --no-fund
           npm run build
           node test-timeline.mjs
           node test-native-codec-support.mjs
@@ -36,6 +36,7 @@ jobs:
           node test-export-format.mjs
           node test-preview-modes.mjs
           node test-temporary-cleanup.mjs
+          node test-drawing.mjs
           node build-native-sample.mjs
           node build-native-sample-test.mjs
           test -f dist/index.html
@@ -60,6 +61,8 @@ jobs:
           python experiments/insertion-poc/test-smoke.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/portrait-source-audio --source-audio --portrait
       - name: Verify native diagnostic UI and unsupported codecs
         run: python experiments/insertion-poc/test-native-sample.py --out insertion-evidence/native-sample
+      - name: Verify preserved drawing tools in saved frames
+        run: python experiments/insertion-poc/test-drawing-browser.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/drawing
       - name: Run short failure protection regressions
         run: python experiments/insertion-poc/test-resilience.py --url http://127.0.0.1:8765/index.html --out insertion-evidence/resilience
       - name: Archive PoC output and inspection report

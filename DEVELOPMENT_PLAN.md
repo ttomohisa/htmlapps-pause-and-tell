@@ -1,3 +1,7 @@
+# Current milestone: normal insertion integration (v0.12.0)
+
+Owner direction on 2026-10-17 replaces the former normal recorder with insertion editing. Reuse the verified codec/timeline/failure engine; preserve legacy drawing controls; align the root preview, standard readable/self-extract build, help and tests. Keep MP4 auxiliary at 30s. Default-branch updates, merge and Browser Kitty changes are excluded. See APP_SPEC.md current contract and docs/INSERTION_POC_VALIDATION.md evidence. Earlier roadmap below is historical where it assumes a continuous recorder or a separate insertion mode.
+
 # Pause & Tell — DEVELOPMENT_PLAN.md
 
 > **Status:** 開発計画（v0.9.0リリース候補検証中・G1〜G9実機未検証）  
