@@ -4,6 +4,8 @@ Pause a video, record your explanation and drawings, then insert them into the c
 
 [日本語](README.ja.md) · [Open the app](https://ttomohisa.github.io/htmlapps-pause-and-tell/)
 
+![Pause & Tell v1.0.0 recording an explanation over a synthetic test video](assets/screenshot.en.png)
+
 ## Features
 
 - Choose a local video and add narrated explanations at selected positions

@@ -4,6 +4,8 @@
 
 [English](README.md) · [アプリを開く](https://ttomohisa.github.io/htmlapps-pause-and-tell/)
 
+![Pause & Tell v1.0.0で合成テスト動画に説明を録音している画面](assets/screenshot.ja.png)
+
 ## 主な機能
 
 - 端末の動画を選び、好きな位置に説明を追加
