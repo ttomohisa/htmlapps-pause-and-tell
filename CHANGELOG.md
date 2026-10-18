@@ -1,3 +1,10 @@
+## 1.0.0 — version and documentation alignment (2026-10-18)
+
+- Prepare the established insertion editor as v1.0.0; no recording/export engine or layout changes.
+- Align app configuration, embedded version, package lock and build validation.
+- Align English/Japanese README structure with the other htmlapps: live app, features, usage, privacy, browser limits, offline HTML, development and licenses.
+- Keep WebM standard, native MP4 experimental at 30 seconds, session-only explanations and the existing measured device scope. The version change does not expand compatibility guarantees.
+
 ## 0.12.0 — insertion editor becomes the normal entry (Draft)
 
 - Reuse validated independent explanation recording and offline full-source composition.

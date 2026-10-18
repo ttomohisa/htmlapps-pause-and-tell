@@ -1,6 +1,6 @@
-# Pause & Tell — current insertion specification (v0.12.0)
+# Pause & Tell — current insertion specification (v1.0.0)
 
-The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The existing Draft remains unmerged; no default-branch or Browser Kitty changes are authorized.
+The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The insertion implementation was merged as v0.12.0; v1.0.0 aligns versioning and documentation without changing the engine or extending compatibility claims.
 
 ## Current product contract
 
