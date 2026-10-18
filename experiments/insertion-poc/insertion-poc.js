@@ -182,6 +182,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
   function updateWorkflow() {
     $('drawingPanel').hidden=!state.session;
+    $('export').closest('.pt-export-bar').hidden=Boolean(state.session);
+    $('emptyNotes').hidden=Boolean(state.notes.length || state.session);
     $('formatSettings').hidden=!state.file || Boolean(state.session);
     $('editor').querySelector('.pt-mic-note').hidden=Boolean(state.session);
     $('silentChoice').hidden=Boolean(state.session);
@@ -261,10 +263,13 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     info('説明を追加する位置を選べます。', 'Choose a source position for narration.');
     setBusy(false);
   }
+  let previewPlayback=false;
   function selectNote(note,preparedUrl=null) {
     if (!note || (state.session&&!state.session.finishing)) return;
     const nextUrl=note.silent ? null : preparedUrl || URL.createObjectURL(note.blob);
+    previewPlayback=false;
     state.note=note;
+    $('silentNote').checked=Boolean(note.silent);
     releaseUrl('noteUrl');
     state.noteUrl=nextUrl;
     $('notePlayer').pause();
@@ -288,7 +293,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     paintStrokes(ctx,strokes,canvas.width,canvas.height);
     canvas.hidden=false;sourceVideo.hidden=true;
   }
-  $('notePlayer').addEventListener('timeupdate',()=>renderSelectedFrame($('notePlayer').currentTime));
+  for(const event of ['play','seeking'])$('notePlayer').addEventListener(event,()=>{
+    previewPlayback=true;renderSelectedFrame($('notePlayer').currentTime);
+  });
+  $('notePlayer').addEventListener('timeupdate',()=>{if(previewPlayback)renderSelectedFrame($('notePlayer').currentTime);});
   function browseSource() {
     if(state.session)return;
     $('notePlayer').pause();state.note=null;

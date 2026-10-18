@@ -222,6 +222,9 @@ def main():
             previous_audio=page.locator('#notePlayer').get_attribute('src')
             previous_rows=page.locator('#noteList .note-item button:first-child').all_inner_texts()
             page.locator('#seek').evaluate("element => {element.value='0';element.dispatchEvent(new Event('input',{bubbles:true}));}")
+            expect(page.locator('#rerecord')).to_be_hidden()
+            page.locator('#noteList .note-item').last.locator('button').first.click()
+            assert abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-3)<.12
             page.locator('#rerecord').click()
             assert page.locator('#noteList .note-item').count()==2
             page.locator('#finishNote').wait_for(state='visible',timeout=25000)
@@ -413,7 +416,7 @@ def main():
             expect(page.locator('#drawCanvas')).to_be_visible()
             expect(first_row.locator('button').first).to_have_attribute('aria-pressed','true')
             final_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
-            page.locator('#notePlayer').evaluate('(v)=>{v.currentTime=0;v.dispatchEvent(new Event("timeupdate"));}')
+            page.locator('#notePlayer').evaluate('async (v)=>{await v.play();v.pause();v.currentTime=0;v.dispatchEvent(new Event("timeupdate"));}')
             opening_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
             assert opening_drawing!=final_drawing,'Selected narration did not replay drawing timing'
             page.locator('#seek').evaluate('(v)=>{v.value="500";v.dispatchEvent(new Event("input"));}')
