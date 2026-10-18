@@ -6,7 +6,7 @@ $source = Get-Content -Raw -Encoding UTF8 (Join-Path $insertionRoot "index.templ
 $runtime = Get-Content -Raw -Encoding UTF8 (Join-Path $insertionRoot "insertion-poc.js")
 $config = Get-Content -Raw -Encoding UTF8 (Join-Path $Root "app.config.json") | ConvertFrom-Json
 if ([string]$config.name -ne "Pause & Tell" -or [string]$config.slug -ne "pause-and-tell") { throw "Pause & Tell identity mismatch." }
-if ([string]$config.version -ne "0.12.0") { throw "Unexpected insertion editor version." }
+if ([string]$config.version -ne "1.0.0") { throw "Unexpected insertion editor version." }
 if ([string]$config.repository.owner -ne "ttomohisa" -or [string]$config.repository.name -ne "htmlapps-pause-and-tell") { throw "Pause & Tell repository mismatch." }
 if ($config.build.blockRuntimeNetwork -ne $true) { throw "Runtime network must remain blocked." }
 foreach ($token in @('id="sourceFile"', 'id="sourceVideo"', 'id="startNote"', 'id="noteList"', 'id="export"', 'id="outputName"', 'id="save"', 'id="share"', 'id="exportFormat"', 'id="appBrandIcon"', "connect-src 'none'", "worker-src 'none'", '__MEDIABUNNY_LICENSE__', '/*__INSERTION_POC_BUNDLE__*/')) {

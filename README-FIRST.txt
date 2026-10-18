@@ -1,5 +1,6 @@
-Pause & Tell — insertion editing
-================================
+Pause & Tell v1.0.0 — insertion editing
+======================================
+Open https://ttomohisa.github.io/htmlapps-pause-and-tell/
 Read README.md / README.ja.md and APP_SPEC.md for the current workflow.
 The normal distribution now uses experiments/insertion-poc/ sources.
 The src/index.template.html live recorder and old G1-G9 reports are historical.
