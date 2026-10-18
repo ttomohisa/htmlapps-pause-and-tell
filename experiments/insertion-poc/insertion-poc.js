@@ -183,7 +183,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
   function updateWorkflow() {
     $('drawingPanel').hidden=!state.session;
-    $('formatSettings').hidden=!state.file;
+    $('formatSettings').hidden=!state.file || Boolean(state.session);
+    $('editor').querySelector('.pt-mic-note').hidden=Boolean(state.session);
     $('silentChoice').hidden=Boolean(state.session);
     $('playSource').hidden=Boolean(state.session);
     $('seek').closest('label').hidden=Boolean(state.session);
@@ -684,7 +685,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
       if(silent) info('無音の説明を作成中。描き込み、終わったら「説明を終了」を押してください。','Creating a silent explanation. Draw, then choose Finish explanation.');
       else if(replacing) info('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.');
-      else info('説明を録音中。指差し・丸・矢印・ペンで描けます。元動画の録画はしていません。','Narration recording. Use Point, Circle, Arrow or Pen. Source footage is not being recorded.');
+      else info('説明を録音中。描き込みながら話し、終わったら「説明を終了」を押してください。','Recording your explanation. Draw and speak, then choose Finish explanation.');
       recordingTimeout=setTimeout(()=>{if(state.session)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());

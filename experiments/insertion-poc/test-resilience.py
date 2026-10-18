@@ -145,7 +145,10 @@ def silent_explanations(page, url, source, out, output_format='webm'):
     assert note_snapshot(page)==before
     # Commit a silent replacement in the same slot, with an actual drawing.
     page.locator('#rerecord').click()
-    canvas=page.locator('#drawCanvas');box=canvas.bounding_box()
+    canvas=page.locator('#drawCanvas')
+    expect(canvas).to_be_visible()
+    canvas.scroll_into_view_if_needed();box=canvas.bounding_box()
+    assert box is not None, 'Active silent drawing canvas has no geometry'
     page.mouse.move(box['x']+box['width']*.2,box['y']+box['height']*.3)
     page.mouse.down();page.mouse.move(box['x']+box['width']*.6,box['y']+box['height']*.6);page.mouse.up()
     page.wait_for_timeout(700)
