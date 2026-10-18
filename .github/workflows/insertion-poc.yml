@@ -30,6 +30,7 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
+          node test-explanation-session.mjs
           node test-timeline.mjs
           node test-native-codec-support.mjs
           node test-native-sample.mjs

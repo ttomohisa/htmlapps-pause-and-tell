@@ -580,6 +580,11 @@
       .pt-format-row select { width: 100%; }
       .pt-controls.row .button { min-width: 0; overflow-wrap: anywhere; }
     }
+.pt-silent-choice { display:flex; align-items:center; gap:10px; margin:14px 0 10px; font-size:14px; }
+.pt-silent-choice input { width:20px; height:20px; accent-color:var(--accent,#16624f); }
+#drawingPanel[hidden], #formatSettings[hidden] { display:none; }
+#formatDestination { margin-top:20px; padding-top:18px; border-top:1px solid var(--line,#dfe5df); }
+#notePanel .pt-review-help { margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -607,8 +612,8 @@
     <span id="previewModeEntry"></span>
     <section class="page-intro" aria-labelledby="heroTitle">
       <div>
-        <h2 id="heroTitle" data-ja="動画を止めて、声で説明する" data-en="Pause a video and explain in your own voice">動画を止めて、声で説明する</h2>
-        <p data-ja="説明したい位置で声と描き込みを録り、元動画に差し込みます。" data-en="Record your voice and drawings at a chosen frame, then insert the explanation into your video.">説明したい位置で声と描き込みを録り、元動画に差し込みます。</p>
+        <h2 id="heroTitle" data-ja="動画に説明を加える" data-en="Add explanations to a video">動画に説明を加える</h2>
+        <p data-ja="動画を選び、好きな位置に声や描き込みを追加して保存します。" data-en="Choose a video, add voice or drawings at any position, then save.">動画を選び、好きな位置に声や描き込みを追加して保存します。</p>
       </div>
       <div class="local-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-5"/></svg>
@@ -617,13 +622,13 @@
     </section>
     <ol class="pt-steps" id="ptSteps" aria-label="作業の進み具合" data-ja-aria-label="作業の進み具合" data-en-aria-label="Workflow progress">
       <li class="pt-step" data-step="1" data-state="current" aria-current="step"><span class="pt-step-number" aria-hidden="true">1</span><span class="pt-step-label" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span></li>
-      <li class="pt-step" data-step="2" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">2</span><span class="pt-step-label" data-ja="説明を録る" data-en="Record explanations">説明を録る</span></li>
+      <li class="pt-step" data-step="2" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">2</span><span class="pt-step-label" data-ja="説明を追加" data-en="Add explanations">説明を追加</span></li>
       <li class="pt-step" data-step="3" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">3</span><span class="pt-step-label" data-ja="動画を保存" data-en="Save the video">動画を保存</span></li>
     </ol>
     <!-- APP:BEGIN Pause & Tell insertion workflow. -->
     <section class="panel shell pt-panel" id="sourcePanel" aria-labelledby="sourceTitle">
       <h2 id="sourceTitle" data-ja="説明したい動画を選ぶ" data-en="Choose the video you want to explain">説明したい動画を選ぶ</h2>
-      <p class="pt-muted" data-ja="短い動画を読み込み、説明したい位置で声と描き込みを録音します。" data-en="Choose a short video, then record your voice and drawings at the moments you want to explain.">短い動画を読み込み、説明したい位置で声と描き込みを録音します。</p>
+      <p class="pt-muted" data-ja="まず、説明を加えたい動画を選んでください。" data-en="First, choose the video you want to explain.">まず、説明を加えたい動画を選んでください。</p>
       <div class="pt-drop" id="sourceDropZone">
         <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
         <p class="pt-file-hint" data-ja="PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。" data-en="On a computer, you can also drag and drop a video here. Up to 5 minutes and 250 MiB.">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
@@ -633,17 +638,21 @@
         <label for="exportFormat" data-ja="書き出し形式" data-en="Export format">書き出し形式</label>
         <select id="exportFormat"><option value="webm" selected>WebM VP8/Opus</option><option value="mp4" data-ja="MP4 AVC/AAC（実験）" data-en="MP4 AVC/AAC (experimental)">MP4 AVC/AAC（実験）</option></select>
       </div>
-      <p id="formatHint" class="muted pt-format-hint" data-ja="MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。" data-en="MP4: up to 30 seconds of output. Insertion/audio/device saving are under device evaluation. WebM limits are unchanged.">MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。</p>
+
       <p id="capabilities" class="muted" aria-live="polite"></p>
       </div>
     </section>
     <section class="panel shell pt-panel" id="editor" aria-labelledby="editorTitle" hidden>
-      <div class="pt-control-head"><h2 id="editorTitle" data-ja="動画を見ながら説明する" data-en="Explain while viewing the video">動画を見ながら説明する</h2></div>
+      <div class="pt-control-head"><h2 id="editorTitle" data-ja="説明する位置を選ぶ" data-en="Choose where to explain">説明する位置を選ぶ</h2></div>
       <p class="muted pt-current-file" id="sourceInfo"></p>
-      <section class="pt-draw-panel drawing-tools" aria-labelledby="ptDrawTitle">
+      <div class="pt-stage-wrap">
+        <div class="stage pt-stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden tabindex="-1" aria-describedby="keyboardDrawHelp" aria-label="Drawing on video"></canvas><span id="keyboardCursor" class="keyboard-cursor pt-keyboard-cursor" aria-hidden="true" hidden></span></div>
+      </div>
+      <label class="seek pt-seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+      <section id="drawingPanel" class="pt-draw-panel drawing-tools" hidden aria-labelledby="ptDrawTitle">
         <div class="pt-draw-header">
           <h3 id="ptDrawTitle" class="pt-draw-heading" data-ja="動画に描く" data-en="Draw on the video">動画に描く</h3>
-          <span class="pt-muted" data-ja="説明の録音中に描けます" data-en="Draw while recording an explanation">説明の録音中に描けます</span>
+          <span class="pt-muted" data-ja="説明の作成中に描けます" data-en="Draw while creating an explanation">説明の作成中に描けます</span>
         </div>
         <div class="pt-draw-tools row" role="group" data-ja-aria-label="描画ツール" data-en-aria-label="Drawing tools" aria-label="描画ツール">
           <button type="button" class="pt-draw-tool" data-draw-tool="point" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg><span data-ja="指差し" data-en="Point">指差し</span></button>
@@ -664,36 +673,38 @@
           </div>
         </div>
         <p class="pt-draw-help" data-ja="元に戻す・消す操作は、その時点以降に反映されます。" data-en="Undo and Clear apply from that moment onward.">元に戻す・消す操作は、その時点以降に反映されます。</p>
-        <p id="keyboardDrawHelp" class="pt-keyboard-hint" data-ja="説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while recording narration. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
+        <p id="keyboardDrawHelp" class="pt-keyboard-hint" data-ja="説明の作成中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while creating an explanation. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の作成中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
         <p id="drawingAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
       </section>
-      <div class="pt-stage-wrap">
-        <div class="stage pt-stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden tabindex="-1" aria-describedby="keyboardDrawHelp" aria-label="Drawing on video"></canvas><span id="keyboardCursor" class="keyboard-cursor pt-keyboard-cursor" aria-hidden="true" hidden></span></div>
-      </div>
+      <label class="pt-silent-choice" id="silentChoice"><input type="checkbox" id="silentNote"><span data-ja="音声を録音しない" data-en="Do not record audio">音声を録音しない</span></label>
       <div class="row pt-controls pt-transport">
-        <button id="startNote" type="button" class="button primary" data-ja="この位置に説明を追加" data-en="Record explanation here">この位置に説明を追加</button>
+        <button id="startNote" type="button" class="button primary" data-ja="この位置に説明を追加" data-en="Add explanation here">この位置に説明を追加</button>
         <button id="playSource" type="button" class="button" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
-        <button id="cancelNote" type="button" class="button" hidden data-ja="この録音を取り消す" data-en="Cancel this recording">この録音を取り消す</button>
-        <button id="finishNote" type="button" class="button pt-record-stop" hidden data-ja="説明の録音を終了" data-en="Finish explanation">説明の録音を終了</button>
+        <button id="cancelNote" type="button" class="button" hidden data-ja="取り消す" data-en="Cancel explanation">取り消す</button>
+        <button id="finishNote" type="button" class="button pt-record-stop" hidden data-ja="説明を終了" data-en="Finish explanation">説明を終了</button>
       </div>
       <p class="muted pt-inline-state" id="captureStatus" aria-live="polite"></p>
       <div id="recordingClock" hidden><p id="recordingElapsed" role="timer" aria-live="off"></p><p class="muted" id="recordingBudget"></p></div>
-      <label class="seek pt-seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+
       <p id="durationBudget" class="note" aria-live="polite" hidden></p>
-      <div id="formatDestination"></div>
-      <p class="pt-mic-note" data-ja="マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。" data-en="The microphone is used only when you choose Record explanation here. The source frame stays frozen while your voice and drawings are recorded.">マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。</p>
+
+      <p class="pt-mic-note" data-ja="説明を開始してから終了するまでの時間が差し込まれます。無音を選ぶとマイクは使いません。" data-en="The time between starting and finishing is inserted into the video. Silent explanations do not use the microphone.">説明を開始してから終了するまでの時間が差し込まれます。無音を選ぶとマイクは使いません。</p>
     </section>
 <section class="panel shell pt-panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
 <section class="panel shell pt-panel" id="notePanel" hidden>
-<h2 data-ja="説明区間を確認して書き出す" data-en="Review and export">説明区間を確認して書き出す</h2>
+<h2 data-ja="追加した説明" data-en="Your explanations">追加した説明</h2>
 <p id="noteSummary" class="note"></p>
 <div id="noteList" class="note-list" role="group" aria-label="Recorded explanation segments"></div>
-<p class="muted pt-review-help" data-ja="録り直すときも、元の説明は新しい音声を確認できるまで保持します。" data-en="Your original explanation is kept until the new recording has been validated.">録り直すときも、元の説明は新しい音声を確認できるまで保持します。</p>
+<p class="muted pt-review-help" data-ja="選択した説明を作り直せます。取り消すと元の説明が残ります。" data-en="Redo a selected explanation. Cancelling keeps the original.">選択した説明を作り直せます。取り消すと元の説明が残ります。</p>
+<p id="silentNotePreview" class="muted" hidden data-ja="無音の説明です。描き込みは完成動画で確認できます。" data-en="Silent explanation. Check its drawings in the completed video.">無音の説明です。描き込みは完成動画で確認できます。</p>
 <audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
 <div class="row pt-controls">
-<button class="button" id="rerecord" data-ja="選択した説明を録り直す" data-en="Rerecord selected explanation">選択した説明を録り直す</button>
+<button class="button" id="rerecord" data-ja="選択した説明を作り直す" data-en="Redo selected explanation">選択した説明を作り直す</button>
 <button class="button" id="discard" data-ja="選択した説明を削除" data-en="Delete selected explanation">選択した説明を削除</button>
-<button class="button primary" id="export" data-ja="説明を差し込んで動画を作成" data-en="Compose video with insertion">説明を差し込んで動画を作成</button>
+</div>
+<div id="formatDestination"></div>
+<div class="row pt-controls">
+<button class="button primary" id="export" data-ja="動画を作成" data-en="Create video">動画を作成</button>
 </div>
 <p id="exportBudget" class="note alert" aria-live="polite" hidden></p>
 <button class="button" id="cancelExport" hidden data-ja="書き出しを中止" data-en="Cancel export">書き出しを中止</button>
@@ -701,6 +712,7 @@
 <p id="cleanupWarning" class="note alert" aria-live="polite" hidden></p>
 </section>
 <section class="panel shell pt-panel result" id="result" hidden>
+<div class="pt-control-head"><button id="backToEditor" class="button" type="button" data-ja="説明の編集に戻る" data-en="Back to explanations">説明の編集に戻る</button></div>
 <h2 data-ja="完成動画を確認する" data-en="Verify the finished video">完成動画を確認する</h2>
 <p class="pt-muted" data-ja="保存前に、音声と説明区間が正しいか最後まで再生して確かめてください。" data-en="Before saving, play the video through to check the audio and inserted explanations.">保存前に、音声と説明区間が正しいか最後まで再生して確かめてください。</p>
 <video id="resultVideo" class="pt-result-video" controls playsinline></video>
@@ -712,7 +724,7 @@
 <p class="muted" id="resultInfo"></p>
 </section>
     <p id="error" class="pt-error alert" role="alert" aria-live="assertive"></p>
-    <p class="pt-session-note" data-ja="説明音声はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。" data-en="Reloading or closing this page loses recorded explanations. Save any completed video you need first.">説明音声はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。</p>
+    <p class="pt-session-note" data-ja="追加した説明はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。" data-en="Reloading or closing this page loses your explanations. Save any completed video you need first.">追加した説明はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。</p>
     <!-- APP:END -->
   </main>
   <footer>Pause &amp; Tell · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
@@ -726,30 +738,24 @@
       <h3 data-ja="使い方" data-en="How to use">使い方</h3>
       <ol>
         <li data-ja="5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。" data-en="Choose a playable video up to 5 minutes and 250 MiB. Your original file is unchanged.">5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。</li>
-        <li data-ja="元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。" data-en="Play or seek through the source and choose Record explanation here. Allow the microphone to record your explanation over the frozen frame.">元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。</li>
+        <li data-ja="元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。" data-en="Play or seek through the source and choose Add explanation here. Allow the microphone to record your explanation over the frozen frame.">元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。</li>
         <li data-ja="指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。" data-en="Use Point, Circle, Arrow or Pen with three colors. Undo, Redo and Clear affect the explanation from that moment onward.">指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。</li>
-        <li data-ja="「説明の録音を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。" data-en="Finish the explanation, check its audio, and add more at other positions. Select an explanation to delete or rerecord it.">「説明の録音を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。</li>
-        <li data-ja="「説明を差し込んで動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。" data-en="Compose the video to keep every original source interval and insert the explanations. Source audio remains before and after each explanation and pauses during it.">「説明を差し込んで動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。</li>
+        <li data-ja="「説明を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。" data-en="Finish the explanation, check its audio, and add more at other positions. Select an explanation to delete or rerecord it.">「説明を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。</li>
+        <li data-ja="「動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。" data-en="Compose the video to keep every original source interval and insert the explanations. Source audio remains before and after each explanation and pauses during it.">「動画を作成」で元動画の全区間と説明を合成します。元音声は説明の前後に保持し、説明中は停止します。</li>
         <li data-ja="完成動画を再生して確認し、保存名を付けて保存します。対応端末では共有も選べます。保存先で実際のファイルを再生して確認してください。" data-en="Play and check the completed video, edit its filename, and save it. Sharing is available on supported devices. Verify the actual file in its saved location.">完成動画を再生して確認し、保存名を付けて保存します。対応端末では共有も選べます。保存先で実際のファイルを再生して確認してください。</li>
       </ol>
+      <p data-ja="「音声を録音しない」を選ぶと、マイクなしで描き込みだけの説明を作れます。開始から「説明を終了」までの実時間が無音で差し込まれます。説明中は元動画の音声も停止し、説明の後に再開します。作り直す時もこのチェックで音声の有無を選べます。" data-en="Choose Do not record audio to draw without a microphone. The elapsed time from Start to Finish explanation is inserted as silence. Source audio pauses during the explanation and resumes afterward. You can also change this choice when redoing an explanation.">「音声を録音しない」を選ぶと、マイクなしで描き込みだけの説明を作れます。開始から「説明を終了」までの実時間が無音で差し込まれます。説明中は元動画の音声も停止し、説明の後に再開します。作り直す時もこのチェックで音声の有無を選べます。</p>
       <h3 data-ja="録り直し・中断・保存" data-en="Rerecording, interruptions and saving">録り直し・中断・保存</h3>
       <p class="muted" data-ja="録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。" data-en="Rerecord at the same insertion position. The original is replaced only after the new audio is validated; failure or cancellation keeps it. Compose the video again after replacement.">録り直しは同じ位置で行います。新しい音声を確認できた時だけ元の説明を置換します。失敗や取消では元の説明を保持します。置換後は動画を作成し直してください。</p>
-      <p class="muted" data-ja="書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。説明音声はページの再読み込み・終了で失われます。サイトデータを削除しないでください。" data-en="If export fails, save the previous successful output first. Keep this page open, check available device storage and retry. Reloading or closing the page loses narration. Do not clear site data.">書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。説明音声はページの再読み込み・終了で失われます。サイトデータを削除しないでください。</p>
+      <p class="muted" data-ja="書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。追加した説明はページの再読み込み・終了で失われます。サイトデータを削除しないでください。" data-en="If export fails, save the previous successful output first. Keep this page open, check available device storage and retry. Reloading or closing the page loses narration. Do not clear site data.">書き出しに失敗したら、前回の完成動画を先に保存してください。このページを開いたまま端末の空き容量を確認し、再試行できます。追加した説明はページの再読み込み・終了で失われます。サイトデータを削除しないでください。</p>
       <p data-ja="録音中に画面ロック・タブ移動・着信・OSの終了が起きると中断する場合があります。回収音声は未完成・未検証で、完成した説明とは区別して表示します。自動保存やプロジェクト復元はありません。" data-en="Screen locking, tab changes, calls or OS termination may interrupt recording. Recovered audio is incomplete and unverified, and is shown separately from completed explanations. There is no autosave or project recovery.">録音中に画面ロック・タブ移動・着信・OSの終了が起きると中断する場合があります。回収音声は未完成・未検証で、完成した説明とは区別して表示します。自動保存やプロジェクト復元はありません。</p>
       <h3 data-ja="プライバシーと試験上限" data-en="Privacy and experimental limits">プライバシーと試験上限</h3>
       <p class="muted" data-ja="差し込み方式の動画エディターです。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。" data-en="Insertion video editor. The source file is unchanged. Trial upper bounds: 5-minute source, 250 MiB input, 2-minute narration per clip and 10-minute output. Device support is not guaranteed. Only narration and drawing events are captured, not the whole source. Export decodes and re-encodes source frames (not lossless). Data stays in the browser and is not uploaded. Compatible devices use a local temporary file for export and remove it on normal cleanup; a crash may leave the temporary file.">差し込み方式の動画エディターです。元動画は変更しません。上限は元動画5分・250MiB、説明1区間2分、完成10分ですが、長時間の処理成功を保証するものではありません。説明の収録中には元動画全編を録画しません。書き出し時に元映像をデコード・再エンコードするため、無劣化保存ではありません。ファイルと音声はブラウザ内で処理します。対応環境では書き出し時に端末内の一時ファイルを作成し、通常の終了・破棄時に削除します。異常終了では残る場合があります。外部送信はありません。</p>
       <p data-ja="WebM VP8/Opusが既定です。MP4 AVC/AACは補助の実験機能で、完成30秒までです。端末・ブラウザ・入力動画によって、読み込み・録音・書き出し・保存ができない場合があります。機能検出だけでは実機での成功を保証しません。" data-en="WebM VP8/Opus is the default. MP4 AVC/AAC is an auxiliary experimental format, limited to 30 seconds of completed output. Loading, recording, export and saving depend on the device, browser and input. Capability detection does not guarantee success on a device.">WebM VP8/Opusが既定です。MP4 AVC/AACは補助の実験機能で、完成30秒までです。端末・ブラウザ・入力動画によって、読み込み・録音・書き出し・保存ができない場合があります。機能検出だけでは実機での成功を保証しません。</p>
       <p class="dialog-note" data-ja="動画とマイク音声はブラウザ内で処理します。明示的に共有先を選ぶ場合は、その先へ完成動画が送られることがあります。" data-en="Video and microphone audio are processed in your browser. If you explicitly choose a sharing destination, the finished video may be sent there.">動画とマイク音声はブラウザ内で処理します。明示的に共有先を選ぶ場合は、その先へ完成動画が送られることがあります。</p>
       <h3 data-ja="キーボード操作" data-en="Keyboard controls">キーボード操作</h3>
-      <p data-ja="説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while recording narration. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の録音中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
+      <p data-ja="説明の作成中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。" data-en="Draw while creating an explanation. For keyboard Point, Tab to the video, move with arrow keys, then press Enter or Space (Shift + arrow for fine adjustments). Undo and Clear apply from that moment onward.">説明の作成中に描けます。キーボードでは「指差し」を選び、動画にTabで移動。矢印キーで位置を動かし、EnterまたはSpaceで印を置けます（Shift＋矢印で微調整）。元に戻す・消す操作は、その時点以降に反映されます。</p>
       <p data-ja="丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。Tabで操作を選び、ヘルプは閉じるボタン・Esc・背景のクリックで閉じられます。" data-en="Drawing circles, arrows and pen strokes requires a mouse, finger or stylus. Use Tab to move between controls. Close help with its close button, Esc, or a click on the backdrop.">丸・矢印・ペンをなぞる操作はマウス・指・ペンが必要です。Tabで操作を選び、ヘルプは閉じるボタン・Esc・背景のクリックで閉じられます。</p>
-      <h3 data-ja="端末の対応確認" data-en="Device capability check">端末の対応確認</h3>
-      <details id="nativeSupportPanel">
-<summary data-ja="端末のMP4候補を確認（生成しません）" data-en="Check native MP4 candidates (no encoding)">端末のMP4候補を確認（生成しません）</summary>
-<p class="muted" data-ja="AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。" data-en="AVC: 320×180, 15fps, 900kbps / AAC: 48kHz, stereo, 96kbps. Permission-free support queries only. This does not test MP4 encoding, sync or saving. A candidate does not prove iPhone/Android support. MP4 insertion export is experimental, limited to 30 seconds of output.">AVC: 320×180・15fps・900kbps / AAC: 48kHz・2ch・96kbps。権限不要の機能照会だけです。実際のMP4生成・音声同期・保存は検証しません。候補ありでもiPhone/Androidでの成功は未確認です。MP4差し込み書き出しは完成30秒までの実験です。</p>
-<button id="checkNativeSupport" class="button" type="button" data-ja="候補を確認" data-en="Check candidates">候補を確認</button>
-<p id="nativeSupportResult" class="muted" aria-live="polite" data-ready="false"></p>
-</details>
       <h3 data-ja="外部ライブラリ" data-en="Third-party library">外部ライブラリ</h3>
       <details class="pt-license"><summary data-ja="外部ライブラリのライセンスとソース" data-en="Library license and source">外部ライブラリのライセンスとソース</summary><p>Mediabunny 1.61.5 · Copyright (c) 2026-present, Vanilagy and contributors · MPL-2.0.</p><p><a href="https://registry.npmjs.org/mediabunny/-/mediabunny-1.61.5.tgz" target="_blank" rel="noopener noreferrer" data-ja="この版のライブラリソースを取得（外部サイト）" data-en="Get this version's library source (external site)">この版のライブラリソースを取得（外部サイト）</a></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px">__MEDIABUNNY_LICENSE__</pre></details>
       <!-- APP:HELP:END -->

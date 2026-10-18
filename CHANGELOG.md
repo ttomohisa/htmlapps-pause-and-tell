@@ -21,6 +21,13 @@
 
 # Changelog
 
+## Unreleased (v1.0.0 retained)
+
+- Add optional microphone-free silent explanations using elapsed start-to-finish time, with timestamped drawings and safe redo/cancel.
+- Clarify video selection, explanation creation and finished-video saving; remove device diagnostic UI and redundant format notice.
+- Preserve existing export limits, source audio timing and last-good result protection.
+
+
 ## [Unreleased]
 
 ### v0.11.4 — portrait canvas alignment and rotation-aware MP4 export tests (isolated PoC)

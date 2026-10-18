@@ -89,7 +89,6 @@ def main():
                 'getDirectory',{configurable:true,value:undefined});
             })()""")
         page.goto(a.url,wait_until='domcontentloaded')
-        page.locator('#exportFormat').select_option(a.output_format)
         # The shipped shell must retain the established header and usable help.
         assert page.locator('.app-header .header-inner').count()==1
         assert page.locator('.page-intro').is_visible()
@@ -107,16 +106,8 @@ def main():
         page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
         assert not page.locator('#helpDialog').is_visible()
         page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)
-        if a.memory_target:
-            page.locator('#helpButton').click()
-            page.locator('#nativeSupportPanel summary').click()
-            page.locator('#checkNativeSupport').click()
-            page.wait_for_function("document.querySelector('#nativeSupportResult').dataset.ready==='true'")
-            native_text=page.locator('#nativeSupportResult').inner_text()
-            assert 'Native AVC:' in native_text and 'Native AAC:' in native_text,native_text
-            assert page.evaluate('(window.__pocTracks||[]).length')==0, 'Support query requested microphone'
-            page.locator('#nativeSupportPanel summary').click()
-            page.locator('#closeHelpButton').click()
+        assert page.locator('#nativeSupportPanel').count()==0
+        assert page.locator('#formatHint').count()==0
         if a.expanded_input:
             larger=a.out/'expanded-20s.webm'
             command(['ffmpeg','-v','error','-y','-f','lavfi','-i',
@@ -127,6 +118,8 @@ def main():
             assert '20.0s' in page.locator('#sourceInfo').inner_text()
             assert not page.locator('#startNote').is_disabled()
         page.locator('#sourceFile').set_input_files(str(source))
+        page.locator('#editor').wait_for(state='visible')
+        page.locator('#exportFormat').select_option(a.output_format)
         try:
             page.locator('#editor').wait_for(state='visible',timeout=25000)
         except Exception as error:

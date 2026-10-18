@@ -1,10 +1,13 @@
 # Pause & Tell — current insertion specification (v1.0.0)
 
-The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The insertion implementation was merged as v0.12.0; v1.0.0 aligns versioning and documentation without changing the engine or extending compatibility claims.
+The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The insertion implementation was merged as v0.12.0; v1.0.0 retains the insertion engine and adds optional silent explanations and a clearer editing workflow; compatibility claims remain bounded by the evidence below.
 
 ## Current product contract
 
 - Select one local source video, seek to an insertion point, then record independent narration and timestamped drawings over that frozen frame. Repeat, select, delete or safely rerecord explanations. Export retains every original source interval and source audio around inserted explanations.
+- “Do not record audio” starts a silent explanation without MediaRecorder or microphone permission. Its duration is elapsed time from Start to Finish, capped at the existing 2-minute note limit. Timestamped drawings remain part of the inserted frozen-frame interval; source audio pauses during that interval and resumes afterward.
+- The choice can change when redoing a selected explanation. Replacement keeps its id/position; cancellation, failed validation or background interruption retains the original explanation and last-good output. Silent notes carry no encoded audio blob. Export fills their exact frame-rounded interval with silence using the shared audio timeline.
+- UI follows Choose video → Add explanations → Create/review/save. Drawing controls appear during explanation creation; internal codec diagnostics are absent from help. Format errors and actual limit violations remain actionable. The header, design tokens, bilingual help and single-file distribution remain shared Browser Kitty styling.
 - Preserve Point/Circle/Arrow/Pen (Pen default), yellow/white/red, Undo/Redo/Clear and keyboard Point operations. Drawing changes apply at their recorded explanation times. The former app had fixed widths, not a thickness picker.
 - Source playback/seek before recording chooses insertion positions. During narration the frame stays frozen. Continuous microphone capture while skipping/replaying source footage is intentionally replaced, not an available secondary mode.
 - WebM VP8/Opus is default. Native AVC/AAC MP4 remains auxiliary and experimental, limited to 30 seconds of completed output. Codec capability failure must be visible; no silent codec/WASM fallback.

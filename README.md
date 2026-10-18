@@ -18,6 +18,8 @@ GitHub Pages delivers the initial HTML. After it loads, video import, narration 
 
 ## Features
 
+- **Explain without a microphone** — Choose “Do not record audio” to draw silently. The elapsed time from starting to finishing is inserted into the video.
+
 - **Explain at the right moment** — Choose a source position and record your voice and drawings over a frozen frame.
 - **Keep the original sequence** — Insert explanations while retaining every original video interval and its soundtrack around them.
 - **Show what you mean** — Use Point, Circle, Arrow or Pen, three colors, Undo/Redo and Clear.

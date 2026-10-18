@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { silentDuration, isExplanationActive } from './explanation-session.js';
+assert.equal(silentDuration(100,1100,120),1);
+assert.equal(silentDuration(0,121000,120),120);
+assert.throws(()=>silentDuration(100,100,120));
+assert.throws(()=>silentDuration(100,NaN,120));
+assert.equal(isExplanationActive({mode:'silent',finishing:false}),true);
+assert.equal(isExplanationActive({mode:'silent',finishing:true}),false);
+assert.equal(isExplanationActive(null),false);
+assert.equal(isExplanationActive({mode:'audio',recorder:{state:'inactive'}}),false);
+assert.equal(isExplanationActive({mode:'audio',recorder:{state:'recording'}}),true);
+console.log('explanation session tests passed');

@@ -4,7 +4,7 @@ import {
 } from 'mediabunny';
 import { buildTimeline, sourceSampleTime } from './timeline.js';
 import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
-import { queryNativeCodecSupport } from './native-codec-support.js';
+import { silentDuration, isExplanationActive } from './explanation-session.js';
 import { TemporaryCleanup } from './temporary-cleanup.js';
 import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
 
@@ -53,7 +53,6 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
   let uploadGeneration = 0;
   let capabilityGeneration = 0;
-  let nativeSupport=null,nativeSupportPending=false;
   const l = (ja, en) => lang === 'ja' ? ja : en;
   const fmt = seconds => (Number.isFinite(seconds) ? seconds.toFixed(1) + 's' : '—');
 
@@ -70,29 +69,31 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   function setBusy(value) {
     state.busy = value;
     updateSteps();
-    $('sourceFile').disabled = value || Boolean(state.recorder);
-    $('exportFormat').disabled = value || Boolean(state.recorder);
-    $('startNote').disabled = value || !state.file || Boolean(state.recorder) || !state.capabilities?.record || !state.capabilities?.encode;
-    $('playSource').disabled = value || !state.file || Boolean(state.recorder);
-    $('seek').disabled = value || Boolean(state.recorder);
+    $('sourceFile').disabled = value || Boolean(state.session);
+    $('exportFormat').disabled = value || Boolean(state.session);
+    $('startNote').disabled = value || !state.file || Boolean(state.session) || (!$('silentNote').checked && !state.capabilities?.record) || !state.capabilities?.encode;
+    $('playSource').disabled = value || !state.file || Boolean(state.session);
+    $('seek').disabled = value || Boolean(state.session);
     const budget=renderDurationBudget();
-    $('export').disabled = value || Boolean(state.recorder) || !state.notes.length || !state.capabilities?.encode || Boolean(budget?.exceeded);
-    $('discard').disabled = value || Boolean(state.recorder) || !state.note;
+    $('export').disabled = value || Boolean(state.session) || !state.notes.length || !state.capabilities?.encode || Boolean(budget?.exceeded);
+    $('discard').disabled = value || Boolean(state.session) || !state.note;
     $('finishNote').disabled = value;
     $('cancelNote').disabled = value;
-    $('rerecord').disabled = value || Boolean(state.recorder) || !state.note || !state.capabilities?.record || !state.capabilities?.encode;
+    $('rerecord').disabled = value || Boolean(state.session) || !state.note || (!$('silentNote').checked && !state.capabilities?.record) || !state.capabilities?.encode;
+    $('silentNote').disabled=value || Boolean(state.session);
+    updateWorkflow();
     updateDrawingControls();
-    for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.recorder);
+    for(const button of $('noteList').querySelectorAll('button')) button.disabled=value || Boolean(state.session);
   }
   function renderRecordingClock() {
-    const active=Boolean(state.session && !state.session.finishing && state.recorder?.state==='recording');
+    const active=isExplanationActive(state.session);
     $('recordingClock').hidden=!active;
     if(!active)return;
     const elapsed=Math.max(0,(performance.now()-state.startedAt)/1000);
     const remaining=Math.max(0,MAX_NOTE_SECONDS-elapsed);
     const seconds=Math.floor(elapsed);
     const clock=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
-    $('recordingElapsed').textContent=l('録音 ','Recording ')+clock;
+    $('recordingElapsed').textContent=(state.session.mode==='silent'?l('無音の説明 ','Silent explanation '):l('録音 ','Recording '))+clock;
     const notes=state.notes.filter(note=>note!==state.session.replacing);
     notes.push({id:state.session.replacing?.id || state.nextNoteId,position:state.insertAt,duration:Math.max(1/FPS,elapsed)});
     const budget=compositionBudget(state.exportSourceDuration,notes,$('exportFormat').value,FPS);
@@ -117,11 +118,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   function renderDurationBudget() {
     const budget=state.file ? compositionBudget(state.exportSourceDuration,state.notes,$('exportFormat').value,FPS) : null;
-    $('durationBudget').hidden=!budget;
+    $('durationBudget').hidden=!budget?.exceeded;
     $('exportBudget').hidden=!budget?.exceeded;
     if(!budget)return null;
     const format=exportFormat($('exportFormat').value).extension.toUpperCase();
-    const text=l('現在確定分の完成見込み '+fmt(budget.duration)+' / '+format+' 試験上限 '+fmt(budget.limit)+
+    const text=l('完成見込み '+fmt(budget.duration)+' / '+format+' 試験上限 '+fmt(budget.limit)+
       '。追加できる説明の目安 '+fmt(budget.remaining)+'。',
       'Estimated output from completed clips '+fmt(budget.duration)+' / '+format+' experimental limit '+fmt(budget.limit)+
       '. Approximate narration room '+fmt(budget.remaining)+'.');
@@ -146,7 +147,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
-    renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
+    renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -180,8 +181,18 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     const rect=helpDialog.getBoundingClientRect();
     if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)helpDialog.close();
   });
+  function updateWorkflow() {
+    $('drawingPanel').hidden=!state.session;
+    $('formatSettings').hidden=!state.file;
+    $('silentChoice').hidden=Boolean(state.session);
+    $('playSource').hidden=Boolean(state.session);
+    $('seek').closest('label').hidden=Boolean(state.session);
+  }
+  $('backToEditor').addEventListener('click',()=>{
+    playback.pause();$('editor').scrollIntoView({block:'start'});$('startNote').focus({preventScroll:true});
+  });
   function updateSteps() {
-    const current=state.session || state.recorder ? 2 : state.resultBlob ? 3 : state.file ? 2 : 1;
+    const current=state.session ? 2 : state.resultBlob ? 3 : state.file ? 2 : 1;
     for(const step of $('ptSteps').querySelectorAll('[data-step]')) {
       const number=Number(step.dataset.step);
       step.dataset.state=number<current ? 'done' : number===current ? 'current' : 'upcoming';
@@ -189,22 +200,6 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       else step.removeAttribute('aria-current');
     }
   }
-  function renderNativeSupport() {
-    const labels={supported:l('候補あり','Candidate available'),unsupported:l('候補なし','No candidate'),
-      unavailable:l('APIなし','API unavailable'),error:l('確認できません','Could not check'),timeout:l('確認が時間切れ','Query timed out')};
-    $('nativeSupportResult').textContent=nativeSupportPending?l('候補を照会中…','Querying candidates…'):
-      nativeSupport?`Native AVC: ${labels[nativeSupport.avc]} / Native AAC: ${labels[nativeSupport.aac]}`:
-      l('ボタンを押すと、このブラウザの候補を表示します。','Press the button to see candidates on this browser.');
-  }
-  $('checkNativeSupport').addEventListener('click',async()=>{
-    if(nativeSupportPending)return;
-    nativeSupportPending=true;$('checkNativeSupport').disabled=true;
-    $('nativeSupportResult').dataset.ready='false';renderNativeSupport();
-    try{nativeSupport=await queryNativeCodecSupport();}
-    catch{nativeSupport={avc:'error',aac:'error'};}
-    finally{nativeSupportPending=false;$('checkNativeSupport').disabled=false;
-      $('nativeSupportResult').dataset.ready='true';renderNativeSupport();}
-  });
   function recordingType() {
     if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function' || !navigator.mediaDevices?.getUserMedia) return null;
     return ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4']
@@ -212,16 +207,14 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   function renderCapabilities() {
     const c=state.capabilities;
-    $('capabilities').hidden=Boolean(state.file && c?.record && c?.encode);
-    $('formatHint').hidden=Boolean(state.file && $('exportFormat').value==='webm');
-    $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : c.record && c.encode ?
-      l('録音・'+exportFormat($('exportFormat').value).extension.toUpperCase()+'書き出しの候補を確認しました。保存後の再生も確認してください。',
-        'Recording and '+exportFormat($('exportFormat').value).extension.toUpperCase()+' export candidates detected. Check playback after saving.') : [
-      c.record ? l('録音候補: ','Recording candidate: ')+c.type : l('この環境ではマイク録音APIまたは対応形式を利用できません。HTTPS・権限・ブラウザを確認してください。','Microphone recording API or format unavailable. Check HTTPS, permissions and browser.'),
-      exportFormat($('exportFormat').value).label + (c.encode ? l(' 書き出し候補あり。',' encoding candidate available.') : l(' 動画・音声エンコーダーを利用できません。形式を変更してください。',' video/audio encoders unavailable. Choose another format.')),
-      l('機能検出は実機での録音・保存成功を保証しません。MP4は完成30秒までの実験です。','Feature detection does not prove recording or saving. MP4 is experimental, limited to 30 seconds of output.')
-    ].join(' ');
+    const needsMic=!$('silentNote').checked;
+    $('capabilities').hidden=Boolean(c?.encode && (!needsMic || c?.record));
+    $('capabilities').textContent=!c ? l('この形式を確認中…','Checking this format…') : [
+      needsMic&&!c.record ? l('マイク録音を利用できません。「音声を録音しない」を選ぶか、HTTPS・ブラウザを確認してください。','Microphone recording is unavailable. Choose “Do not record audio”, or check HTTPS and your browser.') : '',
+      !c.encode ? l('この形式では動画を作成できません。書き出し形式を変更してください。','Video/audio encoders unavailable for this format. Choose another format.') : ''
+    ].filter(Boolean).join(' ');
   }
+
   async function inspectCapabilities() {
     const generation=++capabilityGeneration;
     const type=recordingType();
@@ -256,7 +249,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('resultInfo').textContent = '';
   }
   function resetNotes() {
-    if (state.recorder) return;
+    if (state.session) return;
     clearResult();
 
     releaseUrl('noteUrl');
@@ -269,6 +262,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     state.strokes=[];
     state.freeze=null;
     $('notePanel').hidden=true;
+    if(state.file)$('editor').appendChild($('formatSettings'));
     $('noteList').replaceChildren();
     canvas.hidden=true;
     sourceVideo.hidden=false;
@@ -276,16 +270,20 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     setBusy(false);
   }
   function selectNote(note,preparedUrl=null) {
-    if (!note || state.recorder) return;
-    const nextUrl=preparedUrl || URL.createObjectURL(note.blob);
+    if (!note || (state.session&&!state.session.finishing)) return;
+    const nextUrl=note.silent ? null : preparedUrl || URL.createObjectURL(note.blob);
     state.note=note;
     releaseUrl('noteUrl');
     state.noteUrl=nextUrl;
-    $('notePlayer').src=state.noteUrl;
+    $('notePlayer').pause();
+    if(nextUrl)$('notePlayer').src=nextUrl;
+    else { $('notePlayer').removeAttribute('src');$('notePlayer').load(); }
+    $('notePlayer').hidden=Boolean(note.silent);
+    $('silentNotePreview').hidden=!note.silent;
     updateSummary();
   }
   function removeNote(id) {
-    if(state.recorder || state.busy) return;
+    if(state.session || state.busy) return;
     const index=state.notes.findIndex(item=>item.id===id);
     if(index<0)return;
     clearResult();
@@ -313,20 +311,20 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       row.className='note-item';
       const choose=document.createElement('button');
       choose.type='button';
-      choose.textContent=fmt(note.position)+' · '+fmt(note.duration)+' · '+l('説明','Explanation')+' '+note.id;
+      choose.textContent=fmt(note.position)+' · '+fmt(note.duration)+' · '+l('説明','Explanation')+' '+note.id+' · '+(note.silent?l('無音','Silent'):l('音声あり','With audio'));
       choose.setAttribute('aria-pressed',String(state.note?.id===note.id));
       choose.addEventListener('click',()=>{if(!state.busy)selectNote(note);});
       const remove=document.createElement('button');
       remove.type='button';
       remove.textContent=l('削除','Delete');
       remove.addEventListener('click',()=>confirmRemoveNote(note));
-      choose.disabled=remove.disabled=state.busy || Boolean(state.recorder);
+      choose.disabled=remove.disabled=state.busy || Boolean(state.session);
       row.append(choose,remove);
       host.append(row);
     }
   }
   async function loadSource(file) {
-    if (!file || state.recorder || state.busy) return;
+    if (!file || state.session || state.busy) return;
     if ((state.notes.length || state.recoveryBlobs.length) && !window.confirm(l(
       '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
       'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
@@ -418,7 +416,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       // Keep the established studio layout: change-video beside its title,
       // export settings below transport. Moving nodes preserves their handlers.
       $('editor').querySelector('.pt-control-head').appendChild($('sourceDropZone'));
-      $('formatDestination').appendChild($('formatSettings'));
+      $('editor').appendChild($('formatSettings'));
       $('sourcePanel').hidden=true;
       $('editor').hidden = false;
       $('seek').value = '0';
@@ -465,11 +463,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   dropTarget.addEventListener('dragover',event=>{
     if(!Array.from(event.dataTransfer?.types||[]).includes('Files'))return;
     event.preventDefault();
-    event.dataTransfer.dropEffect=state.busy || state.recorder?'none':'copy';
+    event.dataTransfer.dropEffect=state.busy || state.session?'none':'copy';
   });
   dropTarget.addEventListener('drop',event=>{
     event.preventDefault();event.stopPropagation();
-    if(state.busy || state.recorder)return;
+    if(state.busy || state.session)return;
     const file=event.dataTransfer?.files?.[0];
     if(file)void loadSource(file);
   });
@@ -481,7 +479,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     } catch(e) { showError(e); }
   });
   function updatePosition() {
-    if (!state.file || state.recorder) return;
+    if (!state.file || state.session) return;
     $('seek').value = String(Math.round(1000 * (sourceVideo.currentTime / state.duration)));
     $('position').textContent = fmt(sourceVideo.currentTime);
   }
@@ -489,13 +487,13 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   sourceVideo.addEventListener('pause',()=>{$('playSource').textContent=l('元動画を再生','Play source');});
   sourceVideo.addEventListener('play',()=>{$('playSource').textContent=l('元動画を停止','Pause source');});
   $('seek').addEventListener('input',e=>{
-    if (!state.file || state.recorder) return;
+    if (!state.file || state.session) return;
     sourceVideo.pause();
     sourceVideo.currentTime = Math.min(state.duration-.01,Math.max(0, Number(e.target.value)/1000 * state.duration));
     $('position').textContent = fmt(sourceVideo.currentTime);
   });
   const keyboardPoint={x:.5,y:.5};
-  const canDraw=()=>!state.busy && state.recorder?.state==='recording' && !state.session?.finishing;
+  const canDraw=()=>!state.busy && isExplanationActive(state.session);
   function snapshot() {
     const now=Math.max(0,(performance.now()-state.startedAt)/1000);
     state.events.push({at:now,strokes:cloneStrokes(state.strokes)});
@@ -610,7 +608,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
 
   async function beginExplanation(replacing=null) {
-    if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
+    if(!state.file||state.busy||state.session||(!$('silentNote').checked&&!state.capabilities?.record)||!state.capabilities?.encode) return;
     if(replacing && !state.notes.includes(replacing))return;
     errorNode.textContent='';
     // Prevent existing narration/output previews from feeding the microphone.
@@ -648,19 +646,21 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       if(sourceVideo.readyState<2) throw new Error(l('動画のフレームを準備できません。','Source frame not available.'));
       // A replacement keeps the original insertion's exact frozen frame.
       freezeCtx.drawImage(replacing?.freeze || sourceVideo,0,0,freeze.width,freeze.height);
-      const type=recordingType();
-      if(!type) throw new Error(l('対応する録音形式がありません。','No supported narration recording format.'));
-      mic=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true }, video:false });
+      const silent=$('silentNote').checked;
+      const type=silent ? null : recordingType();
+      if(!silent&&!type) throw new Error(l('対応する録音形式がありません。','No supported narration recording format.'));
+      if(!silent)mic=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true }, video:false });
       if(document.hidden) throw new Error(l('画面に戻ってから録音を開始してください。','Return to this page before starting recording.'));
-      const recorder=new MediaRecorder(mic,{mimeType:type});
+      const recorder=silent ? null : new MediaRecorder(mic,{mimeType:type});
       const chunks=[];
       state.chunks=chunks;state.mic=mic;state.recorder=recorder;
       state.freeze=freeze;state.events=[];state.strokes=[];state.undoStack=[];state.redoStack=[];state.pointerId=null;state.activeStroke=null;
       state.startedAt=performance.now();
       state.insertAt=position;
-      const session={recorder,chunks,replacing,cancelled:false,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
+      const session={mode:silent?'silent':'audio',recorder,chunks,replacing,cancelled:false,stopped:false,finishing:false,error:null,requested:false,failed:false,recoveryIndex:null,generation:uploadGeneration};
       state.session=session;
       session.done=new Promise(resolve=>{session.resolve=resolve;});
+      if(recorder) {
       recorder.ondataavailable=e=>{
         if(e.data?.size)chunks.push(e.data);
         if(session.failed && session.generation===uploadGeneration) retainRecovery(session);
@@ -676,14 +676,16 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
         void endExplanation();
       };
       recorder.start(250);
+      }
       state.startedAt=performance.now();
       renderRecordingClock();
       recordingClock=setInterval(renderRecordingClock,250);
       canvas.hidden=false;sourceVideo.hidden=true;showFrozen();
       $('finishNote').hidden=false;$('cancelNote').hidden=false;$('startNote').hidden=true;
-      if(replacing) info('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.');
+      if(silent) info('無音の説明を作成中。描き込み、終わったら「説明を終了」を押してください。','Creating a silent explanation. Draw, then choose Finish explanation.');
+      else if(replacing) info('選択した説明を録り直しています。新しい音声を確認できるまで元の説明を保持します。描画は描き直してください。','Rerecording selected explanation. The original is retained until the new audio is validated. Draw new annotations.');
       else info('説明を録音中。指差し・丸・矢印・ペンで描けます。元動画の録画はしていません。','Narration recording. Use Point, Circle, Arrow or Pen. Source footage is not being recorded.');
-      recordingTimeout=setTimeout(()=>{if(state.recorder)void endExplanation();},MAX_NOTE_SECONDS*1000);
+      recordingTimeout=setTimeout(()=>{if(state.session)void endExplanation();},MAX_NOTE_SECONDS*1000);
     } catch(e) {
       mic?.getTracks().forEach(t=>t.stop());
       stopRecordingClock();
@@ -703,11 +705,25 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(composed)
     );
     renderNotes();
+    $('formatDestination').appendChild($('formatSettings'));
+  }
+  function commitExplanation(session,content,preparedUrl=null) {
+    const note={id:session.replacing?.id ?? state.nextNoteId,position:Math.round(state.insertAt*FPS)/FPS,
+      ...content,events:state.events.slice(),freeze:state.freeze};
+    if(session.replacing) {
+      const index=state.notes.indexOf(session.replacing);
+      if(index<0)throw new Error('Original explanation changed during editing');
+      state.notes[index]=note;
+    }else { state.notes.push(note);state.nextNoteId++; }
+    clearResult();$('exportStatus').textContent='';$('notePanel').hidden=false;
+    selectNote(note,preparedUrl);
+    info('説明を追加しました。別の位置にも追加するか、動画を作成してください。','Explanation added. Add another at a different position, or create the video.');
   }
   async function endExplanation() {
     const session=state.session;
     const recorder=session?.recorder;
-    if(!recorder||session.finishing) return;
+    if(!session||session.finishing) return;
+    const endedAt=performance.now();
     // End pointer ownership before asynchronous stop/validation hides the canvas.
     finishStroke(null,Boolean(session.cancelled));
     session.finishing=true;session.requested=true;
@@ -715,10 +731,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     clearTimeout(recordingTimeout);recordingTimeout=null;
     stopRecordingClock();
     try {
-      if(recorder.state!=='inactive') recorder.stop();
+      if(recorder && recorder.state!=='inactive') recorder.stop();
       let timer;
       try {
-        await Promise.race([session.done,new Promise((_,reject)=>{
+        if(recorder)await Promise.race([session.done,new Promise((_,reject)=>{
           timer=setTimeout(()=>reject(new Error(l('録音終了を確認できませんでした。','Recorder did not finish.'))),5000);
         })]);
       } finally { clearTimeout(timer); }
@@ -726,8 +742,13 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
         info('録音を取り消しました。元の説明と前回の完成動画は保持しています。','Recording cancelled. Original explanations and previous output are retained.');
         return;
       }
-      const blob=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
       if(session.error) throw session.error;
+      if(session.mode==='silent') {
+        const duration=silentDuration(state.startedAt,endedAt,MAX_NOTE_SECONDS);
+        commitExplanation(session,{silent:true,blob:null,duration});
+        return;
+      }
+      const blob=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
       state.mic?.getTracks().forEach(t=>t.stop());state.mic=null;state.recorder=null;
       if(blob.size<500) throw new Error(l('音声データが保存されませんでした。','No usable audio was recorded.'));
       const input=new Input({source:new BlobSource(blob),formats:ALL_FORMATS});
@@ -755,25 +776,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
             validationTimer=setTimeout(()=>reject(new Error(l('録音音声の確認が時間切れになりました。元の説明は保持しています。','Narration validation timed out. The original is retained.'))),30000);
           })]);
         }finally{clearTimeout(validationTimer);}
-        const exactPosition=Math.round(state.insertAt*FPS)/FPS;
-        const note={id:session.replacing?.id ?? state.nextNoteId++,position:exactPosition,duration,blob,
-          events:state.events.slice(),freeze:state.freeze};
         candidateNoteUrl=URL.createObjectURL(blob);
-        if(session.replacing) {
-          const index=state.notes.indexOf(session.replacing);
-          if(index<0)throw new Error('Original explanation changed during rerecording');
-          state.notes[index]=note;
-        }else state.notes.push(note);
-        // Only a committed edit invalidates the old composition. Failed/cancelled
-        // recording must keep its download and the original explanation intact.
-        clearResult();
-        $('exportStatus').textContent='';
-        $('notePanel').hidden=false;
-        selectNote(note,candidateNoteUrl);candidateNoteUrl=null;
-        info('説明区間を記録しました。元動画の前後はまだ加工していません。','Explanation saved separately. Original footage is still untouched.');
+        commitExplanation(session,{silent:false,blob,duration},candidateNoteUrl);candidateNoteUrl=null;
       } finally { if(candidateNoteUrl)URL.revokeObjectURL(candidateNoteUrl);input.dispose(); }
     } catch(e) {
-      session.failed=true;retainRecovery(session);
+      session.failed=true;if(session.mode!=='silent')retainRecovery(session);
       showError(e);
       info('録音は完了していません。既存の説明区間は保持しています。','Recording did not complete. Existing explanations are retained.');
     } finally {
@@ -785,6 +792,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       setBusy(false);
     }
   }
+  $('silentNote').addEventListener('change',()=>{renderCapabilities();setBusy(state.busy);});
   $('startNote').addEventListener('click',()=>void beginExplanation());
   $('finishNote').addEventListener('click',()=>void endExplanation());
   $('rerecord').addEventListener('click',()=>void beginExplanation(state.note));
@@ -810,7 +818,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     } finally {video.removeAttribute('src');video.load();}
   }
   async function exportVideo() {
-    if(!state.notes.length||state.busy||state.recorder||!state.file||!state.capabilities?.encode)return;
+    if(!state.notes.length||state.busy||state.session||!state.file||!state.capabilities?.encode)return;
     const profile=exportFormat($('exportFormat').value);
     errorNode.textContent='';
     exportTask={cancelled:false};
@@ -837,6 +845,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       const duration=await vt.computeDuration();
       const ordered=state.notes.map(note=>({...note})).sort((a,b)=>a.position-b.position || a.id-b.id);
       for(const note of ordered) {
+        if(note.silent) {
+          if(!(note.duration>.15&&note.duration<=MAX_NOTE_SECONDS))throw new Error('Invalid silent explanation duration');
+          continue;
+        }
         const input=new Input({source:new BlobSource(note.blob),formats:ALL_FORMATS});
         audioInputs.push({input});
         const track=await input.getPrimaryAudioTrack();
@@ -1013,6 +1025,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       temporaryResult=null;
       $('result').dataset.storage=state.resultTemp ? 'temporary-file' : 'memory';
       $('result').hidden=false;
+      $('result').scrollIntoView({block:'start'});
       $('resultInfo').textContent=l('完成動画 ','Output ')+fmt(fullDuration)
         +' · '+profile.label+' · '+Math.round(resultBlob.size/1024)+' KiB'
         +' · '+ordered.length+l('件の説明',' inserted explanation(s)');
@@ -1097,7 +1110,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     }
   });
   window.addEventListener('beforeunload',event=>{
-    if(state.notes.length || state.session || state.recorder || state.recoveryBlobs.length) {event.preventDefault();event.returnValue='';}
+    if(state.notes.length || state.session || state.recoveryBlobs.length) {event.preventDefault();event.returnValue='';}
   });
   async function cleanupStaleTemporaryOutput() {
     // OPFS is persistent across abnormal shutdowns. Remove only this app's own
