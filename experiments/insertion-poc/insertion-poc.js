@@ -86,18 +86,23 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if(!active)return;
     const elapsed=Math.max(0,(performance.now()-state.startedAt)/1000);
     const remaining=Math.max(0,MAX_NOTE_SECONDS-elapsed);
-    $('recordingElapsed').textContent=l('録音経過 '+fmt(elapsed)+' / 1件の上限 '+fmt(MAX_NOTE_SECONDS)+'。自動停止まで約 '+fmt(remaining),
-      'Recording elapsed '+fmt(elapsed)+' / per-clip limit '+fmt(MAX_NOTE_SECONDS)+'. Automatic stop in approximately '+fmt(remaining));
+    const seconds=Math.floor(elapsed);
+    const clock=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+    $('recordingElapsed').textContent=l('録音 ','Recording ')+clock;
     const notes=state.notes.filter(note=>note!==state.session.replacing);
     notes.push({id:state.session.replacing?.id || state.nextNoteId,position:state.insertAt,duration:Math.max(1/FPS,elapsed)});
     const budget=compositionBudget(state.exportSourceDuration,notes,$('exportFormat').value,FPS);
     const format=exportFormat($('exportFormat').value).extension.toUpperCase();
-    $('recordingBudget').textContent=l('現在の録音を含む完成目安 '+fmt(budget.duration)+' / '+format+' 試験上限 '+fmt(budget.limit)+'。',
-      'Estimated output including this recording '+fmt(budget.duration)+' / '+format+' experimental limit '+fmt(budget.limit)+'. ')+
-      (budget.exceeded ? l('完成尺の上限を超えています。この完成尺の上限では録音は自動停止しません。終了後に短く録り直すか、対応形式を選んでください。',
-      'Output limit exceeded. Recording will not stop at this format limit. Rerecord shorter explanations afterward or choose a supported format.') :
-      l('録音の上限とは別です。実際の録音時間を確認後に再計算します。','This is separate from the recording limit; recalculated after actual audio validation.'));
-    $('recordingBudget').classList.toggle('alert',budget.exceeded);
+    const warnings=[];
+    if(remaining<=15) warnings.push(l('あと約'+Math.ceil(remaining)+'秒で録音を自動停止します。',
+      'Recording stops automatically in about '+Math.ceil(remaining)+' seconds.'));
+    if(budget.exceeded) warnings.push(l(format+'の完成尺上限を超えています。終了後に説明を短く録り直してください。',
+      format+' output limit exceeded. Rerecord shorter explanations after finishing.'));
+    else if(budget.remaining<=Math.min(15,budget.limit*.1)) warnings.push(l(format+'の完成尺上限まで約'+Math.ceil(budget.remaining)+'秒です。',
+      'About '+Math.ceil(budget.remaining)+' seconds until the '+format+' output limit.'));
+    $('recordingBudget').hidden=!warnings.length;
+    $('recordingBudget').textContent=warnings.join(' ');
+    $('recordingBudget').classList.toggle('alert',warnings.length>0);
     $('recordingClock').dataset.elapsed=String(elapsed);
     $('recordingClock').dataset.remaining=String(remaining);
     $('recordingClock').dataset.output=String(budget.duration);

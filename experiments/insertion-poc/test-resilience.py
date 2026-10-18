@@ -15,6 +15,10 @@ from playwright.sync_api import sync_playwright, expect
 
 
 INSTRUMENT = """(() => {
+  const now = performance.now.bind(performance);
+  window.__clockOffset = 0;
+  window.__clockFrozen = null;
+  performance.now = () => window.__clockFrozen ?? (now() + window.__clockOffset);
   window.__testTracks = [];
   window.__testRecorders = [];
   window.__testEncodeFailure = false;
@@ -59,15 +63,31 @@ def load(page, url, source, output_format="webm"):
 
 
 def record_note(page):
+    original_format=page.locator('#exportFormat').input_value()
     expect(page.locator('#startNote')).to_be_enabled(timeout=25000)
     page.locator('#startNote').click()
     expect(page.locator('#finishNote')).to_be_visible(timeout=15000)
     expect(page.locator('#recordingClock')).to_be_visible()
-    expect(page.locator('#recordingElapsed')).to_contain_text('per-clip limit 120.0s')
+    expect(page.locator('#recordingElapsed')).to_have_text(re.compile(r'^Recording \d+:\d{2}$'))
+    expect(page.locator('#recordingBudget')).to_be_hidden()
     page.wait_for_timeout(1000)
     elapsed=float(page.locator('#recordingClock').get_attribute('data-elapsed'))
     remaining=float(page.locator('#recordingClock').get_attribute('data-remaining'))
     assert elapsed>=.5 and abs(elapsed+remaining-120)<.01
+    # Only the display clock is advanced; the real recorder and auto-stop timer
+    # remain untouched. Restore it before the actual audio is committed.
+    page.evaluate('window.__clockOffset = 110000')
+    expect(page.locator('#recordingBudget')).to_contain_text('Recording stops automatically')
+    page.locator('#language').click()
+    expect(page.locator('#recordingBudget')).to_contain_text('録音を自動停止')
+    page.locator('#language').click()
+    page.evaluate("window.__clockFrozen = performance.now() - Number(document.getElementById('recordingClock').dataset.elapsed)*1000 + 26000; document.getElementById('exportFormat').value = 'mp4'")
+    expect(page.locator('#recordingBudget')).to_contain_text('until the MP4 output limit')
+    page.evaluate('window.__clockFrozen += 10000')
+    expect(page.locator('#recordingBudget')).to_contain_text('MP4 output limit exceeded')
+    assert page.evaluate('__testRecorders.at(-1).state') == 'recording'
+    page.evaluate("format => { window.__clockOffset = 0; window.__clockFrozen = null; document.getElementById('exportFormat').value = format; }", original_format)
+    expect(page.locator('#recordingBudget')).to_be_hidden()
     page.locator('#finishNote').click()
     expect(page.locator('#recordingClock')).to_be_hidden()
     expect(page.locator('#noteList .note-item')).to_have_count(1, timeout=25000)
@@ -116,7 +136,7 @@ def recording_failure(page, url, source, out, kind):
     clock=page.locator('#recordingClock')
     assert float(clock.get_attribute('data-output')) < 3, 'Rerecord budget includes old clip twice'
     page.locator('#language').click()
-    expect(page.locator('#recordingElapsed')).to_contain_text('録音経過')
+    expect(page.locator('#recordingElapsed')).to_contain_text('録音 ')
     page.locator('#language').click()
     if kind == 'unexpected_stop':
         # Actual native stop, without the app's explicit Finish operation.
