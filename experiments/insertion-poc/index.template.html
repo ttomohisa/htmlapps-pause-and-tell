@@ -79,6 +79,7 @@
     .brand-mark img { width: 100%; height: 100%; display: block; }
     .brand-copy { min-width: 0; }
     .brand-name {
+      font-weight: 400;
       margin: 0;
       font-size: 17px;
       line-height: 1.2;
@@ -530,6 +531,9 @@
     .main:has(#editor:not([hidden])) #sourcePanel .pt-format-row { margin: 0; }
     .main:has(#editor:not([hidden])) #sourcePanel .pt-format-hint,
     .main:has(#editor:not([hidden])) #sourcePanel #capabilities { order: 3; flex: 1 0 100%; margin: 0; }
+    #editor #sourceDropZone { margin: 0 0 0 auto; padding: 0; border: 0; background: transparent; }
+    #editor #sourceDropZone .pt-file-hint { display: none; }
+    #editor #formatSettings { margin-top: 10px; }
     #capabilities { margin: 8px 0 0; overflow-wrap: anywhere; }
     #editor .pt-draw-tools.row { display: grid; }
     #editor .pt-draw-bottom .row { margin: 0; }
@@ -624,17 +628,18 @@
         <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
         <p class="pt-file-hint" data-ja="PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。" data-en="On a computer, you can also drag and drop a video here. Up to 5 minutes and 250 MiB.">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
       </div>
+      <div id="formatSettings">
       <div class="pt-format-row">
         <label for="exportFormat" data-ja="書き出し形式" data-en="Export format">書き出し形式</label>
         <select id="exportFormat"><option value="webm" selected>WebM VP8/Opus</option><option value="mp4" data-ja="MP4 AVC/AAC（実験）" data-en="MP4 AVC/AAC (experimental)">MP4 AVC/AAC（実験）</option></select>
       </div>
-      <p class="muted pt-format-hint" data-ja="MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。" data-en="MP4: up to 30 seconds of output. Insertion/audio/device saving are under device evaluation. WebM limits are unchanged.">MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。</p>
+      <p id="formatHint" class="muted pt-format-hint" data-ja="MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。" data-en="MP4: up to 30 seconds of output. Insertion/audio/device saving are under device evaluation. WebM limits are unchanged.">MP4は完成30秒まで。音声付き差し込み・端末保存は実機検証中です。WebMの上限は変更しません。</p>
       <p id="capabilities" class="muted" aria-live="polite"></p>
+      </div>
     </section>
     <section class="panel shell pt-panel" id="editor" aria-labelledby="editorTitle" hidden>
       <div class="pt-control-head"><h2 id="editorTitle" data-ja="動画を見ながら説明する" data-en="Explain while viewing the video">動画を見ながら説明する</h2></div>
       <p class="muted pt-current-file" id="sourceInfo"></p>
-      <p id="durationBudget" class="note" aria-live="polite" hidden></p>
       <section class="pt-draw-panel drawing-tools" aria-labelledby="ptDrawTitle">
         <div class="pt-draw-header">
           <h3 id="ptDrawTitle" class="pt-draw-heading" data-ja="動画に描く" data-en="Draw on the video">動画に描く</h3>
@@ -674,6 +679,8 @@
       <p class="muted pt-inline-state" id="captureStatus" aria-live="polite"></p>
       <div id="recordingClock" hidden><p id="recordingElapsed" role="timer" aria-live="off"></p><p class="muted" id="recordingBudget"></p></div>
       <label class="seek pt-seek"><span data-ja="位置" data-en="Position">位置</span><input id="seek" type="range" min="0" max="1000" value="0"><output id="position">0.0s</output></label>
+      <p id="durationBudget" class="note" aria-live="polite" hidden></p>
+      <div id="formatDestination"></div>
       <p class="pt-mic-note" data-ja="マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。" data-en="The microphone is used only when you choose Record explanation here. The source frame stays frozen while your voice and drawings are recorded.">マイクは「この位置に説明を追加」を押したときだけ使用します。説明中は元動画が止まり、声と描き込みを録音します。</p>
     </section>
 <section class="panel shell pt-panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>

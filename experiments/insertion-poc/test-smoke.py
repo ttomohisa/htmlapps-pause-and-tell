@@ -180,6 +180,10 @@ def main():
         page.mouse.move(canvas['x']+canvas['width']*.7,canvas['y']+canvas['height']*.65,steps=9)
         page.mouse.up()
         page.wait_for_timeout(1800)
+        page.screenshot(path=str(a.out/'recording-ja-mobile.png'),full_page=True)
+        page.set_viewport_size({'width':1180,'height':800})
+        page.screenshot(path=str(a.out/'recording-ja-desktop.png'),full_page=True)
+        page.set_viewport_size({'width':390,'height':844})
         page.locator('#finishNote').click()
         page.locator('#notePanel').wait_for(state='visible',timeout=25000)
         assert page.locator('#noteSummary').inner_text()
@@ -365,6 +369,10 @@ def main():
         page.wait_for_function("y=>Math.abs(scrollY-y)<2",arg=prior_scroll)
         assert not page.evaluate("document.body.classList.contains('pt-help-locked')")
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
+        page.set_viewport_size({'width':1180,'height':800})
+        page.screenshot(path=str(a.out/'saved-ja-desktop.png'),full_page=True)
+        page.set_viewport_size({'width':390,'height':844})
+        page.screenshot(path=str(a.out/'saved-ja-mobile.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")
         assert live==0,f'Microphone tracks not released: {live}'

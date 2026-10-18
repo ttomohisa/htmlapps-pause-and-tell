@@ -12,8 +12,12 @@ with sync_playwright() as p:
  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--autoplay-policy=no-user-gesture-required'])
  page=b.new_page(viewport={'width':390,'height':844},accept_downloads=True);errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.add_init_script("""Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>{const c=new AudioContext();await c.resume();const o=c.createOscillator(),d=c.createMediaStreamDestination();o.connect(d);o.start();return d.stream;}});document.addEventListener('pointerdown',e=>{if(e.target.id==='drawCanvas')window.__drawingPointer=e.pointerId},true);window.__recordStart=0;const start=MediaRecorder.prototype.start;MediaRecorder.prototype.start=function(...args){window.__recordStart=performance.now();return start.apply(this,args)};""")
- page.goto(a.url);page.locator('#sourceFile').set_input_files(str(source));page.locator('#editor').wait_for(state='visible');page.wait_for_function("() => !document.querySelector('#startNote').disabled")
- page.evaluate("""bytes=>{const data=new DataTransfer();data.items.add(new File([Uint8Array.from(atob(bytes),c=>c.charCodeAt(0))],'dropped.webm',{type:'video/webm'}));document.querySelector('#sourcePanel').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data}));}""",base64.b64encode(source.read_bytes()).decode());page.wait_for_function("() => document.querySelector('#sourceInfo').textContent.includes('dropped.webm') && !document.querySelector('#startNote').disabled")
+ page.goto(a.url)
+ def drop_source(name):
+  page.evaluate("""data=>{const transfer=new DataTransfer();transfer.items.add(new File([Uint8Array.from(atob(data.bytes),c=>c.charCodeAt(0))],data.name,{type:'video/webm'}));document.querySelector('#sourceDropZone').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer}));}""",{'bytes':base64.b64encode(source.read_bytes()).decode(),'name':name})
+ drop_source('source.webm');page.locator('#editor').wait_for(state='visible');page.wait_for_function("() => !document.querySelector('#startNote').disabled")
+ assert page.locator('#editor #sourceDropZone').count()==1, 'Change-video picker did not move with the studio'
+ drop_source('dropped.webm');page.wait_for_function("() => document.querySelector('#sourceInfo').textContent.includes('dropped.webm') && !document.querySelector('#startNote').disabled")
  page.locator('#seek').evaluate("e=>{e.value=500;e.dispatchEvent(new Event('input',{bubbles:true}))}")
  page.locator('#startNote').click();page.locator('#finishNote').wait_for(state='visible')
  assert page.locator('[data-draw-tool=pen]').get_attribute('aria-pressed')=='true'

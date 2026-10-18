@@ -203,6 +203,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   function renderCapabilities() {
     const c=state.capabilities;
+    $('capabilities').hidden=Boolean(state.file && c?.record && c?.encode);
+    $('formatHint').hidden=Boolean(state.file && $('exportFormat').value==='webm');
     $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : c.record && c.encode ?
       l('録音・'+exportFormat($('exportFormat').value).extension.toUpperCase()+'書き出しの候補を確認しました。保存後の再生も確認してください。',
         'Recording and '+exportFormat($('exportFormat').value).extension.toUpperCase()+' export candidates detected. Check playback after saving.') : [
@@ -404,6 +406,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       await inspectCapabilities();
       if(token!==uploadGeneration)return;
       $('outputName').value=file.name.replace(/\.[^.]+$/,'')+'-explained';
+      // Keep the established studio layout: change-video beside its title,
+      // export settings below transport. Moving nodes preserves their handlers.
+      $('editor').querySelector('.pt-control-head').appendChild($('sourceDropZone'));
+      $('formatDestination').appendChild($('formatSettings'));
+      $('sourcePanel').hidden=true;
       $('editor').hidden = false;
       $('seek').value = '0';
       $('position').textContent = fmt(0);
@@ -443,17 +450,19 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   for(const type of ['dragover','drop'])window.addEventListener(type,event=>{
     if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();
   });
-  $('sourcePanel').addEventListener('dragover',event=>{
+  for(const dropTarget of [$('sourcePanel'),$('sourceDropZone')]) {
+  dropTarget.addEventListener('dragover',event=>{
     if(!Array.from(event.dataTransfer?.types||[]).includes('Files'))return;
     event.preventDefault();
     event.dataTransfer.dropEffect=state.busy || state.recorder?'none':'copy';
   });
-  $('sourcePanel').addEventListener('drop',event=>{
-    event.preventDefault();
+  dropTarget.addEventListener('drop',event=>{
+    event.preventDefault();event.stopPropagation();
     if(state.busy || state.recorder)return;
     const file=event.dataTransfer?.files?.[0];
     if(file)void loadSource(file);
   });
+  }
   $('playSource').addEventListener('click',async ()=>{
     try {
       if (sourceVideo.paused) await sourceVideo.play();
