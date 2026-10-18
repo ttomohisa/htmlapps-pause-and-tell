@@ -11,7 +11,7 @@ with sync_playwright() as pw:
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) and not r.url.startswith('http://127.0.0.1:') else None)
         page.goto('http://127.0.0.1:8765/index.html')
-        page.locator('#nativeSupportPanel summary').click();page.locator('#checkNativeSupport').click()
+        page.locator('#helpButton').click();page.locator('#nativeSupportPanel summary').click();page.locator('#checkNativeSupport').click()
         page.wait_for_function("document.querySelector('#nativeSupportResult').dataset.ready==='true'")
         status=page.locator('#nativeSupportResult').inner_text()
         ready=status=='Native AVC: 候補あり / Native AAC: 候補あり'

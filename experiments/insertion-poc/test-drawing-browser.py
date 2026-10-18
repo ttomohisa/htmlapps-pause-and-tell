@@ -29,7 +29,7 @@ with sync_playwright() as p:
  gesture('ellipse','white');sample('ellipse-white')
  gesture('arrow','red');sample('arrow-red')
  page.locator('[data-draw-tool=point]').click();page.locator('#drawCanvas').focus();page.keyboard.press('ArrowRight');page.keyboard.press('Shift+ArrowDown');page.keyboard.press('Enter');assert page.locator('#keyboardCursor').is_visible();sample('point-keyboard')
- page.locator('#drawUndo').click();sample('undo-point')
+ page.keyboard.press('Control+z');sample('undo-point')
  # A cancelled gesture after Undo must retain Redo and release actual capture.
  page.locator('[data-draw-tool=pen]').click();page.locator('#drawCanvas').scroll_into_view_if_needed();r=page.locator('#drawCanvas').bounding_box()
  page.mouse.move(r['x']+r['width']*.3,r['y']+r['height']*.3);page.mouse.down()
@@ -37,7 +37,7 @@ with sync_playwright() as p:
  page.evaluate("document.querySelector('#drawCanvas').dispatchEvent(new PointerEvent('pointercancel',{pointerId:window.__drawingPointer,bubbles:true}))")
  assert not page.evaluate("document.querySelector('#drawCanvas').hasPointerCapture(window.__drawingPointer)")
  page.mouse.up();assert not page.locator('#drawRedo').is_disabled()
- page.locator('#drawRedo').click();sample('redo-point')
+ page.keyboard.press('Control+Shift+z');sample('redo-point')
  page.locator('#drawClear').click();sample('clear')
  page.locator('#drawUndo').click();sample('undo-clear')
  assert samples[0]['pixels']==samples[-2]['pixels'],'Clear did not restore frozen source'

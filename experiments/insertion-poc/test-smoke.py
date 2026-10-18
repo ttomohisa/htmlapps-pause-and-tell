@@ -90,7 +90,25 @@ def main():
             })()""")
         page.goto(a.url,wait_until='domcontentloaded')
         page.locator('#exportFormat').select_option(a.output_format)
+        # The shipped shell must retain the established header and usable help.
+        assert page.locator('.app-header .header-inner').count()==1
+        assert page.locator('.page-intro').is_visible()
+        assert page.locator('#ptSteps [aria-current=step]').get_attribute('data-step')=='1'
+        page.set_viewport_size({'width':1180,'height':800})
+        page.screenshot(path=str(a.out/'initial-ja-desktop.png'),full_page=True)
+        page.set_viewport_size({'width':390,'height':844})
+        page.locator('#helpButton').click()
+        assert page.locator('#helpDialog').is_visible()
+        assert page.evaluate("document.documentElement.classList.contains('pt-help-locked')")
+        page.screenshot(path=str(a.out/'help-ja-mobile.png'),full_page=True)
+        page.keyboard.press('Escape')
+        assert not page.locator('#helpDialog').is_visible()
+        assert not page.evaluate("document.documentElement.classList.contains('pt-help-locked')")
+        page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
+        assert not page.locator('#helpDialog').is_visible()
+        page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)
         if a.memory_target:
+            page.locator('#helpButton').click()
             page.locator('#nativeSupportPanel summary').click()
             page.locator('#checkNativeSupport').click()
             page.wait_for_function("document.querySelector('#nativeSupportResult').dataset.ready==='true'")
@@ -98,6 +116,7 @@ def main():
             assert 'Native AVC:' in native_text and 'Native AAC:' in native_text,native_text
             assert page.evaluate('(window.__pocTracks||[]).length')==0, 'Support query requested microphone'
             page.locator('#nativeSupportPanel summary').click()
+            page.locator('#closeHelpButton').click()
         if a.expanded_input:
             larger=a.out/'expanded-20s.webm'
             command(['ffmpeg','-v','error','-y','-f','lavfi','-i',
@@ -114,7 +133,7 @@ def main():
             diagnostic={
                 'message':page.locator('#error').inner_text(),
                 'pageErrors':errors,
-                'header':page.locator('h1').inner_text(),
+                'header':page.locator('.brand-name').inner_text(),
                 'source':page.locator('#sourceInfo').inner_text()
             }
             page.screenshot(path=str(a.out/'failure-input.png'),full_page=True)
@@ -340,6 +359,11 @@ def main():
         assert storage in ('temporary-file','memory'),storage
         if a.memory_target:
             assert storage=='memory','Memory fallback did not run'
+        page.evaluate("document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,180)")
+        prior_scroll=page.evaluate('scrollY')
+        page.locator('#helpButton').click();page.keyboard.press('Escape')
+        page.wait_for_function("y=>Math.abs(scrollY-y)<2",arg=prior_scroll)
+        assert not page.evaluate("document.body.classList.contains('pt-help-locked')")
         page.screenshot(path=str(a.out/'result.png'),full_page=True)
         assert not errors and not external,{'pageErrors':errors,'external':external}
         live=page.evaluate("()=>(window.__pocTracks||[]).filter(t=>t.readyState==='live').length")

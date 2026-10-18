@@ -65,6 +65,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   function info(text) { $('captureStatus').textContent = text; }
   function setBusy(value) {
     state.busy = value;
+    updateSteps();
     $('sourceFile').disabled = value || Boolean(state.recorder);
     $('exportFormat').disabled = value || Boolean(state.recorder);
     $('startNote').disabled = value || !state.file || Boolean(state.recorder) || !state.capabilities?.record || !state.capabilities?.encode;
@@ -130,6 +131,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     for (const node of document.querySelectorAll('[data-ja][data-en]')) {
       node.textContent = node.dataset[lang];
     }
+    for(const attribute of ['aria-label','title']) {
+      for(const node of document.querySelectorAll('[data-ja-'+attribute+'][data-en-'+attribute+']'))
+        node.setAttribute(attribute,node.getAttribute('data-'+lang+'-'+attribute));
+    }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     if (state.note) updateSummary();
     renderCapabilities();renderRecovery();renderNativeSupport();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
@@ -138,6 +143,43 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     lang = lang === 'ja' ? 'en' : 'ja';
     translate();
   });
+  // Preserve the established help dialog, including mobile background scroll lock.
+  const helpDialog=$('helpDialog');
+  let helpScrollRestore=null;
+  function unlockHelpBackground() {
+    if(!helpScrollRestore)return;
+    const previous=helpScrollRestore;helpScrollRestore=null;
+    document.body.classList.remove('pt-help-locked');
+    document.documentElement.classList.remove('pt-help-locked');
+    document.body.style.top=previous.top;
+    const behavior=document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior='auto';
+    window.scrollTo(0,previous.y);
+    document.documentElement.style.scrollBehavior=behavior;
+  }
+  $('helpButton').addEventListener('click',()=>{
+    if(helpDialog.open)return;
+    helpScrollRestore={y:window.scrollY,top:document.body.style.top};
+    document.documentElement.classList.add('pt-help-locked');
+    document.body.classList.add('pt-help-locked');
+    document.body.style.top='-'+helpScrollRestore.y+'px';
+    try{helpDialog.showModal();}catch(error){unlockHelpBackground();showError(error);}
+  });
+  helpDialog.addEventListener('close',unlockHelpBackground);
+  $('closeHelpButton').addEventListener('click',()=>helpDialog.close());
+  helpDialog.addEventListener('click',event=>{
+    const rect=helpDialog.getBoundingClientRect();
+    if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)helpDialog.close();
+  });
+  function updateSteps() {
+    const current=state.session || state.recorder ? 2 : state.resultBlob ? 3 : state.file ? 2 : 1;
+    for(const step of $('ptSteps').querySelectorAll('[data-step]')) {
+      const number=Number(step.dataset.step);
+      step.dataset.state=number<current ? 'done' : number===current ? 'current' : 'upcoming';
+      if(number===current)step.setAttribute('aria-current','step');
+      else step.removeAttribute('aria-current');
+    }
+  }
   function renderNativeSupport() {
     const labels={supported:l('候補あり','Candidate available'),unsupported:l('候補なし','No candidate'),
       unavailable:l('APIなし','API unavailable'),error:l('確認できません','Could not check'),timeout:l('確認が時間切れ','Query timed out')};
@@ -161,7 +203,9 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   function renderCapabilities() {
     const c=state.capabilities;
-    $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : [
+    $('capabilities').textContent=!c ? l('録音・書き出し機能を確認中…','Checking recording and export capabilities…') : c.record && c.encode ?
+      l('録音・'+exportFormat($('exportFormat').value).extension.toUpperCase()+'書き出しの候補を確認しました。保存後の再生も確認してください。',
+        'Recording and '+exportFormat($('exportFormat').value).extension.toUpperCase()+' export candidates detected. Check playback after saving.') : [
       c.record ? l('録音候補: ','Recording candidate: ')+c.type : l('この環境ではマイク録音APIまたは対応形式を利用できません。HTTPS・権限・ブラウザを確認してください。','Microphone recording API or format unavailable. Check HTTPS, permissions and browser.'),
       exportFormat($('exportFormat').value).label + (c.encode ? l(' 書き出し候補あり。',' encoding candidate available.') : l(' 動画・音声エンコーダーを利用できません。形式を変更してください。',' video/audio encoders unavailable. Choose another format.')),
       l('機能検出は実機での録音・保存成功を保証しません。MP4は完成30秒までの実験です。','Feature detection does not prove recording or saving. MP4 is experimental, limited to 30 seconds of output.')
@@ -537,6 +581,13 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   $('drawUndo').addEventListener('click',()=>{if(canDraw()){finishStroke();if(undoDrawing(state))drawingChanged();}});
   $('drawRedo').addEventListener('click',()=>{if(canDraw()){finishStroke();if(redoDrawing(state))drawingChanged();}});
   $('drawClear').addEventListener('click',()=>{if(canDraw()){finishStroke();if(state.strokes.length){rememberDrawing(state);state.strokes=[];drawingChanged();}}});
+  window.addEventListener('keydown',event=>{
+    if(!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat || helpDialog.open || !canDraw()
+      || event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable]'))return;
+    const key=event.key.toLowerCase();
+    if(key==='z' && !event.shiftKey){event.preventDefault();$('drawUndo').click();}
+    else if(key==='y' || key==='z' && event.shiftKey){event.preventDefault();$('drawRedo').click();}
+  });
 
   async function beginExplanation(replacing=null) {
     if(!state.file||state.busy||state.recorder||!state.capabilities?.record||!state.capabilities?.encode) return;
