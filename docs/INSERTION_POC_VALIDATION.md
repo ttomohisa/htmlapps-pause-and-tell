@@ -1,3 +1,19 @@
+# Current acceptance summary — v0.12.0 (2026-10-18)
+
+The insertion engine is now the default application, with the original v0.9.3 visual shell restored. WebM is standard; native MP4 remains auxiliary/experimental and capped at 30 seconds of completed output. The historical measurements below retain their original scope and dates; early statements about a separate normal v0.9.3 application are superseded by [APP_SPEC.md](../APP_SPEC.md).
+
+At `c8df998c7f83348e41fed5b4a81ded9faeed59d4`, all four ordinary workflows passed:
+- [Composition, drawing, failure protection and Japanese visual comparison](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39085738523)
+- [Readable/self-extracting recording, save and decode](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39085738530)
+- [Windows standalone verification](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39085738537)
+- [Preview deployment](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39085738529)
+
+The owner accepted the restored appearance and compact elapsed-time display. The timer now shows a small minutes:seconds value; warnings appear near the recording/output limits or after the output limit is exceeded. Japanese/English round-trip switching updates recording status and source-audio metadata while preserving the recording, source position, drawing pixels and previous explanation. Desktop/mobile-width screenshots and short regressions passed; [evidence artifact](https://github.com/ttomohisa/htmlapps-pause-and-tell/actions/runs/39085738523/artifacts/12120174781). This is browser viewport evidence, not a new physical-device test.
+
+The earlier Pixel owner report and separate native MP4/180-second WebM milestones remain valid only for their recorded scope. Broad iPhone/Android compatibility, arbitrary camera formats, maximum-capacity operation, real storage exhaustion and OS-termination recovery remain unverified. Explanations are session-only. No optional AAC/WASM fallback is distributed. No new long-duration run is needed for these presentation-only changes. Code-review readiness does not authorize merge, production deployment or release/tag creation.
+
+---
+
 # Pause & Tell insertion PoC — v0.10.0–v0.11.4 verification
 
 **Status:** Synthetic Chromium proof passed; product release and actual phone support are NOT approved. This is separate from the existing default v0.9.3 application.

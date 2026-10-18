@@ -1,3 +1,5 @@
+> Current status (2026-10-18): this is a chronological research record. The v0.12.0 default insertion app now offers native AVC/AAC MP4 with a 30-second completed-output limit, alongside standard WebM. Earlier statements below about “no MP4 UI”, separate v0.9.3, or WebM-only output describe their dated probe stage, not the current app. The optional AAC/WASM fallback remains excluded from all distributed application HTML. See [current specification](../APP_SPEC.md) and [validation](INSERTION_POC_VALIDATION.md).
+
 # Isolated MP4/VFR feasibility probe
 
 This is an opt-in laboratory, not a new export option. Normal v0.9.3 and the insertion app's WebM encoder settings are unchanged.

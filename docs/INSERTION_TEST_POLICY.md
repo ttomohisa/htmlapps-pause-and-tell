@@ -1,13 +1,13 @@
 # Pause & Tell — Insertion-mode testing policy
 
-**Decision: essential correctness remains non-negotiable; PoC-specific limits and excessive per-commit test coverage do not.** Applies to the isolated insertion experiment only. The shipping app remains on v0.9.3 in the Draft PR.
+**Decision: essential correctness remains non-negotiable; PoC-specific limits and excessive per-commit test coverage do not.** Applies to the v0.12.0 default insertion application. The former v0.9.3 continuous recorder is historical; its original visual shell and drawing controls are retained around the insertion engine.
 
 ## 1. Always-required invariants (P0)
 
 1. **No hidden media loss:** All original video intervals remain in chronological order, including those never played during editing. Original audio stays in source intervals; narration replaces it only during inserted explanations. If source audio/codec cannot be decoded, fail visibly; do not silently omit it.
 2. **Real decodable output:** Verify a saved file, not just an in-browser progress message. Video and audio must decode, duration must match source plus the actual recorded clip durations within an encoding-aware tolerance; annotations align with their sections.
 3. **Local-data privacy:** Input video and microphone must not upload to third-party endpoints; the experiment's CSP must continue to block connections. Explain local temporary storage and abnormal-crash leftovers truthfully.
-4. **Edit isolation:** Adding, deleting and rerecording one explanation must not alter the original File or unrelated sections. Keep normal user-facing v0.9.3 functionality unchanged while the insertion experiment is isolated.
+4. **Edit isolation:** Adding, deleting and rerecording one explanation must not alter the original File or unrelated sections. Preserve the current insertion contract, established drawing controls and original visual shell; intentional playback/seek changes are documented in APP_SPEC.md.
 5. **Failure/cleanup:** Missing mic permission, unsupported codec, unavailable storage, interrupted recording, or quota pressure must not be called success or automatically erase previously completed explanation segments. Release microphone tracks and temporary resources whenever possible.
 6. **Usability:** No horizontal overflow at narrow widths. Actual file-save and recovery paths are a release requirement, not inferred from success banners.
 
@@ -31,12 +31,12 @@ Run on performance-related milestones and before expanding user-facing support c
 
 ## 4. Release acceptance versus experimental envelope
 
-- **Experimental attempt bounds:** source ≤5 min and ≤250MiB; one explanation ≤2 min; composed output ≤10 min. These are conservative *policy ceilings*, not evidence of successful export at those sizes.
+- **Experimental attempt bounds:** source ≤5 min and ≤250MiB; one explanation ≤2 min; WebM composed output ≤10 min; native MP4 composed output ≤30 seconds. These are conservative *policy ceilings*, not evidence of successful export at those sizes.
 - **Resource safety:** normal export should prefer local OPFS writing when supported and avoid full-movie PCM allocations; RAM fallback uses a 96MiB encoded-size estimate. These safeguards may reject an output on an unsupported device, with an actionable error. Do not remove memory checks to make a specific test pass.
 - **Release GO** requires credible real-device evidence for the formats and platforms claimed as supported, no P0 regressions, privacy/CSP/standalone checks and truthful limitations. A single unsupported browser feature should not automatically block release on every other browser if that feature is clearly detected, disabled and documented.
-- Treat physical-device and longer-duration checks as **separate release gates**, not a reason for the short PoC/CI to be permanently blocked. Keep Draft unmerged while those release gates remain open. User alone merges PRs.
+- Treat physical-device and longer-duration checks as **separate release gates**, not a reason for the short PoC/CI to be permanently blocked. Readiness for code review is distinct from release/platform certification. Unsupported or unverified device combinations must remain explicit; they do not imply that another tested configuration is blocked. User alone merges PRs.
 
-Updated 2026-10-17. [PoC validation measurements](INSERTION_POC_VALIDATION.md) · [Design](INSERTION_MODE_DESIGN.md).
+Updated 2026-10-18. [PoC validation measurements](INSERTION_POC_VALIDATION.md) · [Design](INSERTION_MODE_DESIGN.md).
 
 ## 2026-10-17 opt-in longer-media milestone
 
