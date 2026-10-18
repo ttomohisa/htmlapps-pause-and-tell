@@ -123,6 +123,16 @@ def missing_recorder(page, url, source, out):
                      r'(unavailable|unsupported|not supported|requires).*record', text, re.I | re.S), text
     assert not page.evaluate('__testTracks.length'), 'Preflight requested a microphone'
     assert 'undefined' not in page.locator('#error').inner_text(), 'Raw JavaScript error shown'
+    page.locator('#silentNote').check()
+    expect(page.locator('#startNote')).to_be_enabled()
+    page.locator('#startNote').click()
+    expect(page.locator('#finishNote')).to_be_visible()
+    page.wait_for_timeout(300)
+    page.locator('#finishNote').click()
+    expect(page.locator('#noteList .note-item')).to_have_count(1)
+    expect(page.locator('#silentNotePreview')).to_be_visible()
+    assert not page.evaluate('__testTracks.length'), 'Silent explanation requested microphone'
+
 
 
 def silent_explanations(page, url, source, out, output_format='webm'):

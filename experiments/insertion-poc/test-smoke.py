@@ -179,7 +179,7 @@ def main():
         source_position=page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')
         drawing_pixels=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
         page.locator('#language').click()
-        expect(page.locator('#captureStatus')).to_contain_text('Narration recording.')
+        expect(page.locator('#captureStatus')).to_contain_text('Recording your explanation.')
         expect(page.locator('#sourceInfo')).to_contain_text('Original audio present' if a.source_audio else 'Silent source')
         page.screenshot(path=str(a.out/'recording-en-desktop.png'),full_page=True)
         page.set_viewport_size({'width':390,'height':844})
