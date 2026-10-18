@@ -583,8 +583,20 @@
 .pt-silent-choice { display:flex; align-items:center; gap:10px; margin:14px 0 10px; font-size:14px; }
 .pt-silent-choice input { width:20px; height:20px; accent-color:var(--accent,#16624f); }
 #drawingPanel[hidden], #formatSettings[hidden] { display:none; }
-#formatDestination { margin-top:20px; padding-top:18px; border-top:1px solid var(--line,#dfe5df); }
+#formatDestination { margin:0; padding:0; }
 #notePanel .pt-review-help { margin-bottom:10px; }
+
+    .pt-workspace { display:grid; grid-template-columns:minmax(0,1.9fr) minmax(240px,1fr); gap:24px; align-items:start; }
+    .pt-preview-editor,.pt-explanations { min-width:0; }
+    .pt-explanations { border-left:1px solid var(--line); padding-left:20px; }
+    .pt-explanations h3 { font-size:15px; margin:18px 0 8px; }
+    .pt-export-bar { border-top:1px solid var(--line); margin-top:20px; padding-top:16px; }
+    #selectedExplanation { border-top:1px solid var(--line); margin-top:16px; }
+    .note-item .icon-button { flex:0 0 44px; padding:10px; }
+    .note-item svg { width:22px; height:22px; }
+    #confirmDialog { max-width:440px; }
+    @media(max-width:760px) { .pt-workspace { grid-template-columns:1fr; gap:16px; } .pt-explanations { border-left:0; border-top:1px solid var(--line); padding:16px 0 0; } }
+
 </style>
 </head>
 <body>
@@ -620,11 +632,6 @@
         <span data-ja="完全ローカル処理" data-en="Entirely local processing">完全ローカル処理</span>
       </div>
     </section>
-    <ol class="pt-steps" id="ptSteps" aria-label="作業の進み具合" data-ja-aria-label="作業の進み具合" data-en-aria-label="Workflow progress">
-      <li class="pt-step" data-step="1" data-state="current" aria-current="step"><span class="pt-step-number" aria-hidden="true">1</span><span class="pt-step-label" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span></li>
-      <li class="pt-step" data-step="2" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">2</span><span class="pt-step-label" data-ja="説明を追加" data-en="Add explanations">説明を追加</span></li>
-      <li class="pt-step" data-step="3" data-state="upcoming"><span class="pt-step-number" aria-hidden="true">3</span><span class="pt-step-label" data-ja="動画を保存" data-en="Save the video">動画を保存</span></li>
-    </ol>
     <!-- APP:BEGIN Pause & Tell insertion workflow. -->
     <section class="panel shell pt-panel" id="sourcePanel" aria-labelledby="sourceTitle">
       <h2 id="sourceTitle" data-ja="説明したい動画を選ぶ" data-en="Choose the video you want to explain">説明したい動画を選ぶ</h2>
@@ -633,17 +640,9 @@
         <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
         <p class="pt-file-hint" data-ja="PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。" data-en="On a computer, you can also drag and drop a video here. Up to 5 minutes and 250 MiB.">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
       </div>
-      <div id="formatSettings">
-      <div class="pt-format-row">
-        <label for="exportFormat" data-ja="書き出し形式" data-en="Export format">書き出し形式</label>
-        <select id="exportFormat"><option value="webm" selected>WebM VP8/Opus</option><option value="mp4" data-ja="MP4 AVC/AAC（実験）" data-en="MP4 AVC/AAC (experimental)">MP4 AVC/AAC（実験）</option></select>
-      </div>
-
-      <p id="capabilities" class="muted" aria-live="polite"></p>
-      </div>
     </section>
     <section class="panel shell pt-panel" id="editor" aria-labelledby="editorTitle" hidden>
-      <div class="pt-control-head"><h2 id="editorTitle" data-ja="説明する位置を選ぶ" data-en="Choose where to explain">説明する位置を選ぶ</h2></div>
+      <div class="pt-control-head"><h2 id="editorTitle" data-ja="動画を編集" data-en="Edit your video">動画を編集</h2></div><div class="pt-workspace"><div class="pt-preview-editor">
       <p class="muted pt-current-file" id="sourceInfo"></p>
       <div class="pt-stage-wrap">
         <div class="stage pt-stage"><video id="sourceVideo" playsinline preload="auto"></video><canvas id="drawCanvas" hidden tabindex="-1" aria-describedby="keyboardDrawHelp" aria-label="Drawing on video"></canvas><span id="keyboardCursor" class="keyboard-cursor pt-keyboard-cursor" aria-hidden="true" hidden></span></div>
@@ -689,20 +688,26 @@
       <p id="durationBudget" class="note" aria-live="polite" hidden></p>
 
       <p class="pt-mic-note" data-ja="説明を開始してから終了するまでの時間が差し込まれます。無音を選ぶとマイクは使いません。" data-en="The time between starting and finishing is inserted into the video. Silent explanations do not use the microphone.">説明を開始してから終了するまでの時間が差し込まれます。無音を選ぶとマイクは使いません。</p>
-    </section>
-<section class="panel shell pt-panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
-<section class="panel shell pt-panel" id="notePanel" hidden>
+</div><aside class="pt-explanations" id="notePanel">
 <h2 data-ja="追加した説明" data-en="Your explanations">追加した説明</h2>
-<p id="noteSummary" class="note"></p>
+<p id="noteSummary" class="muted"></p><p id="emptyNotes" class="muted" data-ja="動画の位置を選び、説明を追加してください。追加した説明を選ぶと、その位置と描き込みを確認できます。" data-en="Choose a video position and add an explanation. Select an explanation here to see its position and drawings.">動画の位置を選び、説明を追加してください。追加した説明を選ぶと、その位置と描き込みを確認できます。</p>
 <div id="noteList" class="note-list" role="group" aria-label="Recorded explanation segments"></div>
-<p class="muted pt-review-help" data-ja="選択した説明を作り直せます。取り消すと元の説明が残ります。" data-en="Redo a selected explanation. Cancelling keeps the original.">選択した説明を作り直せます。取り消すと元の説明が残ります。</p>
-<p id="silentNotePreview" class="muted" hidden data-ja="無音の説明です。描き込みは完成動画で確認できます。" data-en="Silent explanation. Check its drawings in the completed video.">無音の説明です。描き込みは完成動画で確認できます。</p>
+<div id="selectedExplanation" hidden><h3 id="selectedTitle"></h3><p class="muted pt-review-help" data-ja="選択した説明を作り直せます。取り消すと元の説明が残ります。" data-en="Redo a selected explanation. Cancelling keeps the original.">選択した説明を作り直せます。取り消すと元の説明が残ります。</p>
+<p id="silentNotePreview" class="muted" hidden data-ja="無音の説明です。動画上で最後の描き込みを確認できます。" data-en="Silent explanation. The video shows its final drawing.">無音の説明です。動画上で最後の描き込みを確認できます。</p>
 <audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
 <div class="row pt-controls">
 <button class="button" id="rerecord" data-ja="選択した説明を作り直す" data-en="Redo selected explanation">選択した説明を作り直す</button>
-<button class="button" id="discard" data-ja="選択した説明を削除" data-en="Delete selected explanation">選択した説明を削除</button>
+<button class="icon-button" id="discard" type="button" aria-label="選択した説明を削除" data-ja-aria-label="選択した説明を削除" data-en-aria-label="Delete selected explanation" title="選択した説明を削除" data-ja-title="選択した説明を削除" data-en-title="Delete selected explanation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button>
 </div>
-<div id="formatDestination"></div>
+</div></aside></div><div class="pt-export-bar"><div id="formatDestination">      <div id="formatSettings">
+      <div class="pt-format-row">
+        <label for="exportFormat" data-ja="書き出し形式" data-en="Export format">書き出し形式</label>
+        <select id="exportFormat"><option value="webm" selected>WebM VP8/Opus</option><option value="mp4" data-ja="MP4 AVC/AAC（実験）" data-en="MP4 AVC/AAC (experimental)">MP4 AVC/AAC（実験）</option></select>
+      </div>
+
+      <p id="capabilities" class="muted" aria-live="polite"></p>
+      </div>
+</div>
 <div class="row pt-controls">
 <button class="button primary" id="export" data-ja="動画を作成" data-en="Create video">動画を作成</button>
 </div>
@@ -710,7 +715,9 @@
 <button class="button" id="cancelExport" hidden data-ja="書き出しを中止" data-en="Cancel export">書き出しを中止</button>
 <p class="muted" id="exportStatus" aria-live="polite"></p>
 <p id="cleanupWarning" class="note alert" aria-live="polite" hidden></p>
-</section>
+</div>
+    </section>
+<section class="panel shell pt-panel" id="recovery" hidden><p data-ja="中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。" data-en="Recovered interrupted audio is incomplete and unverified; it may not play. It was not added as an explanation. Save it before leaving if needed.">中断した録音の回収データです。未完成・未検証で、再生できない場合があります。説明区間には追加していません。ページを閉じる前に必要なら保存してください。</p><div id="recoveryFiles" class="row"></div></section>
 <section class="panel shell pt-panel result" id="result" hidden>
 <div class="pt-control-head"><button id="backToEditor" class="button" type="button" data-ja="説明の編集に戻る" data-en="Back to explanations">説明の編集に戻る</button></div>
 <h2 data-ja="完成動画を確認する" data-en="Verify the finished video">完成動画を確認する</h2>
@@ -728,6 +735,7 @@
     <!-- APP:END -->
   </main>
   <footer>Pause &amp; Tell · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
+<dialog id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage"><div class="dialog-header"><h2 id="confirmTitle"></h2></div><div class="dialog-body"><p id="confirmMessage"></p><div class="row pt-controls"><button type="button" class="button" id="confirmCancel" autofocus data-ja="取り消す" data-en="Cancel">取り消す</button><button type="button" class="button" id="confirmAccept"></button></div></div></dialog>
   <dialog id="helpDialog" aria-labelledby="helpTitle">
     <div class="dialog-header">
       <h2 id="helpTitle" data-ja="使い方と注意事項" data-en="How to use &amp; notes">使い方と注意事項</h2>

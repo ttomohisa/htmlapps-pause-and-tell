@@ -1,3 +1,9 @@
+## Unreleased — v1.0.0 retained
+
+- Add elapsed-time silent explanations without microphone access; preserve safe redo/cancel and original soundtrack timing.
+- Unify preview, position, explanation selection and editing in one responsive workspace. Selecting an explanation seeks and previews its drawing; deletion uses accessible trash icons and an in-app confirmation.
+- Remove the requested codec diagnostics and redundant format notice; retain actual processing limits and failure protection.
+
 ## 1.0.0 — version and documentation alignment (2026-10-18)
 
 - Prepare the established insertion editor as v1.0.0; no recording/export engine or layout changes.

@@ -92,7 +92,7 @@ def main():
         # The shipped shell must retain the established header and usable help.
         assert page.locator('.app-header .header-inner').count()==1
         assert page.locator('.page-intro').is_visible()
-        assert page.locator('#ptSteps [aria-current=step]').get_attribute('data-step')=='1'
+        assert page.locator('#ptSteps').count()==0
         page.set_viewport_size({'width':1180,'height':800})
         page.screenshot(path=str(a.out/'initial-ja-desktop.png'),full_page=True)
         page.set_viewport_size({'width':390,'height':844})
@@ -192,19 +192,19 @@ def main():
         expect(page.locator('#recordingClock')).to_be_visible()
         page.set_viewport_size({'width':390,'height':844})
         page.locator('#finishNote').click()
-        page.locator('#notePanel').wait_for(state='visible',timeout=25000)
+        page.locator('#noteList .note-item').first.wait_for(state='visible',timeout=25000)
         assert page.locator('#noteSummary').inner_text()
         assert page.locator('#noteList .note-item').count()==1
         if a.multiple:
             # Replacement confirmation must preserve separately recorded clips if
             # dismissed. An invalid new video must not destroy them either.
-            page.once('dialog',lambda dialog:dialog.dismiss())
             page.locator('#sourceFile').set_input_files(str(source))
+            page.locator('#confirmCancel').click()
             assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
             broken.write_bytes(b'not a video')
-            page.once('dialog',lambda dialog:dialog.accept())
             page.locator('#sourceFile').set_input_files(str(broken))
+            page.locator('#confirmAccept').click()
             wait_for(lambda:bool(page.locator('#error').inner_text()))
             assert page.locator('#noteList .note-item').count()==1
             assert page.locator('#sourceVideo').evaluate('(v)=>v.readyState>=2')
@@ -404,8 +404,47 @@ def main():
         if a.multiple:
             # Deletion stays covered after saved-file verification, without
             # another recording/export just to restore the test fixture.
-            page.once('dialog',lambda dialog:dialog.accept())
+            # Selection must bring video time, frozen drawing and actions together.
+            first_row=page.locator('#noteList .note-item').first
+            first_row.locator('button').first.click()
+            expected=float(first_row.inner_text().split('s')[0])
+            assert abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-expected)<.12
+            assert page.locator('#sourceVideo').evaluate('(v)=>v.paused')
+            expect(page.locator('#drawCanvas')).to_be_visible()
+            expect(first_row.locator('button').first).to_have_attribute('aria-pressed','true')
+            final_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
+            page.locator('#notePlayer').evaluate('(v)=>{v.currentTime=0;v.dispatchEvent(new Event("timeupdate"));}')
+            opening_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
+            assert opening_drawing!=final_drawing,'Selected narration did not replay drawing timing'
+            page.locator('#seek').evaluate('(v)=>{v.value="500";v.dispatchEvent(new Event("input"));}')
+            expect(page.locator('#selectedExplanation')).to_be_hidden()
+            expect(page.locator('#noteList [aria-pressed="true"]')).to_have_count(0)
+            expect(page.locator('#sourceVideo')).to_be_visible()
+            page.locator('#language').click()
+            expect(page.locator('#noteList')).to_contain_text('Explanation')
+            expect(page.locator('#noteList .icon-button').first).to_have_attribute('aria-label','Delete explanation 1')
+            page.locator('#language').click()
+            first_row.locator('button').first.click()
+            page.screenshot(path=str(a.out/'selected-explanation-ja-mobile.png'),full_page=True)
+            before=page.locator('#noteList').inner_text()
+            trash=first_row.locator('button').last
+            trash.scroll_into_view_if_needed()
+            scroll_before=page.evaluate("window.scrollY")
+            trash.click()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            expect(page.locator('#confirmCancel')).to_be_focused()
+            assert '説明 1' in page.locator('#confirmMessage').inner_text()
+            assert page.evaluate('document.body.classList.contains("pt-help-locked")')
+            page.screenshot(path=str(a.out/'delete-confirm-ja-mobile.png'),full_page=True)
+            page.keyboard.press('Escape')
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
+            expect(trash).to_be_focused()
+            assert abs(page.evaluate("window.scrollY")-scroll_before)<2
+            assert page.locator('#noteList').inner_text()==before
+            assert page.locator('#result').is_visible()
+            assert not page.evaluate('document.body.classList.contains("pt-help-locked")')
             page.locator('#noteList .note-item').last.locator('button').last.click()
+            page.locator('#confirmAccept').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==1)
             assert not page.locator('#result').is_visible()
         context.close();browser.close()

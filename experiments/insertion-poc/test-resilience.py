@@ -630,13 +630,9 @@ def multiple_recovery(page, url, source, out):
         expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
         expect(page.locator('#recoveryFiles button')).to_have_count(count)
         expect(page.locator('#noteList .note-item')).to_have_count(0)
-    dialogs=[]
-    def cancel(dialog):
-        dialogs.append(dialog.message)
-        dialog.dismiss()
-    page.once('dialog', cancel)
     page.locator('#sourceFile').set_input_files(str(source))
-    assert len(dialogs) == 1, 'Replacing recovery-only session did not confirm'
+    expect(page.locator('#confirmDialog')).to_be_visible()
+    page.locator('#confirmCancel').click()
     expect(page.locator('#recoveryFiles button')).to_have_count(2)
     assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
 

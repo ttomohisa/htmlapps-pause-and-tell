@@ -68,7 +68,6 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   function setBusy(value) {
     state.busy = value;
-    updateSteps();
     $('sourceFile').disabled = value || Boolean(state.session);
     $('exportFormat').disabled = value || Boolean(state.session);
     $('startNote').disabled = value || !state.file || Boolean(state.session) || (!$('silentNote').checked && !state.capabilities?.record) || !state.capabilities?.encode;
@@ -146,7 +145,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
         node.setAttribute(attribute,node.getAttribute('data-'+lang+'-'+attribute));
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
-    if (state.note) updateSummary();
+    updateSummary();
     renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
   }
   $('language').addEventListener('click', () => {
@@ -188,19 +187,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('silentChoice').hidden=Boolean(state.session);
     $('playSource').hidden=Boolean(state.session);
     $('seek').closest('label').hidden=Boolean(state.session);
+    $('selectedExplanation').hidden=!state.note || Boolean(state.session);
   }
   $('backToEditor').addEventListener('click',()=>{
     playback.pause();$('editor').scrollIntoView({block:'start'});$('startNote').focus({preventScroll:true});
   });
-  function updateSteps() {
-    const current=state.session ? 2 : state.resultBlob ? 3 : state.file ? 2 : 1;
-    for(const step of $('ptSteps').querySelectorAll('[data-step]')) {
-      const number=Number(step.dataset.step);
-      step.dataset.state=number<current ? 'done' : number===current ? 'current' : 'upcoming';
-      if(number===current)step.setAttribute('aria-current','step');
-      else step.removeAttribute('aria-current');
-    }
-  }
   function recordingType() {
     if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function' || !navigator.mediaDevices?.getUserMedia) return null;
     return ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=mp4a.40.2','audio/mp4']
@@ -262,11 +253,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     state.events=[];
     state.strokes=[];
     state.freeze=null;
-    $('notePanel').hidden=true;
-    if(state.file)$('editor').appendChild($('formatSettings'));
+    $('selectedExplanation').hidden=true;
     $('noteList').replaceChildren();
     canvas.hidden=true;
     sourceVideo.hidden=false;
+    updateSummary();
     info('説明を追加する位置を選べます。', 'Choose a source position for narration.');
     setBusy(false);
   }
@@ -281,7 +272,28 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     else { $('notePlayer').removeAttribute('src');$('notePlayer').load(); }
     $('notePlayer').hidden=Boolean(note.silent);
     $('silentNotePreview').hidden=!note.silent;
-    updateSummary();
+    sourceVideo.pause();playback.pause();
+    sourceVideo.currentTime=Math.min(note.position,Math.max(0,state.duration-.01));
+    updatePosition();
+    renderSelectedFrame();
+    updateSummary();setBusy(state.busy);
+  }
+  function renderSelectedFrame(at=null) {
+    const note=state.note;
+    if(!note || state.session)return;
+    const time=at===null ? note.duration : at;
+    let strokes=[];
+    for(const event of note.events) { if(event.at>time)break;strokes=event.strokes; }
+    ctx.drawImage(note.freeze,0,0,canvas.width,canvas.height);
+    paintStrokes(ctx,strokes,canvas.width,canvas.height);
+    canvas.hidden=false;sourceVideo.hidden=true;
+  }
+  $('notePlayer').addEventListener('timeupdate',()=>renderSelectedFrame($('notePlayer').currentTime));
+  function browseSource() {
+    if(state.session)return;
+    $('notePlayer').pause();state.note=null;
+    canvas.hidden=true;sourceVideo.hidden=false;
+    updateSummary();setBusy(state.busy);
   }
   function removeNote(id) {
     if(state.session || state.busy) return;
@@ -299,9 +311,43 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     }
     setBusy(false);
   }
-  function confirmRemoveNote(note) {
-    if (window.confirm(l('この説明区間を削除しますか？', 'Delete this explanation segment?'))) {
-      removeNote(note.id);
+  let pendingConfirmation=null;
+  const confirmDialog=$('confirmDialog');
+  function requestConfirmation(title,message,accept) {
+    if(pendingConfirmation)return Promise.resolve(false);
+    const focus=document.activeElement;
+    const scroll={y:window.scrollY,top:document.body.style.top};
+    return new Promise(resolve=>{
+      pendingConfirmation={resolve,focus,scroll,accepted:false};
+      $('confirmTitle').textContent=title;$('confirmMessage').textContent=message;
+      $('confirmAccept').textContent=accept;
+      document.documentElement.classList.add('pt-help-locked');
+      document.body.classList.add('pt-help-locked');document.body.style.top='-'+scroll.y+'px';
+      try { confirmDialog.showModal();$('confirmCancel').focus(); }
+      catch(error) { finishConfirmation();showError(error); }
+    });
+  }
+  function finishConfirmation() {
+    const pending=pendingConfirmation;if(!pending)return;
+    pendingConfirmation=null;
+    document.documentElement.classList.remove('pt-help-locked');document.body.classList.remove('pt-help-locked');
+    document.body.style.top=pending.scroll.top;
+    const behavior=document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,pending.scroll.y);
+    document.documentElement.style.scrollBehavior=behavior;
+    if(pending.focus?.isConnected)pending.focus.focus({preventScroll:true});
+    pending.resolve(pending.accepted);
+  }
+  confirmDialog.addEventListener('close',finishConfirmation);
+  $('confirmCancel').addEventListener('click',()=>confirmDialog.close());
+  $('confirmAccept').addEventListener('click',()=>{if(pendingConfirmation)pendingConfirmation.accepted=true;confirmDialog.close();});
+  async function confirmRemoveNote(note) {
+    if(state.session || state.busy || !state.notes.includes(note))return;
+    const accepted=await requestConfirmation(l('説明を削除','Delete explanation'),
+      l('説明 '+note.id+'（'+fmt(note.position)+' の位置、'+fmt(note.duration)+'）を削除しますか？完成動画は作り直しになります。',
+        'Delete explanation '+note.id+' at '+fmt(note.position)+' ('+fmt(note.duration)+')? You will need to create the video again.'),l('削除する','Delete'));
+    if(accepted && !state.session && !state.busy && state.notes.includes(note)) {
+      removeNote(note.id);$('startNote').focus({preventScroll:true});
     }
   }
   function renderNotes() {
@@ -314,10 +360,17 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       choose.type='button';
       choose.textContent=fmt(note.position)+' · '+fmt(note.duration)+' · '+l('説明','Explanation')+' '+note.id+' · '+(note.silent?l('無音','Silent'):l('音声あり','With audio'));
       choose.setAttribute('aria-pressed',String(state.note?.id===note.id));
-      choose.addEventListener('click',()=>{if(!state.busy)selectNote(note);});
+      choose.dataset.noteId=String(note.id);
+      choose.addEventListener('click',()=>{
+        if(state.busy || state.session)return;
+        selectNote(note);
+        host.querySelector('[data-note-id="'+note.id+'"]')?.focus({preventScroll:true});
+      });
       const remove=document.createElement('button');
       remove.type='button';
-      remove.textContent=l('削除','Delete');
+      remove.className='icon-button';remove.innerHTML=$('discard').innerHTML;
+      remove.setAttribute('aria-label',l('説明 '+note.id+' を削除','Delete explanation '+note.id));
+      remove.title=remove.getAttribute('aria-label');
       remove.addEventListener('click',()=>confirmRemoveNote(note));
       choose.disabled=remove.disabled=state.busy || Boolean(state.session);
       row.append(choose,remove);
@@ -326,10 +379,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   async function loadSource(file) {
     if (!file || state.session || state.busy) return;
-    if ((state.notes.length || state.recoveryBlobs.length) && !window.confirm(l(
+    if ((state.notes.length || state.recoveryBlobs.length) && !await requestConfirmation(l('元動画を変更','Change source video'),l(
       '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
       'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
-    ))) return;
+    ),l('変更する','Change video'))) return;
     errorNode.textContent = '';
     const token = ++uploadGeneration;
     setBusy(true);
@@ -417,7 +470,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       // Keep the established studio layout: change-video beside its title,
       // export settings below transport. Moving nodes preserves their handlers.
       $('editor').querySelector('.pt-control-head').appendChild($('sourceDropZone'));
-      $('editor').appendChild($('formatSettings'));
+
       $('sourcePanel').hidden=true;
       $('editor').hidden = false;
       $('seek').value = '0';
@@ -475,7 +528,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   $('playSource').addEventListener('click',async ()=>{
     try {
-      if (sourceVideo.paused) await sourceVideo.play();
+      if (sourceVideo.paused) { browseSource();await sourceVideo.play(); }
       else sourceVideo.pause();
     } catch(e) { showError(e); }
   });
@@ -489,7 +542,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   sourceVideo.addEventListener('play',()=>{$('playSource').textContent=l('元動画を停止','Pause source');});
   $('seek').addEventListener('input',e=>{
     if (!state.file || state.session) return;
-    sourceVideo.pause();
+    sourceVideo.pause();browseSource();
     sourceVideo.currentTime = Math.min(state.duration-.01,Math.max(0, Number(e.target.value)/1000 * state.duration));
     $('position').textContent = fmt(sourceVideo.currentTime);
   });
@@ -694,8 +747,12 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     } finally { setBusy(false); }
   }
   function updateSummary() {
+    $('emptyNotes').hidden=Boolean(state.notes.length);
+    $('selectedExplanation').hidden=!state.note || Boolean(state.session);
+    $('selectedTitle').textContent=state.note ? l('説明 '+state.note.id+' · '+fmt(state.note.position),'Explanation '+state.note.id+' · '+fmt(state.note.position)) : '';
     if (!state.notes.length) {
-      $('notePanel').hidden=true;
+      $('noteSummary').textContent='';
+      $('selectedExplanation').hidden=true;
       $('noteList').replaceChildren();
       return;
     }
@@ -706,7 +763,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       state.notes.length+' explanation(s), total '+fmt(total)+'. Original '+fmt(state.duration)+', estimated output '+fmt(composed)
     );
     renderNotes();
-    $('formatDestination').appendChild($('formatSettings'));
+
   }
   function commitExplanation(session,content,preparedUrl=null) {
     const note={id:session.replacing?.id ?? state.nextNoteId,position:Math.round(state.insertAt*FPS)/FPS,
@@ -790,7 +847,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       $('finishNote').hidden=true;$('cancelNote').hidden=true;$('startNote').hidden=false;
       state.pointerId=null;state.activeStroke=null;
       canvas.hidden=true;sourceVideo.hidden=false;
-      setBusy(false);
+      if(state.note)renderSelectedFrame();
+      updatePosition();setBusy(false);
     }
   }
   $('silentNote').addEventListener('change',()=>{renderCapabilities();setBusy(state.busy);});

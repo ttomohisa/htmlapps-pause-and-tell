@@ -53,9 +53,9 @@ The smaller `dist/index.self-extract.html` is also generated and additionally re
 ## Usage
 
 1. [Open the app](https://ttomohisa.github.io/htmlapps-pause-and-tell/), choose a video and move **Position** to the frame you want to explain.
-2. Choose **Record explanation here** and allow the microphone. Narrate over the frozen frame; draw with Pen, Point, Circle or Arrow.
-3. Choose **Finish explanation**. Repeat at other positions as needed. Select an explanation to preview, delete or rerecord it. Cancelling a rerecording retains the old explanation.
-4. Choose **Compose video with insertion**, review the result, then **Save video**. Open the saved file separately to check playback. Sharing appears only when supported by the device.
+2. Select **Do not record audio** if you want silence. Choose **Add explanation here**; allow the microphone only for audio explanations. Draw with Pen, Point, Circle or Arrow.
+3. Choose **Finish explanation** to insert the elapsed time. Selecting an explanation moves the video to its position and shows its drawings. Use **Redo selected explanation** to recreate it; cancelling keeps the original. The trash icon opens an in-app deletion confirmation.
+4. Choose **Create video**, review the result, then **Save video**. Open the saved file separately to check playback. Sharing appears only when supported by the device.
 
 Source seeking chooses insertion positions before recording. During an explanation the source stays frozen. Drawing changes appear at their narration times; Undo/Clear do not retroactively erase earlier output frames. Export re-encodes video, so it is not lossless.
 
