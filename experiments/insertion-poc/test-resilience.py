@@ -101,14 +101,17 @@ def note_snapshot(page):
     }
 
 
-def assert_recovered(page, before):
+def assert_recovered(page, before, preview):
     expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
     expect(page.locator('#recordingClock')).to_be_hidden()
     expect(page.locator('#startNote')).to_be_visible()
     for selector in ('#startNote', '#sourceFile', '#seek', '#playSource', '#export'):
         expect(page.locator(selector)).to_be_enabled()
-    expect(page.locator('#drawCanvas')).to_be_hidden()
-    expect(page.locator('#sourceVideo')).to_be_visible()
+    expect(page.locator('#drawCanvas')).to_be_visible()
+    expect(page.locator('#drawCanvas')).to_have_attribute('aria-disabled','true')
+    expect(page.locator('#drawingPanel')).to_be_hidden()
+    assert page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')==preview, 'Retained explanation drawing changed after failure'
+    expect(page.locator('#selectedExplanation')).to_be_visible()
     assert note_snapshot(page) == before, 'Completed explanation changed after recording failure'
     assert page.evaluate("__testTracks.every(track => track.readyState === 'ended')"), 'Microphone remains live'
     expect(page.locator('#error')).not_to_have_text('')
@@ -207,6 +210,7 @@ def recording_failure(page, url, source, out, kind):
     load(page, url, source)
     record_note(page)
     before = note_snapshot(page)
+    preview=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
     page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()
     page.wait_for_timeout(400)
@@ -228,7 +232,7 @@ def recording_failure(page, url, source, out, kind):
           Object.defineProperty(event, 'error', {value:new Error('Injected recorder failure')});
           __testRecorders.at(-1).dispatchEvent(event);
         }""")
-    assert_recovered(page, before)
+    assert_recovered(page, before, preview)
     if kind == 'unexpected_stop':
         for interrupted in ['cancel', 'background']:
             page.locator('#rerecord').click()
@@ -241,7 +245,7 @@ def recording_failure(page, url, source, out, kind):
                 assert note_snapshot(page) == before
             else:
                 page.evaluate("() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}")
-                assert_recovered(page, before)
+                assert_recovered(page, before, preview)
                 page.evaluate("delete document.hidden")
             assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
     if kind == 'recorder_error':
@@ -259,7 +263,7 @@ def recording_failure(page, url, source, out, kind):
               }
             }""",fault)
             page.locator('#finishNote').click()
-            assert_recovered(page, before)
+            assert_recovered(page, before, preview)
             expect(page.locator('#error')).to_contain_text('Injected narration')
             page.evaluate("""fault => {
               if(fault === 'decode')AudioDecoder.prototype.decode=__originalDecode;

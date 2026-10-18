@@ -755,7 +755,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     } finally { setBusy(false); }
   }
   function updateSummary() {
-    $('emptyNotes').hidden=Boolean(state.notes.length);
+    $('emptyNotes').hidden=Boolean(state.notes.length || state.session);
     $('selectedExplanation').hidden=!state.note || Boolean(state.session);
     $('selectedTitle').textContent=state.note ? l('説明 '+state.note.id+' · '+fmt(state.note.position),'Explanation '+state.note.id+' · '+fmt(state.note.position)) : '';
     if (!state.notes.length) {
