@@ -146,7 +146,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     }
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     updateSummary();
-    renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();
+    renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();updateWorkflow();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -181,6 +181,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)helpDialog.close();
   });
   function updateWorkflow() {
+    const cancel=$('cancelNote');
+    cancel.dataset.ja=state.session?.replacing ? '作り直しをやめる' : '追加をやめる';
+    cancel.dataset.en=state.session?.replacing ? 'Discard redo' : 'Discard new explanation';
+    cancel.textContent=cancel.dataset[lang];
     $('drawingPanel').hidden=!state.session;
     $('export').closest('.pt-export-bar').hidden=Boolean(state.session);
     $('emptyNotes').hidden=Boolean(state.notes.length || state.session);
@@ -321,14 +325,15 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   let pendingConfirmation=null;
   const confirmDialog=$('confirmDialog');
-  function requestConfirmation(title,message,accept) {
+  function requestConfirmation(title,message,accept,cancelLabel) {
     if(pendingConfirmation)return Promise.resolve(false);
     const focus=document.activeElement;
     const scroll={y:window.scrollY,top:document.body.style.top};
     return new Promise(resolve=>{
       pendingConfirmation={resolve,focus,scroll,accepted:false};
       $('confirmTitle').textContent=title;$('confirmMessage').textContent=message;
-      $('confirmAccept').textContent=accept;
+      $('confirmAccept').textContent=accept;$('confirmCancel').textContent=cancelLabel;
+      confirmationOutsideStart=false;
       document.documentElement.classList.add('pt-help-locked');
       document.body.classList.add('pt-help-locked');document.body.style.top='-'+scroll.y+'px';
       try { confirmDialog.showModal();$('confirmCancel').focus(); }
@@ -346,14 +351,26 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if(pending.focus?.isConnected)pending.focus.focus({preventScroll:true});
     pending.resolve(pending.accepted);
   }
-  confirmDialog.addEventListener('close',finishConfirmation);
+  let confirmationOutsideStart=false;
+  function outsideConfirmation(event) {
+    const rect=confirmDialog.getBoundingClientRect();
+    return event.target===confirmDialog && (event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom);
+  }
+  confirmDialog.addEventListener('pointerdown',event=>{confirmationOutsideStart=event.button===0 && outsideConfirmation(event);});
+  confirmDialog.addEventListener('pointercancel',()=>{confirmationOutsideStart=false;});
+  confirmDialog.addEventListener('click',event=>{
+    const dismiss=confirmationOutsideStart && outsideConfirmation(event);
+    confirmationOutsideStart=false;
+    if(dismiss)confirmDialog.close();
+  });
+  confirmDialog.addEventListener('close',()=>{confirmationOutsideStart=false;finishConfirmation();});
   $('confirmCancel').addEventListener('click',()=>confirmDialog.close());
   $('confirmAccept').addEventListener('click',()=>{if(pendingConfirmation)pendingConfirmation.accepted=true;confirmDialog.close();});
   async function confirmRemoveNote(note) {
     if(state.session || state.busy || !state.notes.includes(note))return;
     const accepted=await requestConfirmation(l('説明を削除','Delete explanation'),
       l('説明 '+note.id+'（'+fmt(note.position)+' の位置、'+fmt(note.duration)+'）を削除しますか？完成動画は作り直しになります。',
-        'Delete explanation '+note.id+' at '+fmt(note.position)+' ('+fmt(note.duration)+')? You will need to create the video again.'),l('削除する','Delete'));
+        'Delete explanation '+note.id+' at '+fmt(note.position)+' ('+fmt(note.duration)+')? You will need to create the video again.'),l('削除する','Delete'),l('削除しない','Keep explanation'));
     if(accepted && !state.session && !state.busy && state.notes.includes(note)) {
       removeNote(note.id);$('startNote').focus({preventScroll:true});
     }
@@ -390,7 +407,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if ((state.notes.length || state.recoveryBlobs.length) && !await requestConfirmation(l('元動画を変更','Change source video'),l(
       '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
       'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
-    ),l('変更する','Change video'))) return;
+    ),l('変更する','Change video'),l('変更しない','Keep current video'))) return;
     errorNode.textContent = '';
     const token = ++uploadGeneration;
     setBusy(true);

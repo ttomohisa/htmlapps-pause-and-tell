@@ -554,7 +554,7 @@
     .alert { color: #8d211b; }
     .note.alert { border-color: #f2c2bd; background: #fff4f2; }
     .note-list { display: grid; gap: 7px; margin: 10px 0; }
-    .note-item { display: flex; gap: 7px; min-width: 0; }
+    .note-item { display: flex; align-items:center; gap: 7px; min-width: 0; }
     .note-item button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface); font-weight: 650; cursor: pointer; }
     .note-item button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
     .note-item button:first-child { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
@@ -592,7 +592,11 @@
     .pt-explanations h3 { font-size:15px; margin:18px 0 8px; }
     .pt-export-bar { border-top:1px solid var(--line); margin-top:20px; padding-top:16px; }
     #selectedExplanation { border-top:1px solid var(--line); margin-top:16px; }
-    .note-item .icon-button { flex:0 0 44px; padding:10px; }
+    .note-item .icon-button { flex:0 0 44px; }
+    .note-item .icon-button, #discard { display:inline-grid; place-items:center; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; color:var(--danger); }
+    .note-item .icon-button:hover, #discard:hover { color:var(--danger); border-color:var(--danger); background:#fff6f5; }
+    #confirmAccept { background:var(--danger); border-color:var(--danger); color:#fff; }
+    #confirmAccept:hover { background:#8d1d17; border-color:#8d1d17; }
     .note-item svg { width:22px; height:22px; }
     #confirmDialog { max-width:440px; }
     @media(max-width:760px) { .pt-workspace { grid-template-columns:1fr; gap:16px; } .pt-explanations { border-left:0; border-top:1px solid var(--line); padding:16px 0 0; } }
@@ -679,7 +683,7 @@
       <div class="row pt-controls pt-transport">
         <button id="startNote" type="button" class="button primary" data-ja="この位置に説明を追加" data-en="Add explanation here">この位置に説明を追加</button>
         <button id="playSource" type="button" class="button" data-ja="元動画を再生" data-en="Play source">元動画を再生</button>
-        <button id="cancelNote" type="button" class="button" hidden data-ja="取り消す" data-en="Cancel explanation">取り消す</button>
+        <button id="cancelNote" type="button" class="button" hidden data-ja="追加をやめる" data-en="Discard new explanation">追加をやめる</button>
         <button id="finishNote" type="button" class="button pt-record-stop" hidden data-ja="説明を終了" data-en="Finish explanation">説明を終了</button>
       </div>
       <p class="muted pt-inline-state" id="captureStatus" aria-live="polite"></p>
@@ -692,7 +696,7 @@
 <h2 data-ja="追加した説明" data-en="Your explanations">追加した説明</h2>
 <p id="noteSummary" class="muted"></p><p id="emptyNotes" class="muted" data-ja="動画の位置を選び、説明を追加してください。追加した説明を選ぶと、その位置と描き込みを確認できます。" data-en="Choose a video position and add an explanation. Select an explanation here to see its position and drawings.">動画の位置を選び、説明を追加してください。追加した説明を選ぶと、その位置と描き込みを確認できます。</p>
 <div id="noteList" class="note-list" role="group" aria-label="Recorded explanation segments"></div>
-<div id="selectedExplanation" hidden><h3 id="selectedTitle"></h3><p class="muted pt-review-help" data-ja="選択した説明を作り直せます。取り消すと元の説明が残ります。" data-en="Redo a selected explanation. Cancelling keeps the original.">選択した説明を作り直せます。取り消すと元の説明が残ります。</p>
+<div id="selectedExplanation" hidden><h3 id="selectedTitle"></h3><p class="muted pt-review-help" data-ja="選択した説明を作り直せます。途中でやめても元の説明は残ります。" data-en="Redo a selected explanation. Cancelling keeps the original.">選択した説明を作り直せます。途中でやめても元の説明は残ります。</p>
 <p id="silentNotePreview" class="muted" hidden data-ja="無音の説明です。動画上で最後の描き込みを確認できます。" data-en="Silent explanation. The video shows its final drawing.">無音の説明です。動画上で最後の描き込みを確認できます。</p>
 <audio id="notePlayer" controls style="width:100%" aria-label="Recorded narration"></audio>
 <div class="row pt-controls">
@@ -735,7 +739,7 @@
     <!-- APP:END -->
   </main>
   <footer>Pause &amp; Tell · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
-<dialog id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage"><div class="dialog-header"><h2 id="confirmTitle"></h2></div><div class="dialog-body"><p id="confirmMessage"></p><div class="row pt-controls"><button type="button" class="button" id="confirmCancel" autofocus data-ja="取り消す" data-en="Cancel">取り消す</button><button type="button" class="button" id="confirmAccept"></button></div></div></dialog>
+<dialog id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage"><div class="dialog-header"><h2 id="confirmTitle"></h2></div><div class="dialog-body"><p id="confirmMessage"></p><div class="row pt-controls"><button type="button" class="button" id="confirmCancel" autofocus>削除しない</button><button type="button" class="button" id="confirmAccept"></button></div></div></dialog>
   <dialog id="helpDialog" aria-labelledby="helpTitle">
     <div class="dialog-header">
       <h2 id="helpTitle" data-ja="使い方と注意事項" data-en="How to use &amp; notes">使い方と注意事項</h2>

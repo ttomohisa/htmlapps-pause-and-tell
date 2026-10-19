@@ -431,11 +431,21 @@ def main():
             page.screenshot(path=str(a.out/'selected-explanation-ja-mobile.png'),full_page=True)
             before=page.locator('#noteList').inner_text()
             trash=first_row.locator('button').last
+            # Trash stays centered and visibly destructive at both widths.
+            for width in (1180,390):
+                page.set_viewport_size({'width':width,'height':844})
+                geometry=trash.evaluate("""b=>{const r=b.getBoundingClientRect(),s=b.querySelector('svg').getBoundingClientRect();return {dx:(r.left+r.right-s.left-s.right)/2,dy:(r.top+r.bottom-s.top-s.bottom)/2,color:getComputedStyle(b).color,width:r.width,height:r.height};}""")
+                assert abs(geometry['dx'])<1 and abs(geometry['dy'])<1,geometry
+                assert geometry['width']>=44 and geometry['height']>=44,geometry
+                assert geometry['color']=='rgb(179, 38, 30)',geometry
             trash.scroll_into_view_if_needed()
             scroll_before=page.evaluate("window.scrollY")
             trash.click()
             expect(page.locator('#confirmDialog')).to_be_visible()
             expect(page.locator('#confirmCancel')).to_be_focused()
+            expect(page.locator('#confirmCancel')).to_have_text('削除しない')
+            assert page.locator('#confirmAccept').evaluate('(b)=>getComputedStyle(b).backgroundColor') in ('rgb(179, 38, 30)','rgb(141, 29, 23)')
+            assert page.locator('#confirmAccept').evaluate('(b)=>getComputedStyle(b).color')=='rgb(255, 255, 255)'
             assert '説明 1' in page.locator('#confirmMessage').inner_text()
             assert page.evaluate('document.body.classList.contains("pt-help-locked")')
             page.screenshot(path=str(a.out/'delete-confirm-ja-mobile.png'),full_page=True)
@@ -446,6 +456,30 @@ def main():
             assert page.locator('#noteList').inner_text()==before
             assert page.locator('#result').is_visible()
             assert not page.evaluate('document.body.classList.contains("pt-help-locked")')
+            # Inside clicks and inside-to-outside drags must not dismiss/delete.
+            trash.click()
+            page.locator('#confirmMessage').click()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            rect=page.locator('#confirmTitle').bounding_box()
+            page.mouse.move(rect['x']+10,rect['y']+10);page.mouse.down()
+            page.mouse.move(2,2);page.mouse.up()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            # A real backdrop click dismisses without touching existing output.
+            page.mouse.click(2,2)
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
+            expect(trash).to_be_focused()
+            assert page.locator('#noteList').inner_text()==before
+            assert page.locator('#result').is_visible()
+            assert abs(page.evaluate('window.scrollY')-scroll_before)<2
+            trash.click();page.locator('#confirmCancel').click()
+            assert page.locator('#noteList').inner_text()==before
+            page.locator('#language').click()
+            page.set_viewport_size({'width':1180,'height':844})
+            trash.click()
+            expect(page.locator('#confirmCancel')).to_have_text('Keep explanation')
+            page.screenshot(path=str(a.out/'delete-confirm-en-desktop.png'),full_page=True)
+            page.mouse.click(2,2)
+            page.locator('#language').click()
             page.locator('#noteList .note-item').last.locator('button').last.click()
             page.locator('#confirmAccept').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==1)

@@ -219,8 +219,10 @@ def recording_failure(page, url, source, out, kind):
     page.locator('#language').click()
     expect(page.locator('#recordingElapsed')).to_contain_text('録音 ')
     expect(page.locator('#captureStatus')).to_contain_text('選択した説明を録り直し')
+    expect(page.locator('#cancelNote')).to_have_text('作り直しをやめる')
     page.locator('#language').click()
     expect(page.locator('#captureStatus')).to_contain_text('Rerecording selected explanation.')
+    expect(page.locator('#cancelNote')).to_have_text('Discard redo')
     assert note_snapshot(page)==before, 'Language toggle changed the retained explanation'
     assert page.evaluate('__testRecorders.at(-1).state')=='recording'
     if kind == 'unexpected_stop':
