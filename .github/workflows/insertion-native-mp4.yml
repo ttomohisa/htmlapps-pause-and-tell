@@ -60,6 +60,10 @@ jobs:
         if: steps.native.outputs.ready == 'true'
         shell: pwsh
         run: python experiments/insertion-poc/run-local-media-test.py test-resilience.py --chromium "$env:CHROME" --case failed_export --output-format mp4 --out native-mp4-evidence/failure-protection
+      - name: Verify silent native MP4 and source audio resumption
+        if: steps.native.outputs.ready == 'true'
+        shell: pwsh
+        run: python experiments/insertion-poc/run-local-media-test.py test-resilience.py --chromium "$env:CHROME" --case silent_explanations --output-format mp4 --out native-mp4-evidence/silent-explanations
       - name: Preserve bounded milestone evidence
         if: always()
         uses: actions/upload-artifact@v7

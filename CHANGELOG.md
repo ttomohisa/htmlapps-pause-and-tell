@@ -1,3 +1,9 @@
+## Unreleased — v1.0.0 retained
+
+- Add elapsed-time silent explanations without microphone access; preserve safe redo/cancel and original soundtrack timing.
+- Unify preview, position, explanation selection and editing in one responsive workspace. Selecting an explanation seeks and previews its drawing; deletion uses accessible trash icons and an in-app confirmation.
+- Remove the requested codec diagnostics and redundant format notice; retain actual processing limits and failure protection.
+
 ## 1.0.0 — version and documentation alignment (2026-10-18)
 
 - Prepare the established insertion editor as v1.0.0; no recording/export engine or layout changes.
@@ -20,6 +26,13 @@
 - Add short injected-failure browser regressions. Physical iPhone/Android checks, VFR and extended media remain separate release gates. The normal v0.9.3 app is unchanged.
 
 # Changelog
+
+## Unreleased (v1.0.0 retained)
+
+- Add optional microphone-free silent explanations using elapsed start-to-finish time, with timestamped drawings and safe redo/cancel.
+- Clarify video selection, explanation creation and finished-video saving; remove device diagnostic UI and redundant format notice.
+- Preserve existing export limits, source audio timing and last-good result protection.
+
 
 ## [Unreleased]
 

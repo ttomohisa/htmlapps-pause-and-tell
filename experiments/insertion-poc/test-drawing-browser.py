@@ -54,7 +54,7 @@ with sync_playwright() as p:
  assert page.evaluate("document.querySelector('#drawCanvas').hasPointerCapture(window.__drawingPointer)")
  page.evaluate("document.querySelector('#finishNote').click()")
  assert not page.evaluate("document.querySelector('#drawCanvas').hasPointerCapture(window.__drawingPointer)")
- page.mouse.up();page.locator('#notePanel').wait_for(state='visible');page.locator('#export').click();page.locator('#result').wait_for(state='visible',timeout=120000)
+ page.mouse.up();page.locator('#noteList .note-item').first.wait_for(state='visible');page.locator('#export').click();page.locator('#result').wait_for(state='visible',timeout=120000)
  with page.expect_download() as d:page.locator('#save').click()
  output=a.out/'drawing.webm';d.value.save_as(str(output))
  evidence=[]

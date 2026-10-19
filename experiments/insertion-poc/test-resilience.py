@@ -54,11 +54,10 @@ INSTRUMENT = """(() => {
 
 def load(page, url, source, output_format="webm"):
     page.goto(url, wait_until='domcontentloaded')
-    page.locator('#exportFormat').select_option(output_format)
-    expect(page.locator('#exportFormat')).to_be_visible()  # Must be selectable before recording on MP4-only devices.
     page.locator('#language').click()  # English gives readable diagnostic checks.
     page.locator('#sourceFile').set_input_files(str(source))
     expect(page.locator('#editor')).to_be_visible(timeout=25000)
+    page.locator('#exportFormat').select_option(output_format)
     expect(page.locator('#sourceFile')).to_be_enabled(timeout=25000)
 
 
@@ -102,14 +101,17 @@ def note_snapshot(page):
     }
 
 
-def assert_recovered(page, before):
+def assert_recovered(page, before, preview):
     expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
     expect(page.locator('#recordingClock')).to_be_hidden()
     expect(page.locator('#startNote')).to_be_visible()
     for selector in ('#startNote', '#sourceFile', '#seek', '#playSource', '#export'):
         expect(page.locator(selector)).to_be_enabled()
-    expect(page.locator('#drawCanvas')).to_be_hidden()
-    expect(page.locator('#sourceVideo')).to_be_visible()
+    expect(page.locator('#drawCanvas')).to_be_visible()
+    expect(page.locator('#drawCanvas')).to_have_attribute('aria-disabled','true')
+    expect(page.locator('#drawingPanel')).to_be_hidden()
+    assert page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')==preview, 'Retained explanation drawing changed after failure'
+    expect(page.locator('#selectedExplanation')).to_be_visible()
     assert note_snapshot(page) == before, 'Completed explanation changed after recording failure'
     assert page.evaluate("__testTracks.every(track => track.readyState === 'ended')"), 'Microphone remains live'
     expect(page.locator('#error')).not_to_have_text('')
@@ -124,12 +126,91 @@ def missing_recorder(page, url, source, out):
                      r'(unavailable|unsupported|not supported|requires).*record', text, re.I | re.S), text
     assert not page.evaluate('__testTracks.length'), 'Preflight requested a microphone'
     assert 'undefined' not in page.locator('#error').inner_text(), 'Raw JavaScript error shown'
+    page.locator('#silentNote').check()
+    expect(page.locator('#startNote')).to_be_enabled()
+    page.locator('#startNote').click()
+    expect(page.locator('#finishNote')).to_be_visible()
+    page.wait_for_timeout(300)
+    page.locator('#finishNote').click()
+    expect(page.locator('#noteList .note-item')).to_have_count(1)
+    expect(page.locator('#silentNotePreview')).to_be_visible()
+    assert not page.evaluate('__testTracks.length'), 'Silent explanation requested microphone'
+
+
+
+def silent_explanations(page, url, source, out, output_format='webm'):
+    # Original 440Hz soundtrack must resume after silent insertions at t=0.
+    audible=out/'silent-test-source-with-audio.webm'
+    subprocess.run(['ffmpeg','-v','error','-y','-i',str(source),'-f','lavfi','-i','sine=frequency=440:sample_rate=44100:duration=2','-c:v','copy','-c:a','libopus','-shortest',str(audible)],check=True)
+    load(page,url,audible,output_format)
+    record_note(page)
+    before=note_snapshot(page)
+    # All further mic requests fail: silent work must never ask for one.
+    page.evaluate("Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async()=>{window.__unexpectedMic=true;throw new Error('Mic must not be requested');}})")
+    page.locator('#silentNote').check()
+    page.locator('#rerecord').click()
+    expect(page.locator('#recordingElapsed')).to_contain_text('Silent explanation')
+    expect(page.locator('#silentNote')).to_be_disabled()
+    page.wait_for_timeout(350)
+    page.locator('#cancelNote').click()
+    expect(page.locator('#finishNote')).to_be_hidden()
+    expect(page.locator('#startNote')).to_be_enabled()
+    assert note_snapshot(page)==before
+    # Commit a silent replacement in the same slot, with an actual drawing.
+    page.locator('#rerecord').click()
+    canvas=page.locator('#drawCanvas')
+    expect(canvas).to_be_visible()
+    canvas.scroll_into_view_if_needed();box=canvas.bounding_box()
+    assert box is not None, 'Active silent drawing canvas has no geometry'
+    page.mouse.move(box['x']+box['width']*.2,box['y']+box['height']*.3)
+    page.mouse.down();page.mouse.move(box['x']+box['width']*.6,box['y']+box['height']*.6);page.mouse.up()
+    page.wait_for_timeout(700)
+    page.locator('#language').click()
+    expect(page.locator('#recordingElapsed')).to_contain_text('無音の説明')
+    page.locator('#language').click()
+    page.locator('#finishNote').click()
+    expect(page.locator('#noteList .note-item')).to_have_count(1)
+    expect(page.locator('#notePlayer')).to_be_hidden()
+    expect(page.locator('#silentNotePreview')).to_be_visible()
+    assert page.locator('#noteList').inner_text().split(' · ')[0]==before['items'][0].split(' · ')[0]
+    # No MediaRecorder is needed for another silent insertion.
+    page.evaluate('window.MediaRecorder=undefined')
+    page.locator('#startNote').click();page.wait_for_timeout(450);page.locator('#finishNote').click()
+    expect(page.locator('#noteList .note-item')).to_have_count(2)
+    assert not page.evaluate('Boolean(window.__unexpectedMic)')
+    assert page.evaluate('__testRecorders.length')==1
+    page.locator('#export').click()
+    expect(page.locator('#result')).to_be_visible(timeout=60000)
+    first=download(page,out/('silent-explanations.'+output_format))
+    raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(out/('silent-explanations.'+output_format)),'-map','0:a','-f','f32le','-ac','1','-ar','48000','-'])
+    import array
+    pcm=array.array('f');pcm.frombytes(raw)
+    durations=[float(re.search(r'·\s*([0-9]+\.[0-9]+)s',v).group(1)) for v in page.locator('#noteList .note-item button:first-child').all_inner_texts()]
+    silent_seconds=sum(durations)
+    assert abs(len(pcm)/48000-(2+silent_seconds))<.2,'Output duration differs from insertion timeline'
+    assert max(map(abs,pcm[4800:int((silent_seconds-.2)*48000)]),default=0)<.003,'Silent insertion contains original audio'
+    tail=pcm[int((silent_seconds+.2)*48000):int((silent_seconds+1.7)*48000)]
+    assert (sum(v*v for v in tail)/len(tail))**.5>.03,'Original soundtrack did not resume'
+
+    saved=note_snapshot(page)
+    page.locator('#rerecord').click();page.wait_for_timeout(300);page.locator('#cancelNote').click()
+    assert note_snapshot(page)==saved
+    assert download(page,out/('silent-retained.'+output_format))==first
+    # Background interruption also keeps completed explanations and last output.
+    page.locator('#rerecord').click()
+    page.evaluate("Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))")
+    expect(page.locator('#finishNote')).to_be_hidden()
+    page.evaluate("Object.defineProperty(document,'hidden',{configurable:true,get:()=>false})")
+    assert note_snapshot(page)==saved
+    assert download(page,out/('silent-background-retained.'+output_format))==first
+    page.screenshot(path=str(out/'silent-completed-en.png'),full_page=True)
 
 
 def recording_failure(page, url, source, out, kind):
     load(page, url, source)
     record_note(page)
     before = note_snapshot(page)
+    preview=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
     page.locator('#rerecord').click()
     expect(page.locator('#finishNote')).to_be_visible()
     page.wait_for_timeout(400)
@@ -138,8 +219,10 @@ def recording_failure(page, url, source, out, kind):
     page.locator('#language').click()
     expect(page.locator('#recordingElapsed')).to_contain_text('録音 ')
     expect(page.locator('#captureStatus')).to_contain_text('選択した説明を録り直し')
+    expect(page.locator('#cancelNote')).to_have_text('作り直しをやめる')
     page.locator('#language').click()
     expect(page.locator('#captureStatus')).to_contain_text('Rerecording selected explanation.')
+    expect(page.locator('#cancelNote')).to_have_text('Discard redo')
     assert note_snapshot(page)==before, 'Language toggle changed the retained explanation'
     assert page.evaluate('__testRecorders.at(-1).state')=='recording'
     if kind == 'unexpected_stop':
@@ -151,7 +234,7 @@ def recording_failure(page, url, source, out, kind):
           Object.defineProperty(event, 'error', {value:new Error('Injected recorder failure')});
           __testRecorders.at(-1).dispatchEvent(event);
         }""")
-    assert_recovered(page, before)
+    assert_recovered(page, before, preview)
     if kind == 'unexpected_stop':
         for interrupted in ['cancel', 'background']:
             page.locator('#rerecord').click()
@@ -164,7 +247,7 @@ def recording_failure(page, url, source, out, kind):
                 assert note_snapshot(page) == before
             else:
                 page.evaluate("() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}")
-                assert_recovered(page, before)
+                assert_recovered(page, before, preview)
                 page.evaluate("delete document.hidden")
             assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
     if kind == 'recorder_error':
@@ -182,7 +265,7 @@ def recording_failure(page, url, source, out, kind):
               }
             }""",fault)
             page.locator('#finishNote').click()
-            assert_recovered(page, before)
+            assert_recovered(page, before, preview)
             expect(page.locator('#error')).to_contain_text('Injected narration')
             page.evaluate("""fault => {
               if(fault === 'decode')AudioDecoder.prototype.decode=__originalDecode;
@@ -553,13 +636,9 @@ def multiple_recovery(page, url, source, out):
         expect(page.locator('#finishNote')).to_be_hidden(timeout=12000)
         expect(page.locator('#recoveryFiles button')).to_have_count(count)
         expect(page.locator('#noteList .note-item')).to_have_count(0)
-    dialogs=[]
-    def cancel(dialog):
-        dialogs.append(dialog.message)
-        dialog.dismiss()
-    page.once('dialog', cancel)
     page.locator('#sourceFile').set_input_files(str(source))
-    assert len(dialogs) == 1, 'Replacing recovery-only session did not confirm'
+    expect(page.locator('#confirmDialog')).to_be_visible()
+    page.locator('#confirmCancel').click()
     expect(page.locator('#recoveryFiles button')).to_have_count(2)
     assert page.evaluate('__testTracks.every(t => t.readyState === "ended")')
 
@@ -569,16 +648,17 @@ def main():
     parser.add_argument('--url', default='http://127.0.0.1:8765/index.html')
     parser.add_argument('--out', type=Path, default=Path('/tmp/pause-tell-resilience'))
     parser.add_argument('--chromium', default='/usr/bin/chromium')
-    parser.add_argument('--case', choices=['missing_recorder', 'unexpected_stop', 'recorder_error', 'failed_export', 'failed_start', 'hidden_permission', 'multiple_recovery'])
+    parser.add_argument('--case', choices=['silent_explanations', 'missing_recorder', 'unexpected_stop', 'recorder_error', 'failed_export', 'failed_start', 'hidden_permission', 'multiple_recovery'])
     parser.add_argument("--output-format",choices=["webm","mp4"],default="webm",help="Native MP4 milestone failed-export case only")
     args = parser.parse_args()
-    if args.output_format=="mp4" and args.case!="failed_export": parser.error("MP4 milestone requires --case failed_export")
+    if args.output_format=="mp4" and args.case not in ("failed_export","silent_explanations"): parser.error("MP4 milestone requires --case failed_export")
     args.out.mkdir(parents=True, exist_ok=True)
     source = args.out / 'synthetic-source.webm'
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i',
                     'testsrc2=size=160x90:rate=15:duration=2', '-an', '-c:v', 'libvpx',
                     '-deadline', 'realtime', '-cpu-used', '8', str(source)], check=True)
     cases = {
+        'silent_explanations': lambda *items: silent_explanations(*items,output_format=args.output_format),
         'missing_recorder': missing_recorder,
         'unexpected_stop': lambda *a: recording_failure(*a, kind='unexpected_stop'),
         'recorder_error': lambda *a: recording_failure(*a, kind='recorder_error'),

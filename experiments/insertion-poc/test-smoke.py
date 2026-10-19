@@ -89,11 +89,10 @@ def main():
                 'getDirectory',{configurable:true,value:undefined});
             })()""")
         page.goto(a.url,wait_until='domcontentloaded')
-        page.locator('#exportFormat').select_option(a.output_format)
         # The shipped shell must retain the established header and usable help.
         assert page.locator('.app-header .header-inner').count()==1
         assert page.locator('.page-intro').is_visible()
-        assert page.locator('#ptSteps [aria-current=step]').get_attribute('data-step')=='1'
+        assert page.locator('#ptSteps').count()==0
         page.set_viewport_size({'width':1180,'height':800})
         page.screenshot(path=str(a.out/'initial-ja-desktop.png'),full_page=True)
         page.set_viewport_size({'width':390,'height':844})
@@ -107,16 +106,8 @@ def main():
         page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
         assert not page.locator('#helpDialog').is_visible()
         page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)
-        if a.memory_target:
-            page.locator('#helpButton').click()
-            page.locator('#nativeSupportPanel summary').click()
-            page.locator('#checkNativeSupport').click()
-            page.wait_for_function("document.querySelector('#nativeSupportResult').dataset.ready==='true'")
-            native_text=page.locator('#nativeSupportResult').inner_text()
-            assert 'Native AVC:' in native_text and 'Native AAC:' in native_text,native_text
-            assert page.evaluate('(window.__pocTracks||[]).length')==0, 'Support query requested microphone'
-            page.locator('#nativeSupportPanel summary').click()
-            page.locator('#closeHelpButton').click()
+        assert page.locator('#nativeSupportPanel').count()==0
+        assert page.locator('#formatHint').count()==0
         if a.expanded_input:
             larger=a.out/'expanded-20s.webm'
             command(['ffmpeg','-v','error','-y','-f','lavfi','-i',
@@ -127,6 +118,8 @@ def main():
             assert '20.0s' in page.locator('#sourceInfo').inner_text()
             assert not page.locator('#startNote').is_disabled()
         page.locator('#sourceFile').set_input_files(str(source))
+        page.locator('#editor').wait_for(state='visible')
+        page.locator('#exportFormat').select_option(a.output_format)
         try:
             page.locator('#editor').wait_for(state='visible',timeout=25000)
         except Exception as error:
@@ -186,7 +179,7 @@ def main():
         source_position=page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')
         drawing_pixels=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
         page.locator('#language').click()
-        expect(page.locator('#captureStatus')).to_contain_text('Narration recording.')
+        expect(page.locator('#captureStatus')).to_contain_text('Recording your explanation.')
         expect(page.locator('#sourceInfo')).to_contain_text('Original audio present' if a.source_audio else 'Silent source')
         page.screenshot(path=str(a.out/'recording-en-desktop.png'),full_page=True)
         page.set_viewport_size({'width':390,'height':844})
@@ -199,19 +192,19 @@ def main():
         expect(page.locator('#recordingClock')).to_be_visible()
         page.set_viewport_size({'width':390,'height':844})
         page.locator('#finishNote').click()
-        page.locator('#notePanel').wait_for(state='visible',timeout=25000)
+        page.locator('#noteList .note-item').first.wait_for(state='visible',timeout=25000)
         assert page.locator('#noteSummary').inner_text()
         assert page.locator('#noteList .note-item').count()==1
         if a.multiple:
             # Replacement confirmation must preserve separately recorded clips if
             # dismissed. An invalid new video must not destroy them either.
-            page.once('dialog',lambda dialog:dialog.dismiss())
             page.locator('#sourceFile').set_input_files(str(source))
+            page.locator('#confirmCancel').click()
             assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
             broken.write_bytes(b'not a video')
-            page.once('dialog',lambda dialog:dialog.accept())
             page.locator('#sourceFile').set_input_files(str(broken))
+            page.locator('#confirmAccept').click()
             wait_for(lambda:bool(page.locator('#error').inner_text()))
             assert page.locator('#noteList .note-item').count()==1
             assert page.locator('#sourceVideo').evaluate('(v)=>v.readyState>=2')
@@ -229,6 +222,9 @@ def main():
             previous_audio=page.locator('#notePlayer').get_attribute('src')
             previous_rows=page.locator('#noteList .note-item button:first-child').all_inner_texts()
             page.locator('#seek').evaluate("element => {element.value='0';element.dispatchEvent(new Event('input',{bubbles:true}));}")
+            expect(page.locator('#rerecord')).to_be_hidden()
+            page.locator('#noteList .note-item').last.locator('button').first.click()
+            assert abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-3)<.12
             page.locator('#rerecord').click()
             assert page.locator('#noteList .note-item').count()==2
             page.locator('#finishNote').wait_for(state='visible',timeout=25000)
@@ -411,8 +407,81 @@ def main():
         if a.multiple:
             # Deletion stays covered after saved-file verification, without
             # another recording/export just to restore the test fixture.
-            page.once('dialog',lambda dialog:dialog.accept())
+            # Selection must bring video time, frozen drawing and actions together.
+            first_row=page.locator('#noteList .note-item').first
+            first_row.locator('button').first.click()
+            expected=float(first_row.inner_text().split('s')[0])
+            assert abs(page.locator('#sourceVideo').evaluate('(v)=>v.currentTime')-expected)<.12
+            assert page.locator('#sourceVideo').evaluate('(v)=>v.paused')
+            expect(page.locator('#drawCanvas')).to_be_visible()
+            expect(first_row.locator('button').first).to_have_attribute('aria-pressed','true')
+            final_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
+            page.locator('#notePlayer').evaluate('async (v)=>{await v.play();v.pause();v.currentTime=0;v.dispatchEvent(new Event("timeupdate"));}')
+            opening_drawing=page.locator('#drawCanvas').evaluate('(c)=>c.toDataURL()')
+            assert opening_drawing!=final_drawing,'Selected narration did not replay drawing timing'
+            page.locator('#seek').evaluate('(v)=>{v.value="500";v.dispatchEvent(new Event("input"));}')
+            expect(page.locator('#selectedExplanation')).to_be_hidden()
+            expect(page.locator('#noteList [aria-pressed="true"]')).to_have_count(0)
+            expect(page.locator('#sourceVideo')).to_be_visible()
+            page.locator('#language').click()
+            expect(page.locator('#noteList')).to_contain_text('Explanation')
+            expect(page.locator('#noteList .icon-button').first).to_have_attribute('aria-label','Delete explanation 1')
+            page.locator('#language').click()
+            first_row.locator('button').first.click()
+            page.screenshot(path=str(a.out/'selected-explanation-ja-mobile.png'),full_page=True)
+            before=page.locator('#noteList').inner_text()
+            trash=first_row.locator('button').last
+            # Trash stays centered and visibly destructive at both widths.
+            for width in (1180,390):
+                page.set_viewport_size({'width':width,'height':844})
+                geometry=trash.evaluate("""b=>{const r=b.getBoundingClientRect(),s=b.querySelector('svg').getBoundingClientRect();return {dx:(r.left+r.right-s.left-s.right)/2,dy:(r.top+r.bottom-s.top-s.bottom)/2,color:getComputedStyle(b).color,width:r.width,height:r.height};}""")
+                assert abs(geometry['dx'])<1 and abs(geometry['dy'])<1,geometry
+                assert geometry['width']>=44 and geometry['height']>=44,geometry
+                assert geometry['color']=='rgb(179, 38, 30)',geometry
+            trash.scroll_into_view_if_needed()
+            scroll_before=page.evaluate("window.scrollY")
+            trash.click()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            expect(page.locator('#confirmCancel')).to_be_focused()
+            expect(page.locator('#confirmCancel')).to_have_text('削除しない')
+            assert page.locator('#confirmAccept').evaluate('(b)=>getComputedStyle(b).backgroundColor') in ('rgb(179, 38, 30)','rgb(141, 29, 23)')
+            assert page.locator('#confirmAccept').evaluate('(b)=>getComputedStyle(b).color')=='rgb(255, 255, 255)'
+            assert '説明 1' in page.locator('#confirmMessage').inner_text()
+            assert page.evaluate('document.body.classList.contains("pt-help-locked")')
+            page.screenshot(path=str(a.out/'delete-confirm-ja-mobile.png'),full_page=True)
+            page.keyboard.press('Escape')
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
+            expect(trash).to_be_focused()
+            assert abs(page.evaluate("window.scrollY")-scroll_before)<2
+            assert page.locator('#noteList').inner_text()==before
+            assert page.locator('#result').is_visible()
+            assert not page.evaluate('document.body.classList.contains("pt-help-locked")')
+            # Inside clicks and inside-to-outside drags must not dismiss/delete.
+            trash.click()
+            page.locator('#confirmMessage').click()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            rect=page.locator('#confirmTitle').bounding_box()
+            page.mouse.move(rect['x']+10,rect['y']+10);page.mouse.down()
+            page.mouse.move(2,2);page.mouse.up()
+            expect(page.locator('#confirmDialog')).to_be_visible()
+            # A real backdrop click dismisses without touching existing output.
+            page.mouse.click(2,2)
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
+            expect(trash).to_be_focused()
+            assert page.locator('#noteList').inner_text()==before
+            assert page.locator('#result').is_visible()
+            assert abs(page.evaluate('window.scrollY')-scroll_before)<2
+            trash.click();page.locator('#confirmCancel').click()
+            assert page.locator('#noteList').inner_text()==before
+            page.locator('#language').click()
+            page.set_viewport_size({'width':1180,'height':844})
+            trash.click()
+            expect(page.locator('#confirmCancel')).to_have_text('Keep explanation')
+            page.screenshot(path=str(a.out/'delete-confirm-en-desktop.png'),full_page=True)
+            page.mouse.click(2,2)
+            page.locator('#language').click()
             page.locator('#noteList .note-item').last.locator('button').last.click()
+            page.locator('#confirmAccept').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==1)
             assert not page.locator('#result').is_visible()
         context.close();browser.close()

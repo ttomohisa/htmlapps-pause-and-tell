@@ -133,7 +133,7 @@ def main():
         page.mouse.up()
         page.wait_for_timeout(1100)
         page.locator('#finishNote').click()
-        page.locator('#notePanel').wait_for(state='visible', timeout=20000)
+        page.locator('#noteList .note-item').first.wait_for(state='visible', timeout=20000)
         page.locator('#export').click()
         try:
             page.locator('#result').wait_for(state='visible', timeout=480000)
