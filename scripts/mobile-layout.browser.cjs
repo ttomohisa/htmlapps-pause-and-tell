@@ -6,14 +6,11 @@ const cfg={"slug": "pause-and-tell", "bp": 767, "short": 600, "landscape": false
 const results=path.resolve(__dirname,'../test-results/mobile-layout');
 async function bounds(locator,width,height,label){const r=await locator.boundingBox();assert.ok(r&&r.x>=0&&r.x+r.width<=width+1&&r.y>=0&&r.y+r.height<=height+1,label+': '+JSON.stringify(r));}
 async function smoke(page,file){
- const encoded=await page.evaluate(async()=>{
-  const canvas=document.createElement('canvas');canvas.width=160;canvas.height=120;const c=canvas.getContext('2d');c.fillStyle='#16624f';c.fillRect(0,0,160,120);
-  const audio=new AudioContext(),dest=audio.createMediaStreamDestination(),osc=audio.createOscillator();osc.frequency.value=440;osc.connect(dest);osc.start();await audio.resume();
-  const stream=canvas.captureStream(10);stream.addTrack(dest.stream.getAudioTracks()[0]);const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp8,opus'}),chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);const stopped=new Promise(resolve=>recorder.onstop=resolve);recorder.start();await new Promise(resolve=>setTimeout(resolve,1000));recorder.stop();await stopped;osc.stop();stream.getTracks().forEach(t=>t.stop());await audio.close();return await new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(new Blob(chunks,{type:'video/webm'}));});
- });
- await page.locator('#sourceFile').setInputFiles({name:'synthetic-video.webm',mimeType:'video/webm',buffer:Buffer.from(encoded.split(',')[1],'base64')});await page.locator('#editor').waitFor();await page.locator('#silentNote').check();await page.waitForFunction(()=>!document.querySelector('#startNote').disabled,null,{timeout:60000});
+ const input=Buffer.from(fs.readFileSync(path.resolve(__dirname,'../tests/fixtures/mobile-layout-video.webm.base64'),'utf8'),'base64');
+ assert.equal(require('node:crypto').createHash('sha256').update(input).digest('hex'),'9eae5519489e245d8765bb5ebe7be87a1848954917820e3997a5f200dceec2d0');
+ await page.locator('#sourceFile').setInputFiles({name:'synthetic-video.webm',mimeType:'video/webm',buffer:input});await page.locator('#editor').waitFor();await page.locator('#silentNote').check();await page.waitForFunction(()=>!document.querySelector('#startNote').disabled,null,{timeout:60000});
  await page.locator('#startNote').click();await page.locator('#finishNote').waitFor();await page.waitForTimeout(650);await page.locator('#finishNote').click();await page.waitForFunction(()=>document.querySelector('#noteList').children.length===1);
- await page.locator('#export').click();await page.locator('#result').waitFor({timeout:60000});assert.equal(await page.locator('#resultVideo').evaluate(el=>el.readyState>=2),true);await page.locator('#outputName').fill('mobile-layout-silent');
+ await page.locator('#export').click();await page.locator('#result').waitFor({timeout:60000});await page.waitForFunction(()=>document.querySelector('#resultVideo').readyState>=2);await page.locator('#outputName').fill('mobile-layout-silent');
  const pending=page.waitForEvent('download');await page.locator('#save').click();const download=await pending;assert.equal(download.suggestedFilename(),'mobile-layout-silent.webm');const target=path.join(results,file.includes('self-extract')?'synthetic-loader.webm':'synthetic-readable.webm');await download.saveAs(target);const bytes=fs.readFileSync(target);assert.ok(bytes.length>100);assert.equal(bytes.subarray(0,4).toString('hex'),'1a45dfa3');
  console.log('PASS real synthetic video + silent explanation + edited-name WebM export, no microphone '+file);
 }
