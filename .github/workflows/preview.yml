@@ -44,6 +44,28 @@ jobs:
         if ($LASTEXITCODE -ne 0) { throw "Preview route staging failed." }
         New-Item -ItemType Directory -Force ./dist/insertion-poc/native-mp4 | Out-Null
         Copy-Item ./experiments/insertion-poc/dist/native-mp4.html ./dist/insertion-poc/native-mp4/index.html
+    - name: Verify common mobile layout in native Chromium
+      shell: pwsh
+      run: |
+        node --test tests/mobile-layout.test.cjs
+        if ($LASTEXITCODE -ne 0) { throw "Source layout regression failed." }
+        npm install --prefix "$env:RUNNER_TEMP/mobile-layout" --ignore-scripts --no-audit --no-fund --package-lock=false playwright@1.58.2
+        if ($LASTEXITCODE -ne 0) { throw "Pinned browser test tooling installation failed." }
+        $env:NODE_PATH = "$env:RUNNER_TEMP/mobile-layout/node_modules"
+        node "$env:RUNNER_TEMP/mobile-layout/node_modules/playwright/cli.js" install chromium
+        if ($LASTEXITCODE -ne 0) { throw "Chromium installation failed." }
+        node scripts/mobile-layout.browser.cjs 2>&1 | Tee-Object -FilePath mobile-layout-browser.log
+        if ($LASTEXITCODE -ne 0) { throw "Native layout regression failed." }
+    - name: Upload mobile layout browser evidence
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: mobile-layout-browser-evidence
+        path: |
+          test-results/mobile-layout/
+          mobile-layout-browser.log
+        if-no-files-found: warn
+        retention-days: 3
     - name: Upload static preview site
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
