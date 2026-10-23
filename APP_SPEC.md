@@ -18,6 +18,11 @@ The owner requested replacing the normal continuous recorder with the validated 
 - Root HTML, readable standalone and self-extracting distribution all build the same insertion application. Runtime dependencies and MPL notices/source information are embedded; no runtime CDN/media upload/CSP expansion. Prior preview `/insertion-poc/` remains an alias, not another workflow.
 - Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required.
 
+## Shared layout wording
+
+- The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. Existing footer hiding at 767px or coarse-pointer short screens is unchanged.
+- The historical live-recorder template is not the build entry and is unchanged. No version, dependency, codec, permission, or privacy boundary changes.
+
 ## Evidence and release boundary
 
 See [validation](docs/INSERTION_POC_VALIDATION.md): desktop 180-second WebM saved-file/full decode; short native Windows MP4 VFR/44.1k stereo/two inserts; owner Pixel real-video recording/save, approximately three-minute saved playback and rerecord cancellation. Device versions and broad compatibility remain unverified. This replacement does not prove iPhone, all Pixel/Android, arbitrary camera VFR/HEVC/HDR, full capacity, physical disk exhaustion or OS kill recovery. No new stress suite is required for each small UI change.

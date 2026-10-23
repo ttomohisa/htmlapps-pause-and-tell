@@ -16,7 +16,8 @@ permissions:
 jobs:
   insertion:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # A cold runner may need slow official Ubuntu mirror downloads before media tests.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

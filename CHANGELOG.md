@@ -1,5 +1,7 @@
 ## Unreleased — v1.0.0 retained
 
+- Standardize the active insertion editor’s English local-processing badge to “Fully local processing”; retain the existing compact footer behavior.
+
 - Add elapsed-time silent explanations without microphone access; preserve safe redo/cancel and original soundtrack timing.
 - Unify preview, position, explanation selection and editing in one responsive workspace. Selecting an explanation seeks and previews its drawing; deletion uses accessible trash icons and an in-app confirmation.
 - Remove the requested codec diagnostics and redundant format notice; retain actual processing limits and failure protection.
