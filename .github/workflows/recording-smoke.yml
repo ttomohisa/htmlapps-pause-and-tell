@@ -19,7 +19,8 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # A cold runner may need slow official Ubuntu mirror downloads before media tests.
+    timeout-minutes: 45
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
