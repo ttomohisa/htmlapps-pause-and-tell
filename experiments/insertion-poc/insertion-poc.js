@@ -411,6 +411,17 @@ import { createDrawing, captureDrawingFrame, captureDrawingHistory, restoreDrawi
   }
   async function loadSource(file) {
     if (!file || state.session || state.busy) return;
+    // The unrestricted phone picker can return a photo/document. Reject known
+    // non-video MIME types and impossible sizes before asking to discard notes.
+    // Unknown/octet-stream types still receive the normal codec inspection.
+    if(file.size===0 || file.size>MAX_SOURCE_BYTES){
+      showError(new Error(l('動画は250MiB以内を選んでください。','Choose a video up to 250 MiB.')));
+      return;
+    }
+    if(/^(image|audio|text)\//.test(file.type)||/^application\/(pdf|json|zip)(?:$|[;+])/.test(file.type)){
+      showError(new Error(l('動画ファイルを選んでください。','Choose a video file.')));
+      return;
+    }
     if ((state.notes.length || state.recoveryBlobs.length) && !await requestConfirmation(l('元動画を変更','Change source video'),l(
       '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
       'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
