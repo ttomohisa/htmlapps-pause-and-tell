@@ -233,6 +233,13 @@ def main():
             page.wait_for_function("() => !document.body.classList.contains('pt-help-locked')")
             expect(page.locator('#confirmDialog')).not_to_be_visible()
             assert page.locator('#noteList .note-item').count()==1
+            # The unrestricted Files picker also allows photos: reject these
+            # before showing a destructive source-replacement confirmation.
+            page.locator('#sourceFallbackFile').set_input_files({
+                'name':'photo.jpg','mimeType':'image/jpeg','buffer':b'not a video'})
+            assert not page.locator('#confirmDialog').is_visible()
+            assert '動画ファイル' in page.locator('#error').inner_text()
+            assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
             broken.write_bytes(b'not a video')
             page.locator('#sourceFile').set_input_files(str(broken))
