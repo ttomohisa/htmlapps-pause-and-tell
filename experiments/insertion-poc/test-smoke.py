@@ -100,12 +100,25 @@ def main():
         assert page.locator('#helpDialog').is_visible()
         assert page.evaluate("document.documentElement.classList.contains('pt-help-locked')")
         page.screenshot(path=str(a.out/'help-ja-mobile.png'),full_page=True)
+        # A keyboard click on the license summary must not dismiss Help.
+        summary=page.locator('.pt-license > summary')
+        summary.scroll_into_view_if_needed()
+        summary.focus()
+        page.keyboard.press('Enter')
+        assert page.locator('.pt-license').get_attribute('open')==''
+        assert page.locator('#helpDialog').is_visible()
+        page.keyboard.press('Enter')
+        assert page.locator('.pt-license').get_attribute('open') is None
+        assert page.locator('#helpDialog').is_visible()
         page.keyboard.press('Escape')
         assert not page.locator('#helpDialog').is_visible()
         page.wait_for_function("() => !document.documentElement.classList.contains('pt-help-locked') && !document.body.classList.contains('pt-help-locked')")
         page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
         assert not page.locator('#helpDialog').is_visible()
         page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)
+        assert page.locator('#sourceFallbackButton').is_visible()
+        assert page.locator('#sourceFallbackFile').get_attribute('accept') is None
+        assert page.locator('#sourceFallbackButton').inner_text()=='ファイルから選択'
         assert page.locator('#nativeSupportPanel').count()==0
         assert page.locator('#formatHint').count()==0
         if a.expanded_input:
@@ -117,7 +130,12 @@ def main():
             page.locator('#editor').wait_for(state='visible',timeout=25000)
             assert '20.0s' in page.locator('#sourceInfo').inner_text()
             assert not page.locator('#startNote').is_disabled()
-        page.locator('#sourceFile').set_input_files(str(source))
+        if a.multiple:
+            with page.expect_file_chooser() as picker:
+                page.locator('#sourceFallbackButton').click()
+            picker.value.set_files(str(source))
+        else:
+            page.locator('#sourceFile').set_input_files(str(source))
         page.locator('#editor').wait_for(state='visible')
         page.locator('#exportFormat').select_option(a.output_format)
         try:
@@ -142,6 +160,17 @@ def main():
                   'startDisabled':page.locator('#startNote').is_disabled()}
             raise AssertionError('Source replacement did not finish: '+json.dumps(data)) from error
         assert page.locator('#sourceVideo').evaluate('(v)=>v.muted') is False
+        assert page.locator('#sourceFallbackButton').is_visible()
+        assert page.locator('#sourceFallbackButton').inner_text()=='ファイルから変更'
+        # Switching languages while the source is playing must keep the Pause label.
+        page.locator('#playSource').click()
+        wait_for(lambda:not page.locator('#sourceVideo').evaluate('(v)=>v.paused'))
+        page.locator('#language').click()
+        expect(page.locator('#playSource')).to_have_text('Pause source')
+        page.locator('#language').click()
+        expect(page.locator('#playSource')).to_have_text('元動画を停止')
+        page.locator('#playSource').click()
+        expect(page.locator('#playSource')).to_have_text('元動画を再生')
         page.locator('#seek').evaluate("""element => {
             element.value='500';element.dispatchEvent(new Event('input',{bubbles:true}));
         }""")
@@ -198,8 +227,18 @@ def main():
         if a.multiple:
             # Replacement confirmation must preserve separately recorded clips if
             # dismissed. An invalid new video must not destroy them either.
-            page.locator('#sourceFile').set_input_files(str(source))
+            page.locator('#sourceFallbackFile').set_input_files(str(source))
+            expect(page.locator('#confirmDialog')).to_be_visible()
             page.locator('#confirmCancel').click()
+            page.wait_for_function("() => !document.body.classList.contains('pt-help-locked')")
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
+            assert page.locator('#noteList .note-item').count()==1
+            # The unrestricted Files picker also allows photos: reject these
+            # before showing a destructive source-replacement confirmation.
+            page.locator('#sourceFallbackFile').set_input_files({
+                'name':'photo.jpg','mimeType':'image/jpeg','buffer':b'not a video'})
+            assert not page.locator('#confirmDialog').is_visible()
+            assert '動画ファイル' in page.locator('#error').inner_text()
             assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
             broken.write_bytes(b'not a video')
@@ -260,6 +299,7 @@ def main():
             page.locator('#save').click()
         result=a.out/('inserted.'+a.output_format)
         d.value.save_as(result)
+        assert page.locator('#saveStatus').inner_text(), 'Saving should provide a status'
         probe=ffprobe(result)
         streams={s['codec_type']:s for s in probe['streams']}
         assert set(streams)>={'audio','video'},probe
@@ -484,5 +524,6 @@ def main():
             page.locator('#confirmAccept').click()
             wait_for(lambda:page.locator('#noteList .note-item').count()==1)
             assert not page.locator('#result').is_visible()
+            assert page.locator('#saveStatus').inner_text()=='', 'New edits must clear the previous save message'
         context.close();browser.close()
 if __name__=='__main__':main()

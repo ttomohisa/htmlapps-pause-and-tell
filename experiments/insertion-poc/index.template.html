@@ -31,7 +31,7 @@
       --header-height: 66px;
     }
     * { box-sizing: border-box; }
-    html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }
+    html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -79,6 +79,7 @@
     .brand-mark img { width: 100%; height: 100%; display: block; }
     .brand-copy { min-width: 0; }
     .brand-name {
+      font-family: Arial, Helvetica, sans-serif;
       font-weight: 400;
       margin: 0;
       font-size: 17px;
@@ -88,6 +89,8 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    /* The Latin app title must not change metrics with the document language. */
+    #brandName { font: inherit; letter-spacing: inherit; }
     .version-badge {
       display: inline-flex;
       align-items: center;
@@ -324,6 +327,7 @@
     }
     @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
       footer { display: none; }
+      .local-badge { display: none; }
     }
 
     /* v0.3.0 annotation tools: active controls never enter the output canvas. */
@@ -467,6 +471,20 @@
 
     .pt-file-label:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
     .pt-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .pt-file-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 12px; }
+    .pt-file-fallback {
+      display: none; align-items: center; justify-content: center; min-height: 44px;
+      padding: 6px 2px; border: 0; background: transparent; color: var(--accent);
+      font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+    }
+    .pt-file-fallback:hover { text-decoration: underline; }
+    .pt-file-fallback:disabled { opacity: .45; cursor: not-allowed; }
+    .pt-file-fallback:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+    @media (max-width: 767px), (pointer: coarse) and (max-height: 600px) {
+      .pt-file-fallback { display: inline-flex; }
+      #sourcePanel:not([hidden]) .pt-file-actions { flex-direction: column; gap: 0; }
+      #editor #sourceDropZone .pt-file-actions { gap: 4px 8px; }
+    }
     .pt-file-hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
     .pt-file-details { margin: 12px 0 0; font-size: 13px; overflow-wrap: anywhere; }
     .pt-error { margin: 14px 0 0; padding: 11px 14px; border-radius: 9px; border: 1px solid #f2c2bd; color: #8d211b; background: #fff4f2; }
@@ -612,7 +630,7 @@
           <img id="appBrandIcon" src="__APP_ICON_DATA_URI__" alt="">
         </div>
         <div class="brand-copy">
-          <h1 class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v1.0.0</span></h1>
+          <h1 class="brand-name"><span id="brandName">Pause &amp; Tell</span><span class="version-badge" id="versionBadge">v1.0.1</span></h1>
           <p class="brand-meta" data-ja="動画を止めて話す · 端末内で録画" data-en="Pause and explain · Record on your device">動画を止めて話す · 端末内で録画</p>
         </div>
       </div>
@@ -641,7 +659,11 @@
       <h2 id="sourceTitle" data-ja="説明したい動画を選ぶ" data-en="Choose the video you want to explain">説明したい動画を選ぶ</h2>
       <p class="pt-muted" data-ja="まず、説明を加えたい動画を選んでください。" data-en="First, choose the video you want to explain.">まず、説明を加えたい動画を選んでください。</p>
       <div class="pt-drop" id="sourceDropZone">
-        <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
+        <div class="pt-file-actions">
+          <label class="pt-file-label"><span class="pt-choose-video" data-ja="動画を選ぶ" data-en="Choose a video">動画を選ぶ</span><span class="pt-change-video" data-ja="動画を変更" data-en="Change video">動画を変更</span><input type="file" id="sourceFile" accept="video/*,.mp4,.webm,.mov" aria-label="動画を選ぶ" data-ja-aria-label="動画を選ぶ" data-en-aria-label="Choose a video"></label>
+          <button type="button" id="sourceFallbackButton" class="pt-file-fallback"><span class="pt-choose-video" data-ja="ファイルから選択" data-en="Choose from files">ファイルから選択</span><span class="pt-change-video" data-ja="ファイルから変更" data-en="Change from files">ファイルから変更</span></button>
+          <input type="file" id="sourceFallbackFile" hidden>
+        </div>
         <p class="pt-file-hint" data-ja="PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。" data-en="On a computer, you can also drag and drop a video here. Up to 5 minutes and 250 MiB.">PCではここへドラッグ＆ドロップできます。動画は最大5分・250MiBまで。</p>
       </div>
     </section>
@@ -749,7 +771,7 @@
       <!-- APP:HELP:BEGIN -->
       <h3 data-ja="使い方" data-en="How to use">使い方</h3>
       <ol>
-        <li data-ja="5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。" data-en="Choose a playable video up to 5 minutes and 250 MiB. Your original file is unchanged.">5分以内・250MiB以内の再生できる動画を選びます。元動画のファイルは変更しません。</li>
+        <li data-ja="5分以内・250MiB以内の再生できる動画を選びます。スマートフォンでは「ファイルから選択」も使えます。元動画のファイルは変更しません。" data-en="Choose a playable video up to 5 minutes and 250 MiB. On phones, you can also use Choose from files. Your original file is unchanged.">5分以内・250MiB以内の再生できる動画を選びます。スマートフォンでは「ファイルから選択」も使えます。元動画のファイルは変更しません。</li>
         <li data-ja="元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。" data-en="Play or seek through the source and choose Add explanation here. Allow the microphone to record your explanation over the frozen frame.">元動画を再生するか位置を動かして、「この位置に説明を追加」を押します。マイクを許可すると、その画面を止めたまま説明を録音できます。</li>
         <li data-ja="指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。" data-en="Use Point, Circle, Arrow or Pen with three colors. Undo, Redo and Clear affect the explanation from that moment onward.">指差し・丸・矢印・ペンと3色で描き込みます。元に戻す・やり直す・消す操作は、その時点以降の説明映像に反映されます。</li>
         <li data-ja="「説明を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。" data-en="Finish the explanation, check its audio, and add more at other positions. Select an explanation to delete or rerecord it.">「説明を終了」で音声を確認し、別の位置にも追加できます。説明を選んで削除・録り直しもできます。</li>

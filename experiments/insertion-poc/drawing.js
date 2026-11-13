@@ -2,6 +2,20 @@
 export const PAINT_COLORS=Object.freeze({yellow:'#ffe36b',white:'#ffffff',red:'#ff6262'});
 export const cloneStrokes=strokes=>structuredClone(strokes);
 export const createDrawing=()=>({tool:'pen',color:'yellow',strokes:[],undoStack:[],redoStack:[]});
+// Only the in-progress gesture is mutable. Reuse references to completed
+// strokes across output frames so long drawings don't deep-copy every point
+// on every pointermove. A single output frame needs only its final state.
+export function captureDrawingFrame(events,drawing,elapsed,fps) {
+  if(!(Number.isFinite(elapsed) && Number.isFinite(fps) && fps>0))throw new Error('Invalid drawing frame clock');
+  const frame=Math.max(0,Math.ceil(Math.max(0,elapsed)*fps-1e-9));
+  const active=drawing.activeStroke;
+  const strokes=drawing.strokes.map(stroke=>stroke===active
+    ? {...stroke,points:stroke.points?.slice()} : stroke);
+  const previous=events.at(-1);
+  if(previous?.frame===frame)previous.strokes=strokes;
+  else events.push({frame,at:frame/fps,strokes});
+}
+
 export function captureDrawingHistory(d) {
   return {strokes:cloneStrokes(d.strokes),undoStack:d.undoStack.slice(),redoStack:d.redoStack.slice()};
 }

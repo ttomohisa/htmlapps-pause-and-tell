@@ -8,6 +8,28 @@ test('the active insertion entry uses the canonical exact English badge',()=>{
 });
 test('existing compact-workflow footer hiding and release version are retained',()=>{
  assert.match(source,/@media \(max-width: 767px\), \(pointer: coarse\) and \(max-height: 600px\) \{[\s\S]*?footer \{ display: none; \}/);
- assert.match(source,/id="versionBadge">v1\.0\.0<\/span>/);
- assert.equal(JSON.parse(fs.readFileSync(path.join(root,'app.config.json'),'utf8')).version,'1.0.0');
+ assert.match(source,/id="versionBadge">v1\.0\.1<\/span>/);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(root,'app.config.json'),'utf8')).version,'1.0.1');
+});
+
+test('the phone file picker enters the same source loading path',()=>{
+ assert.match(source,/id="sourceFallbackButton" class="pt-file-fallback"/);
+ assert.match(source,/id="sourceFallbackFile" hidden>/);
+ assert.match(source,/\.pt-file-fallback \{ display: inline-flex; \}/);
+ const runtime=fs.readFileSync(path.join(root,'experiments/insertion-poc/insertion-poc.js'),'utf8');
+ assert.match(runtime,/for\(const input of \[\$\('sourceFile'\),\$\('sourceFallbackFile'\)\]\)/);
+ assert.match(runtime,/if\(file\)void loadSource\(file\)/);
+});
+
+test('v1.0.1 release supports the initial merge push and serializes tag creation',()=>{
+ const release=fs.readFileSync(path.join(root,'.github/workflows/release-v1.0.1.yml'),'utf8');
+ assert.match(release,/types: \[closed\]/);
+ assert.match(release,/pull_request\.number == 5/);
+ assert.match(release,/push:\s*\n\s*branches: \[main\]/);
+ assert.match(release,/paths:\s*\n\s*- '\.github\/workflows\/release-v1\.0\.1\.yml'/);
+ assert.match(release,/group: pause-and-tell-v1\.0\.1-release/);
+ assert.match(release,/pull_request\.merge_commit_sha \|\| github\.sha/);
+ assert.match(release,/gh api "repos\/\$repo\/pulls\/5"/);
+ assert.match(release,/gh release create \$tag @assets/);
+ assert.match(release,/SHA256SUMS\.txt/);
 });

@@ -1,4 +1,4 @@
-# Pause & Tell — current insertion specification (v1.0.0)
+# Pause & Tell — current insertion specification (v1.0.1)
 
 The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The insertion implementation was merged as v0.12.0; v1.0.0 retains the insertion engine and adds optional silent explanations and a clearer editing workflow; compatibility claims remain bounded by the evidence below.
 
@@ -9,19 +9,19 @@ The owner requested replacing the normal continuous recorder with the validated 
 - The choice can change when redoing a selected explanation. Replacement keeps its id/position; cancellation, failed validation or background interruption retains the original explanation and last-good output. Silent notes carry no encoded audio blob. Export fills their exact frame-rounded interval with silence using the shared audio timeline.
 - Selecting an explanation pauses and seeks the source to its insertion point, shows its frozen drawing in the shared preview and exposes its redo controls. Source play/seek leaves explanation selection. Deletion and source replacement use an in-app modal with explicit target, initial Cancel focus, Escape cancellation, focus restoration and background scroll lock. Cancelling does not invalidate notes or completed output.
 - UI follows Choose video → Add explanations → Create/review/save. Drawing controls appear during explanation creation; internal codec diagnostics are absent from help. Format errors and actual limit violations remain actionable. The header, design tokens, bilingual help and single-file distribution remain shared Browser Kitty styling.
-- Preserve Point/Circle/Arrow/Pen (Pen default), yellow/white/red, Undo/Redo/Clear and keyboard Point operations. Drawing changes apply at their recorded explanation times. The former app had fixed widths, not a thickness picker.
+- Preserve Point/Circle/Arrow/Pen (Pen default), yellow/white/red, Undo/Redo/Clear and keyboard Point operations. Drawing changes apply at their recorded explanation times. Frame-quantized 15 fps history retains the last change per output frame, shares completed immutable strokes, and snapshots the active gesture; cancellation and undo must not rewrite earlier frames. The former app had fixed widths, not a thickness picker.
 - Source playback/seek before recording chooses insertion positions. During narration the frame stays frozen. Continuous microphone capture while skipping/replaying source footage is intentionally replaced, not an available secondary mode.
 - WebM VP8/Opus is default. Native AVC/AAC MP4 remains auxiliary and experimental, limited to 30 seconds of completed output. Codec capability failure must be visible; no silent codec/WASM fallback.
 - Trial caps remain source 5min/250MiB, explanation 2min, WebM output 10min. These are not performance guarantees. Export budget derives from the actual frame-rounded timeline.
 - Finish explanation validates new audio before committing. Rerecord failure/cancel retains the old clip; successful replacement invalidates old composition. Export cancel is cooperative and locked until cleanup settles. A prior successful result is replaced only after candidate validation. Failed-candidate cleanup ownership must never include prior output or user source files.
 - Recording, export and save are separate user operations. Prior output and interrupted recovery audio remain explicitly labelled; session-only explanations can be lost on reload/close/OS termination. No persistent project recovery is claimed.
 - Root HTML, readable standalone and self-extracting distribution all build the same insertion application. Runtime dependencies and MPL notices/source information are embedded; no runtime CDN/media upload/CSP expansion. Prior preview `/insertion-poc/` remains an alias, not another workflow.
-- Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required.
+- Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required. On compact/phone layouts, an unrestricted Files picker is offered beside the existing video-filtered picker; both use the same video validation, replacement confirmation, and non-destructive recovery. Known non-video MIME types and invalid file sizes are rejected before asking to replace recorded explanations. Unknown MIME types proceed to codec inspection; a failed decode never discards completed explanations. Keyboard-activated Help details must remain open; language changes must preserve source Play/Pause label state; invalidating a completed output clears its prior save-status message.
 
 ## Shared layout wording
 
-- The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. Existing footer hiding at 767px or coarse-pointer short screens is unchanged.
-- The historical live-recorder template is not the build entry and is unchanged. No version, dependency, codec, permission, or privacy boundary changes.
+- The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. The badge and footer are hidden at widths up to 767px and on coarse-pointer short screens; both remain visible on normal desktop viewports. Header title size/metrics remain fixed across Japanese and English switching, including mobile text autosizing protection.
+- The historical live-recorder template is not the build entry and is unchanged. v1.0.1 is a patch release; no dependency, codec, permission, or privacy boundary changes.
 
 ## Evidence and release boundary
 

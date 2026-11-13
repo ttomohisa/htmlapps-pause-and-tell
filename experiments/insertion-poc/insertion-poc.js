@@ -6,7 +6,7 @@ import { buildTimeline, sourceSampleTime } from './timeline.js';
 import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
 import { silentDuration, isExplanationActive } from './explanation-session.js';
 import { TemporaryCleanup } from './temporary-cleanup.js';
-import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
+import { createDrawing, captureDrawingFrame, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
 
 (() => {
   'use strict';
@@ -69,6 +69,8 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   function setBusy(value) {
     state.busy = value;
     $('sourceFile').disabled = value || Boolean(state.session);
+    $('sourceFallbackFile').disabled = value || Boolean(state.session);
+    $('sourceFallbackButton').disabled = value || Boolean(state.session);
     $('exportFormat').disabled = value || Boolean(state.session);
     $('startNote').disabled = value || !state.file || Boolean(state.session) || (!$('silentNote').checked && !state.capabilities?.record) || !state.capabilities?.encode;
     $('playSource').disabled = value || !state.file || Boolean(state.session);
@@ -147,6 +149,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     updateSummary();
     renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();updateWorkflow();
+    updateSourcePlaybackLabel();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -176,7 +179,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
   helpDialog.addEventListener('close',unlockHelpBackground);
   $('closeHelpButton').addEventListener('click',()=>helpDialog.close());
+  // Keyboard-activated controls inside the dialog may dispatch click at (0,0).
+  // Dismiss only genuine pointer clicks on the backdrop, not those controls.
   helpDialog.addEventListener('click',event=>{
+    if(event.target!==helpDialog || event.detail===0)return;
     const rect=helpDialog.getBoundingClientRect();
     if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)helpDialog.close();
   });
@@ -245,6 +251,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if(expired) void expired.directory.removeEntry(expired.name).catch(()=>{});
     $('result').hidden = true;
     $('resultInfo').textContent = '';
+    $('saveStatus').textContent = '';
   }
   function resetNotes() {
     if (state.session) return;
@@ -404,6 +411,17 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   }
   async function loadSource(file) {
     if (!file || state.session || state.busy) return;
+    // The unrestricted phone picker can return a photo/document. Reject known
+    // non-video MIME types and impossible sizes before asking to discard notes.
+    // Unknown/octet-stream types still receive the normal codec inspection.
+    if(file.size===0 || file.size>MAX_SOURCE_BYTES){
+      showError(new Error(l('動画は250MiB以内を選んでください。','Choose a video up to 250 MiB.')));
+      return;
+    }
+    if(/^(image|audio|text)\//.test(file.type)||/^application\/(pdf|json|zip)(?:$|[;+])/.test(file.type)){
+      showError(new Error(l('動画ファイルを選んでください。','Choose a video file.')));
+      return;
+    }
     if ((state.notes.length || state.recoveryBlobs.length) && !await requestConfirmation(l('元動画を変更','Change source video'),l(
       '元動画を変更すると、現在の説明区間と未検証の回収音声はすべて削除されます。変更しますか？',
       'Changing the source video will discard all recorded explanations and recovered audio. Continue?'
@@ -529,11 +547,21 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
       if (token === uploadGeneration) setBusy(false);
     }
   }
-  $('sourceFile').addEventListener('change',e => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    void loadSource(f);
+  // Offer the phone Files picker without an accept filter. Both selectors
+  // share guarded source validation, replacement confirmation and recovery.
+  $('sourceFallbackButton').addEventListener('click',()=>{
+    const input=$('sourceFallbackFile');
+    if(input.disabled)return;
+    input.value='';
+    input.click();
   });
+  for(const input of [$('sourceFile'),$('sourceFallbackFile')]){
+    input.addEventListener('change',event=>{
+      const file=event.target.files?.[0];
+      event.target.value='';
+      if(file)void loadSource(file);
+    });
+  }
   // Keep local file drops from navigating away and losing recorded explanations.
   for(const type of ['dragover','drop'])window.addEventListener(type,event=>{
     if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();
@@ -563,8 +591,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('position').textContent = fmt(sourceVideo.currentTime);
   }
   sourceVideo.addEventListener('timeupdate',updatePosition);
-  sourceVideo.addEventListener('pause',()=>{$('playSource').textContent=l('元動画を再生','Play source');});
-  sourceVideo.addEventListener('play',()=>{$('playSource').textContent=l('元動画を停止','Pause source');});
+  function updateSourcePlaybackLabel() {
+    $('playSource').textContent=sourceVideo.paused ? l('元動画を再生','Play source') : l('元動画を停止','Pause source');
+  }
+  sourceVideo.addEventListener('pause',updateSourcePlaybackLabel);
+  sourceVideo.addEventListener('play',updateSourcePlaybackLabel);
   $('seek').addEventListener('input',e=>{
     if (!state.file || state.session) return;
     sourceVideo.pause();browseSource();
@@ -575,7 +606,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   const canDraw=()=>!state.busy && isExplanationActive(state.session);
   function snapshot() {
     const now=Math.max(0,(performance.now()-state.startedAt)/1000);
-    state.events.push({at:now,strokes:cloneStrokes(state.strokes)});
+    captureDrawingFrame(state.events,state,now,FPS);
   }
   function showFrozen(strokes=state.strokes) {
     if(!state.freeze)return;

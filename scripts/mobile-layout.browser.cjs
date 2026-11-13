@@ -2,13 +2,24 @@
 // CI-only native layout checks; synthetic inputs never request camera/microphone access.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
-const cfg={"slug": "pause-and-tell", "bp": 767, "short": 600, "landscape": false, "lang": "#language", "version": "#versionBadge", "value": "v1.0.0", "badge": ".local-badge > span", "meta": false, "head": "#helpDialog > .dialog-header", "close": "#closeHelpButton"};
+const cfg={"slug": "pause-and-tell", "bp": 767, "short": 600, "landscape": false, "lang": "#language", "version": "#versionBadge", "value": "v1.0.1", "badge": ".local-badge > span", "meta": false, "head": "#helpDialog > .dialog-header", "close": "#closeHelpButton"};
 const results=path.resolve(__dirname,'../test-results/mobile-layout');
 async function bounds(locator,width,height,label){const r=await locator.boundingBox();assert.ok(r&&r.x>=0&&r.x+r.width<=width+1&&r.y>=0&&r.y+r.height<=height+1,label+': '+JSON.stringify(r));}
 async function smoke(page,file){
  const input=Buffer.from(fs.readFileSync(path.resolve(__dirname,'../tests/fixtures/mobile-layout-video.webm.base64'),'utf8'),'base64');
  assert.equal(require('node:crypto').createHash('sha256').update(input).digest('hex'),'9eae5519489e245d8765bb5ebe7be87a1848954917820e3997a5f200dceec2d0');
- await page.locator('#sourceFile').setInputFiles({name:'synthetic-video.webm',mimeType:'video/webm',buffer:input});await page.locator('#editor').waitFor();await page.locator('#silentNote').check();await page.waitForFunction(()=>!document.querySelector('#startNote').disabled,null,{timeout:60000});
+ if(file.includes('self-extract')){
+  await page.locator('#sourceFile').setInputFiles({name:'synthetic-video.webm',mimeType:'video/webm',buffer:input});
+ }else{
+  const chooser=page.waitForEvent('filechooser');
+  await page.locator('#sourceFallbackButton').click();
+  const selected=await chooser;
+  assert.equal(selected.isMultiple(),false);
+  await selected.setFiles({name:'synthetic-video.webm',mimeType:'video/webm',buffer:input});
+ }
+ await page.locator('#editor').waitFor();
+ assert.equal(await page.locator('#sourceFallbackButton').isVisible(),true);
+ assert.equal((await page.locator('#sourceFallbackButton').innerText()).trim(),'ファイルから変更');await page.locator('#silentNote').check();await page.waitForFunction(()=>!document.querySelector('#startNote').disabled,null,{timeout:60000});
  await page.locator('#startNote').click();await page.locator('#finishNote').waitFor();await page.waitForTimeout(650);await page.locator('#finishNote').click();await page.waitForFunction(()=>document.querySelector('#noteList').children.length===1);
  await page.locator('#export').click();await page.locator('#result').waitFor({timeout:60000});await page.waitForFunction(()=>document.querySelector('#resultVideo').readyState>=2);await page.locator('#outputName').fill('mobile-layout-silent');
  const pending=page.waitForEvent('download');await page.locator('#save').click();const download=await pending;assert.equal(download.suggestedFilename(),'mobile-layout-silent.webm');const target=path.join(results,file.includes('self-extract')?'synthetic-loader.webm':'synthetic-readable.webm');await download.saveAs(target);const bytes=fs.readFileSync(target);assert.ok(bytes.length>100);assert.equal(bytes.subarray(0,4).toString('hex'),'1a45dfa3');
@@ -26,6 +37,25 @@ async function main(){
    if(await page.locator('html').getAttribute('lang')!==language)await page.locator(cfg.lang).click();await page.locator(cfg.lang).click();await page.locator(cfg.lang).click();assert.equal(await page.locator('html').getAttribute('lang'),language,label+': repeated localization');
    assert.equal((await page.locator(cfg.version).textContent()).trim(),cfg.value,label+': existing header version');
    assert.equal((await page.locator(cfg.badge).textContent()).trim(),language==='ja'?'完全ローカル処理':'Fully local processing');
+   assert.equal(await page.locator('.local-badge').isVisible(),!compact,label+': local-processing badge is desktop-only');
+   assert.equal(await page.locator('#sourceFallbackButton').isVisible(),compact,label+': alternative file picker is mobile-only');
+   assert.equal(await page.locator('#sourceFallbackFile').getAttribute('accept'),null,label+': fallback picker is unrestricted');
+   if(compact){
+    assert.equal((await page.locator('#sourceFallbackButton').innerText()).trim(),language==='ja'?'ファイルから選択':'Choose from files');
+    await page.locator('#sourceFallbackButton').scrollIntoViewIfNeeded();
+    await bounds(page.locator('#sourceFallbackButton'),width,height,label+': fallback picker');
+   }
+   const titleMetrics=async()=>page.locator('#brandName').evaluate(el=>{
+    const style=getComputedStyle(el),rect=el.getBoundingClientRect();
+    return {text:el.textContent,fontSize:style.fontSize,fontFamily:style.fontFamily,lineHeight:style.lineHeight,
+      width:rect.width,height:rect.height};
+   });
+   const titleBefore=await titleMetrics();
+   await page.locator(cfg.lang).click();
+   const titleAfter=await titleMetrics();
+   assert.deepEqual(titleAfter,titleBefore,label+': switching language must not resize the header title');
+   await page.locator(cfg.lang).click();
+   assert.equal(await page.locator('html').getAttribute('lang'),language,label+': language restored');
    if(await page.locator('.local-badge').isVisible())assert.ok(await page.locator('.local-badge').evaluate(el=>{const b=el.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(el.querySelector('span'));return b.left>=0&&b.right<=innerWidth&&el.scrollWidth<=el.clientWidth+1&&[...range.getClientRects()].every(r=>r.left>=b.left-1&&r.right<=b.right+1&&r.top>=b.top-1&&r.bottom<=b.bottom+1);}),label+': rendered badge fits');
    assert.equal(await page.locator('body > footer').isVisible(),!compact,label+': existing footer visibility');
    if(cfg.meta){assert.equal(await page.locator('#helpVersion').count(),1);assert.equal(await page.locator('#helpVersion').textContent(),'Practice Mirror v1.0.2');assert.equal(await page.locator('main #helpVersion').count(),0);assert.doesNotMatch(await page.locator('footer').textContent(),/v1\.0\.2/);}
