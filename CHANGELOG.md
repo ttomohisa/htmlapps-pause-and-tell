@@ -1,5 +1,7 @@
 ## Unreleased — v1.0.0 retained
 
+- Hide the fully-local-processing badge on smartphone/compact viewports while retaining it on desktop; stabilize the header title font metrics across Japanese/English switches, with responsive browser assertions.
+
 - Bound drawing history to output frames and share completed strokes to reduce long-Pen memory growth while keeping timestamped Undo/Redo and cancellation.
 - Keep Help open when a keyboard activates its license disclosure; retain correct source Play/Pause labels across language switching.
 - Clear stale save-status text when a successful result is invalidated by later edits; add unit/browser regressions.

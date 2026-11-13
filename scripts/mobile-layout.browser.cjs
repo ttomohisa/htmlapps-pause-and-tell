@@ -26,6 +26,18 @@ async function main(){
    if(await page.locator('html').getAttribute('lang')!==language)await page.locator(cfg.lang).click();await page.locator(cfg.lang).click();await page.locator(cfg.lang).click();assert.equal(await page.locator('html').getAttribute('lang'),language,label+': repeated localization');
    assert.equal((await page.locator(cfg.version).textContent()).trim(),cfg.value,label+': existing header version');
    assert.equal((await page.locator(cfg.badge).textContent()).trim(),language==='ja'?'完全ローカル処理':'Fully local processing');
+   assert.equal(await page.locator('.local-badge').isVisible(),!compact,label+': local-processing badge is desktop-only');
+   const titleMetrics=async()=>page.locator('#brandName').evaluate(el=>{
+    const style=getComputedStyle(el),rect=el.getBoundingClientRect();
+    return {text:el.textContent,fontSize:style.fontSize,fontFamily:style.fontFamily,lineHeight:style.lineHeight,
+      width:rect.width,height:rect.height};
+   });
+   const titleBefore=await titleMetrics();
+   await page.locator(cfg.lang).click();
+   const titleAfter=await titleMetrics();
+   assert.deepEqual(titleAfter,titleBefore,label+': switching language must not resize the header title');
+   await page.locator(cfg.lang).click();
+   assert.equal(await page.locator('html').getAttribute('lang'),language,label+': language restored');
    if(await page.locator('.local-badge').isVisible())assert.ok(await page.locator('.local-badge').evaluate(el=>{const b=el.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(el.querySelector('span'));return b.left>=0&&b.right<=innerWidth&&el.scrollWidth<=el.clientWidth+1&&[...range.getClientRects()].every(r=>r.left>=b.left-1&&r.right<=b.right+1&&r.top>=b.top-1&&r.bottom<=b.bottom+1);}),label+': rendered badge fits');
    assert.equal(await page.locator('body > footer').isVisible(),!compact,label+': existing footer visibility');
    if(cfg.meta){assert.equal(await page.locator('#helpVersion').count(),1);assert.equal(await page.locator('#helpVersion').textContent(),'Practice Mirror v1.0.2');assert.equal(await page.locator('main #helpVersion').count(),0);assert.doesNotMatch(await page.locator('footer').textContent(),/v1\.0\.2/);}

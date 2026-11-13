@@ -20,7 +20,7 @@ The owner requested replacing the normal continuous recorder with the validated 
 
 ## Shared layout wording
 
-- The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. Existing footer hiding at 767px or coarse-pointer short screens is unchanged.
+- The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. The badge and footer are hidden at widths up to 767px and on coarse-pointer short screens; both remain visible on normal desktop viewports. Header title size/metrics remain fixed across Japanese and English switching, including mobile text autosizing protection.
 - The historical live-recorder template is not the build entry and is unchanged. No version, dependency, codec, permission, or privacy boundary changes.
 
 ## Evidence and release boundary
