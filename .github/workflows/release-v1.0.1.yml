@@ -1,23 +1,38 @@
 name: Release Pause & Tell v1.0.1
 
+# A newly introduced pull_request:closed workflow can miss its own merge.
+# The push path is a second one-time trigger when this file lands on main.
 on:
   pull_request:
     types: [closed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v1.0.1.yml'
 
 permissions:
   contents: write
+  pull-requests: read
+
+# Both events may arrive for the same merge. Serialize them to avoid racing
+# on the tag and release; the existing-tag path is safe on rerun.
+concurrency:
+  group: pause-and-tell-v1.0.1-release
+  cancel-in-progress: false
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true && github.event.pull_request.number == 5 && github.event.pull_request.base.repo.full_name == github.repository
+    if: >
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.number == 5 && github.event.pull_request.base.repo.full_name == github.repository)
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
       - name: Check out the merged commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           fetch-depth: 0
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -58,11 +73,13 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           $repo = $env:GITHUB_REPOSITORY
           $tag = 'v1.0.1'
+          $merged = gh api "repos/$repo/pulls/5" --jq '.merged'
+          if ($LASTEXITCODE -ne 0 -or $merged -ne 'true') { throw 'PR #5 must be merged before release' }
           if ((git rev-parse HEAD) -ne $env:MERGE_SHA) { throw 'Checkout does not match the merged commit' }
           $existing = git ls-remote --tags origin "refs/tags/$tag"
           if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect remote tag' }
