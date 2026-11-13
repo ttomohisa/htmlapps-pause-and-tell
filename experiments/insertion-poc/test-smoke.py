@@ -228,7 +228,10 @@ def main():
             # Replacement confirmation must preserve separately recorded clips if
             # dismissed. An invalid new video must not destroy them either.
             page.locator('#sourceFallbackFile').set_input_files(str(source))
+            expect(page.locator('#confirmDialog')).to_be_visible()
             page.locator('#confirmCancel').click()
+            page.wait_for_function("() => !document.body.classList.contains('pt-help-locked')")
+            expect(page.locator('#confirmDialog')).not_to_be_visible()
             assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
             broken.write_bytes(b'not a video')
