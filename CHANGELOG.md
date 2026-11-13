@@ -1,5 +1,9 @@
 ## Unreleased — v1.0.0 retained
 
+- Bound drawing history to output frames and share completed strokes to reduce long-Pen memory growth while keeping timestamped Undo/Redo and cancellation.
+- Keep Help open when a keyboard activates its license disclosure; retain correct source Play/Pause labels across language switching.
+- Clear stale save-status text when a successful result is invalidated by later edits; add unit/browser regressions.
+
 - Standardize the active insertion editor’s English local-processing badge to “Fully local processing”; retain the existing compact footer behavior.
 
 - Add elapsed-time silent explanations without microphone access; preserve safe redo/cancel and original soundtrack timing.

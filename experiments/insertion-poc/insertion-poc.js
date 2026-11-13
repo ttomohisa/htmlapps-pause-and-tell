@@ -6,7 +6,7 @@ import { buildTimeline, sourceSampleTime } from './timeline.js';
 import { exportFormat, resultFilename, compositionBudget } from './export-format.js';
 import { silentDuration, isExplanationActive } from './explanation-session.js';
 import { TemporaryCleanup } from './temporary-cleanup.js';
-import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
+import { createDrawing, captureDrawingFrame, captureDrawingHistory, restoreDrawingHistory, rememberDrawing, undoDrawing, redoDrawing, paintStrokes } from './drawing.js';
 
 (() => {
   'use strict';
@@ -147,6 +147,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('language').textContent = lang === 'ja' ? 'EN' : 'JA';
     updateSummary();
     renderCapabilities();renderRecovery();renderDurationBudget();renderRecordingClock();renderCleanupWarning();updateDrawingControls();updateWorkflow();
+    updateSourcePlaybackLabel();
   }
   $('language').addEventListener('click', () => {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -176,7 +177,10 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   });
   helpDialog.addEventListener('close',unlockHelpBackground);
   $('closeHelpButton').addEventListener('click',()=>helpDialog.close());
+  // Keyboard-activated controls inside the dialog may dispatch click at (0,0).
+  // Dismiss only genuine pointer clicks on the backdrop, not those controls.
   helpDialog.addEventListener('click',event=>{
+    if(event.target!==helpDialog || event.detail===0)return;
     const rect=helpDialog.getBoundingClientRect();
     if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)helpDialog.close();
   });
@@ -245,6 +249,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     if(expired) void expired.directory.removeEntry(expired.name).catch(()=>{});
     $('result').hidden = true;
     $('resultInfo').textContent = '';
+    $('saveStatus').textContent = '';
   }
   function resetNotes() {
     if (state.session) return;
@@ -563,8 +568,11 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
     $('position').textContent = fmt(sourceVideo.currentTime);
   }
   sourceVideo.addEventListener('timeupdate',updatePosition);
-  sourceVideo.addEventListener('pause',()=>{$('playSource').textContent=l('元動画を再生','Play source');});
-  sourceVideo.addEventListener('play',()=>{$('playSource').textContent=l('元動画を停止','Pause source');});
+  function updateSourcePlaybackLabel() {
+    $('playSource').textContent=sourceVideo.paused ? l('元動画を再生','Play source') : l('元動画を停止','Pause source');
+  }
+  sourceVideo.addEventListener('pause',updateSourcePlaybackLabel);
+  sourceVideo.addEventListener('play',updateSourcePlaybackLabel);
   $('seek').addEventListener('input',e=>{
     if (!state.file || state.session) return;
     sourceVideo.pause();browseSource();
@@ -575,7 +583,7 @@ import { createDrawing, cloneStrokes, captureDrawingHistory, restoreDrawingHisto
   const canDraw=()=>!state.busy && isExplanationActive(state.session);
   function snapshot() {
     const now=Math.max(0,(performance.now()-state.startedAt)/1000);
-    state.events.push({at:now,strokes:cloneStrokes(state.strokes)});
+    captureDrawingFrame(state.events,state,now,FPS);
   }
   function showFrozen(strokes=state.strokes) {
     if(!state.freeze)return;
