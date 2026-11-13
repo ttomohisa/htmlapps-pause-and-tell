@@ -69,6 +69,8 @@ import { createDrawing, captureDrawingFrame, captureDrawingHistory, restoreDrawi
   function setBusy(value) {
     state.busy = value;
     $('sourceFile').disabled = value || Boolean(state.session);
+    $('sourceFallbackFile').disabled = value || Boolean(state.session);
+    $('sourceFallbackButton').disabled = value || Boolean(state.session);
     $('exportFormat').disabled = value || Boolean(state.session);
     $('startNote').disabled = value || !state.file || Boolean(state.session) || (!$('silentNote').checked && !state.capabilities?.record) || !state.capabilities?.encode;
     $('playSource').disabled = value || !state.file || Boolean(state.session);
@@ -534,11 +536,21 @@ import { createDrawing, captureDrawingFrame, captureDrawingHistory, restoreDrawi
       if (token === uploadGeneration) setBusy(false);
     }
   }
-  $('sourceFile').addEventListener('change',e => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    void loadSource(f);
+  // Offer the phone Files picker without an accept filter. Both selectors
+  // share guarded source validation, replacement confirmation and recovery.
+  $('sourceFallbackButton').addEventListener('click',()=>{
+    const input=$('sourceFallbackFile');
+    if(input.disabled)return;
+    input.value='';
+    input.click();
   });
+  for(const input of [$('sourceFile'),$('sourceFallbackFile')]){
+    input.addEventListener('change',event=>{
+      const file=event.target.files?.[0];
+      event.target.value='';
+      if(file)void loadSource(file);
+    });
+  }
   // Keep local file drops from navigating away and losing recorded explanations.
   for(const type of ['dragover','drop'])window.addEventListener(type,event=>{
     if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();

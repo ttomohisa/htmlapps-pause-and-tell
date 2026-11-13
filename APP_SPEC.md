@@ -1,4 +1,4 @@
-# Pause & Tell — current insertion specification (v1.0.0)
+# Pause & Tell — current insertion specification (v1.0.1)
 
 The owner requested replacing the normal continuous recorder with the validated insertion workflow on 2026-10-17. This section supersedes conflicting live-recording requirements in the historical v0.9.3 specification below. The insertion implementation was merged as v0.12.0; v1.0.0 retains the insertion engine and adds optional silent explanations and a clearer editing workflow; compatibility claims remain bounded by the evidence below.
 
@@ -16,12 +16,12 @@ The owner requested replacing the normal continuous recorder with the validated 
 - Finish explanation validates new audio before committing. Rerecord failure/cancel retains the old clip; successful replacement invalidates old composition. Export cancel is cooperative and locked until cleanup settles. A prior successful result is replaced only after candidate validation. Failed-candidate cleanup ownership must never include prior output or user source files.
 - Recording, export and save are separate user operations. Prior output and interrupted recovery audio remain explicitly labelled; session-only explanations can be lost on reload/close/OS termination. No persistent project recovery is claimed.
 - Root HTML, readable standalone and self-extracting distribution all build the same insertion application. Runtime dependencies and MPL notices/source information are embedded; no runtime CDN/media upload/CSP expansion. Prior preview `/insertion-poc/` remains an alias, not another workflow.
-- Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required. Keyboard-activated Help details must remain open; language changes must preserve source Play/Pause label state; invalidating a completed output clears its prior save-status message.
+- Japanese/English UI, keyboard and touch input, editable output filenames, capability-gated sharing, source-replacement confirmation and non-destructive error guidance remain required. On compact/phone layouts, an unrestricted Files picker is offered beside the existing video-filtered picker; both use the same video validation, replacement confirmation, and non-destructive recovery. Selecting a non-video file cannot bypass codec/size limits or discard completed explanations. Keyboard-activated Help details must remain open; language changes must preserve source Play/Pause label state; invalidating a completed output clears its prior save-status message.
 
 ## Shared layout wording
 
 - The active insertion application uses “Fully local processing” as the English equivalent of its existing “完全ローカル処理” badge. The badge and footer are hidden at widths up to 767px and on coarse-pointer short screens; both remain visible on normal desktop viewports. Header title size/metrics remain fixed across Japanese and English switching, including mobile text autosizing protection.
-- The historical live-recorder template is not the build entry and is unchanged. No version, dependency, codec, permission, or privacy boundary changes.
+- The historical live-recorder template is not the build entry and is unchanged. v1.0.1 is a patch release; no dependency, codec, permission, or privacy boundary changes.
 
 ## Evidence and release boundary
 

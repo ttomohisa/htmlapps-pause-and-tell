@@ -8,6 +8,15 @@ test('the active insertion entry uses the canonical exact English badge',()=>{
 });
 test('existing compact-workflow footer hiding and release version are retained',()=>{
  assert.match(source,/@media \(max-width: 767px\), \(pointer: coarse\) and \(max-height: 600px\) \{[\s\S]*?footer \{ display: none; \}/);
- assert.match(source,/id="versionBadge">v1\.0\.0<\/span>/);
- assert.equal(JSON.parse(fs.readFileSync(path.join(root,'app.config.json'),'utf8')).version,'1.0.0');
+ assert.match(source,/id="versionBadge">v1\.0\.1<\/span>/);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(root,'app.config.json'),'utf8')).version,'1.0.1');
+});
+
+test('the phone file picker enters the same source loading path',()=>{
+ assert.match(source,/id="sourceFallbackButton" class="pt-file-fallback"/);
+ assert.match(source,/id="sourceFallbackFile" hidden>/);
+ assert.match(source,/\.pt-file-fallback \{ display: inline-flex; \}/);
+ const runtime=fs.readFileSync(path.join(root,'experiments/insertion-poc/insertion-poc.js'),'utf8');
+ assert.match(runtime,/for\(const input of \[\$\('sourceFile'\),\$\('sourceFallbackFile'\)\]\)/);
+ assert.match(runtime,/if\(file\)void loadSource\(file\)/);
 });

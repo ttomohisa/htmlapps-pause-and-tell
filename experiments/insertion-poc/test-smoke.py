@@ -116,6 +116,9 @@ def main():
         page.locator('#helpButton').click();page.locator('#closeHelpButton').click()
         assert not page.locator('#helpDialog').is_visible()
         page.screenshot(path=str(a.out/'initial-ja-mobile.png'),full_page=True)
+        assert page.locator('#sourceFallbackButton').is_visible()
+        assert page.locator('#sourceFallbackFile').get_attribute('accept') is None
+        assert page.locator('#sourceFallbackButton').inner_text()=='ファイルから選択'
         assert page.locator('#nativeSupportPanel').count()==0
         assert page.locator('#formatHint').count()==0
         if a.expanded_input:
@@ -127,7 +130,12 @@ def main():
             page.locator('#editor').wait_for(state='visible',timeout=25000)
             assert '20.0s' in page.locator('#sourceInfo').inner_text()
             assert not page.locator('#startNote').is_disabled()
-        page.locator('#sourceFile').set_input_files(str(source))
+        if a.multiple:
+            with page.expect_file_chooser() as picker:
+                page.locator('#sourceFallbackButton').click()
+            picker.value.set_files(str(source))
+        else:
+            page.locator('#sourceFile').set_input_files(str(source))
         page.locator('#editor').wait_for(state='visible')
         page.locator('#exportFormat').select_option(a.output_format)
         try:
@@ -152,6 +160,8 @@ def main():
                   'startDisabled':page.locator('#startNote').is_disabled()}
             raise AssertionError('Source replacement did not finish: '+json.dumps(data)) from error
         assert page.locator('#sourceVideo').evaluate('(v)=>v.muted') is False
+        assert page.locator('#sourceFallbackButton').is_visible()
+        assert page.locator('#sourceFallbackButton').inner_text()=='ファイルから変更'
         # Switching languages while the source is playing must keep the Pause label.
         page.locator('#playSource').click()
         wait_for(lambda:not page.locator('#sourceVideo').evaluate('(v)=>v.paused'))
@@ -217,7 +227,7 @@ def main():
         if a.multiple:
             # Replacement confirmation must preserve separately recorded clips if
             # dismissed. An invalid new video must not destroy them either.
-            page.locator('#sourceFile').set_input_files(str(source))
+            page.locator('#sourceFallbackFile').set_input_files(str(source))
             page.locator('#confirmCancel').click()
             assert page.locator('#noteList .note-item').count()==1
             broken=a.out/'broken-video.mp4'
