@@ -1,0 +1,93 @@
+name: Release Pause & Tell v1.0.1
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && github.event.pull_request.number == 5 && github.event.pull_request.base.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the merged commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Build and verify release artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((Get-Content app.config.json -Raw -Encoding UTF8 | ConvertFrom-Json).version -ne '1.0.1') { throw 'Unexpected release version' }
+          ./scripts/check-powershell-syntax.ps1
+          ./scripts/check-repository.ps1
+          node tests/mobile-layout.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release regression checks failed' }
+      - name: Package standalone HTML and checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $prefix = 'htmlapps-pause-and-tell-v1.0.1'
+          New-Item -ItemType Directory -Force -Path release-package | Out-Null
+          Copy-Item dist/index.html "release-package/$prefix.html"
+          Copy-Item dist/index.self-extract.html "release-package/$prefix.self-extract.html"
+          Compress-Archive -Path dist,README.md,README.ja.md,LICENSE,THIRD_PARTY_NOTICES.md -DestinationPath "release-package/$prefix.zip"
+          $lines = @()
+          foreach ($file in @(Get-ChildItem release-package -File | Sort-Object Name)) {
+            $stream = [System.IO.File]::OpenRead($file.FullName)
+            $hasher = [System.Security.Cryptography.SHA256]::Create()
+            try {
+              $hash = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()
+              $lines += "$hash  $($file.Name)"
+            } finally {
+              $stream.Dispose()
+              $hasher.Dispose()
+            }
+          }
+          [System.IO.File]::WriteAllLines((Join-Path $PWD 'release-package/SHA256SUMS.txt'),[string[]]$lines,[Text.UTF8Encoding]::new($false))
+      - name: Create v1.0.1 tag and GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_REPOSITORY
+          $tag = 'v1.0.1'
+          if ((git rev-parse HEAD) -ne $env:MERGE_SHA) { throw 'Checkout does not match the merged commit' }
+          $existing = git ls-remote --tags origin "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect remote tag' }
+          if ($existing) {
+            $existingSha = ($existing -split '\s+')[0]
+            if ($existingSha -ne $env:MERGE_SHA) { throw "Tag $tag already points to another commit" }
+          } else {
+            git tag $tag $env:MERGE_SHA
+            git push origin "refs/tags/$tag"
+            if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed' }
+          }
+          gh release view $tag --repo $repo --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) { Write-Host "Release $tag already exists; no changes made."; exit 0 }
+          $notes = @(
+            '## Changes / 変更内容',
+            '',
+            '- Fix high-frequency drawing history growth and preserve frame-level edits.',
+            '- Fix Help keyboard dismissal, stale save messages, and playback labels when switching languages.',
+            '- Hide the local-processing badge on phones and keep the title size stable in both languages.',
+            '- Add a Files picker on phones for videos that do not appear in the photo/video picker.',
+            '- 描画履歴と表示の不具合を修正し、スマートフォンで「ファイルから選択」を利用できるようにしました。',
+            '',
+            'Downloads include standalone HTML, self-extracting HTML, a ZIP bundle and SHA-256 checksums.'
+          )
+          [System.IO.File]::WriteAllLines((Join-Path $PWD 'release-notes.md'),[string[]]$notes,[Text.UTF8Encoding]::new($false))
+          $assets = @(Get-ChildItem release-package -File | ForEach-Object { $_.FullName })
+          gh release create $tag @assets --repo $repo --verify-tag --title "Pause & Tell $tag" --notes-file release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed' }
