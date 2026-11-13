@@ -1,7 +1,7 @@
 ## 1.0.1 — phone file picker and fixes (2026-11-13)
 
-- Add a mobile-only Files picker without an accept filter, retaining the existing video picker and the same source validation and replacement confirmation.
-- Prepare a merge-triggered v1.0.1 tag and GitHub Release with verified single-HTML assets and checksums for PR #5.
+- Add a mobile-only Files picker without an accept filter, retaining the existing video picker and the same source validation and replacement confirmation. Reject clearly non-video files before any replacement warning.
+- Prepare a PR #5 merge-triggered v1.0.1 tag and GitHub Release with verified single-HTML assets and checksums. A main-branch push trigger guards against missing the first PR-closed event, and concurrency prevents duplicate releases.
 
 - Hide the fully-local-processing badge on smartphone/compact viewports while retaining it on desktop; stabilize the header title font metrics across Japanese/English switches, with responsive browser assertions.
 
