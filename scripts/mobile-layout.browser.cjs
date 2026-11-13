@@ -42,6 +42,7 @@ async function main(){
    assert.equal(await page.locator('#sourceFallbackFile').getAttribute('accept'),null,label+': fallback picker is unrestricted');
    if(compact){
     assert.equal((await page.locator('#sourceFallbackButton').innerText()).trim(),language==='ja'?'ファイルから選択':'Choose from files');
+    await page.locator('#sourceFallbackButton').scrollIntoViewIfNeeded();
     await bounds(page.locator('#sourceFallbackButton'),width,height,label+': fallback picker');
    }
    const titleMetrics=async()=>page.locator('#brandName').evaluate(el=>{
