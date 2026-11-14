@@ -100,7 +100,7 @@
       border-radius: 999px;
       color: var(--muted);
       background: var(--surface-muted);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 650;
       vertical-align: 2px;
     }
@@ -136,6 +136,18 @@
     }
     .language-button:hover { color: var(--text); }
     .language-button:active { opacity: .65; }
+    .dialog-close {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .dialog-close svg { width: 18px; height: 18px; }
     .icon-button {
       display: inline-grid;
       place-items: center;
@@ -189,13 +201,13 @@
       gap: 7px;
       flex: 0 0 auto;
       margin-top: 3px;
-      padding: 7px 10px;
-      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
-      border-radius: 999px;
+      padding: 7px 0;
+      border: 0;
+      border-radius: 0;
       color: var(--accent);
-      background: var(--accent-soft);
+      background: transparent;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 500;
       white-space: nowrap;
     }
     .local-badge svg { width: 15px; height: 15px; display: block; }
@@ -760,12 +772,12 @@
     <p class="pt-session-note" data-ja="追加した説明はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。" data-en="Reloading or closing this page loses your explanations. Save any completed video you need first.">追加した説明はページの再読み込み・終了で失われます。必要な完成動画を先に保存してください。</p>
     <!-- APP:END -->
   </main>
-  <footer>Pause &amp; Tell · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
+  <footer>Pause &amp; Tell · MIT License · <span data-ja="ブラウザだけで動画を録画・保存" data-en="Record and save video in your browser">ブラウザだけで動画を録画・保存</span></footer>
 <dialog id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage"><div class="dialog-header"><h2 id="confirmTitle"></h2></div><div class="dialog-body"><p id="confirmMessage"></p><div class="row pt-controls"><button type="button" class="button" id="confirmCancel" autofocus>削除しない</button><button type="button" class="button" id="confirmAccept"></button></div></div></dialog>
   <dialog id="helpDialog" aria-labelledby="helpTitle">
     <div class="dialog-header">
       <h2 id="helpTitle" data-ja="使い方と注意事項" data-en="How to use &amp; notes">使い方と注意事項</h2>
-      <button class="icon-button" id="closeHelpButton" type="button" aria-label="閉じる" data-ja-aria-label="閉じる" data-en-aria-label="Close" title="閉じる" data-ja-title="閉じる" data-en-title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+      <button class="dialog-close" id="closeHelpButton" type="button" aria-label="閉じる" data-ja-aria-label="閉じる" data-en-aria-label="Close" title="閉じる" data-ja-title="閉じる" data-en-title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12"/><path d="M18 6 6 18"/></svg></button>
     </div>
     <div class="dialog-body">
       <!-- APP:HELP:BEGIN -->
